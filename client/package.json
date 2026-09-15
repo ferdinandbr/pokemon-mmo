@@ -1,0 +1,17 @@
+{
+  "name": "pokemmo-client",
+  "version": "1.0.0",
+  "description": "Pokemon Fire Red MMO Web Client with Phaser 3 and Vite",
+  "scripts": {
+    "dev": "vite --host --port 5173",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "phaser": "^3.87.0",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "vite": "^5.4.11"
+  }
+}

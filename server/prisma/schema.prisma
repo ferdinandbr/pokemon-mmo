@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         Int         @id @default(autoincrement())
+  email      String      @unique
+  name       String
+  password   String
+  createdAt  DateTime    @default(now())
+  characters Character[]
+}
+
+model Character {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String   @unique
+  gender    String   @default("male") // "male" or "female"
+  sprite    String   @default("boy_run") // "boy_run" or "girl_run"
+  roomId    String   @default("pallet_town")
+  x         Float    @default(320)
+  y         Float    @default(320)
+  direction String   @default("down") // "down", "left", "right", "up"
+  money     Int      @default(3000)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  inventory InventorySlot[]
+  pokedex   PokedexEntry[]
+  pokemon   Pokemon[]
+}
+
+model Item {
+  id          Int             @id @default(autoincrement())
+  name        String          @unique
+  category    String          // "pokeball", "medicine", "battle", "key_item"
+  description String
+  price       Int             @default(100)
+  slots       InventorySlot[]
+}
+
+model InventorySlot {
+  id          Int       @id @default(autoincrement())
+  characterId Int
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  itemId      Int
+  item        Item      @relation(fields: [itemId], references: [id])
+  quantity    Int       @default(1)
+  slotIndex   Int
+
+  @@unique([characterId, slotIndex])
+}
+
+model PokedexEntry {
+  id            Int       @id @default(autoincrement())
+  characterId   Int
+  character     Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  pokemonNumber Int
+  pokemonName   String
+  status        String    @default("seen") // "seen" or "caught"
+  caughtAt      DateTime?
+
+  @@unique([characterId, pokemonNumber])
+}
+
+model Pokemon {
+  id          Int       @id @default(autoincrement())
+  characterId Int
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  speciesId   Int
+  name        String
+  level       Int       @default(5)
+  currentHp   Int       @default(20)
+  maxHp       Int       @default(20)
+  moves       String    @default("[]") // JSON string of moves
+  isParty     Boolean   @default(true)
+  slot        Int       @default(0)
+  createdAt   DateTime  @default(now())
+}

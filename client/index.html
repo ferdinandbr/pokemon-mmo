@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pokémon Fire Red MMO</title>
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Phaser Game Container -->
+    <div id="game-container"></div>
+
+    <!-- Screen 1: Auth (Login & Register) -->
+    <div id="auth-screen" class="overlay-screen">
+      <div class="fr-card">
+        <div class="fr-header">
+          <h1>POKéMON MMO</h1>
+          <p>Fire Red Edition Multiplayer</p>
+        </div>
+
+        <div class="tab-container">
+          <button id="tab-login" class="tab-btn active">Entrar</button>
+          <button id="tab-register" class="tab-btn">Cadastrar</button>
+        </div>
+
+        <!-- Login Form -->
+        <form id="form-login">
+          <div class="form-group">
+            <label for="login-email">E-mail</label>
+            <input type="email" id="login-email" class="form-input" placeholder="seuemail@exemplo.com" required />
+          </div>
+          <div class="form-group">
+            <label for="login-password">Senha</label>
+            <input type="password" id="login-password" class="form-input" placeholder="••••••••" required />
+          </div>
+          <button type="submit" class="fr-btn">Acessar Conta</button>
+          <div id="login-error" class="error-message"></div>
+        </form>
+
+        <!-- Register Form -->
+        <form id="form-register" style="display: none;">
+          <div class="form-group">
+            <label for="reg-name">Seu Nome / Treinador</label>
+            <input type="text" id="reg-name" class="form-input" placeholder="Ex: Ash" required />
+          </div>
+          <div class="form-group">
+            <label for="reg-email">E-mail</label>
+            <input type="email" id="reg-email" class="form-input" placeholder="seuemail@exemplo.com" required />
+          </div>
+          <div class="form-group">
+            <label for="reg-password">Senha (mínimo 6 dígitos)</label>
+            <input type="password" id="reg-password" class="form-input" placeholder="••••••••" minlength="6" required />
+          </div>
+          <button type="submit" class="fr-btn">Criar Minha Conta</button>
+          <div id="reg-error" class="error-message"></div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Screen 2: Character Selection & Creation -->
+    <div id="character-screen" class="overlay-screen hidden">
+      <!-- Character List View -->
+      <div id="char-list-card" class="fr-card">
+        <div class="fr-header">
+          <h1>SELECIONAR TREINADOR</h1>
+          <p id="account-welcome-text">Bem-vindo(a) de volta!</p>
+        </div>
+
+        <div id="char-list-container" class="char-selection-grid">
+          <!-- Populated dynamically -->
+        </div>
+
+        <button id="btn-enter-world" class="fr-btn">Entrar no Mundo</button>
+        <button id="btn-show-create-char" class="fr-btn secondary">Criar Novo Personagem</button>
+        <button id="btn-logout" class="fr-btn secondary" style="margin-top: 6px;">Sair da Conta</button>
+        <div id="char-select-error" class="error-message"></div>
+      </div>
+
+      <!-- Character Creation View -->
+      <div id="char-create-card" class="fr-card" style="display: none;">
+        <div class="fr-header">
+          <h1>CRIAR PERSONAGEM</h1>
+          <p>Escolha seus detalhes de treinador</p>
+        </div>
+
+        <form id="form-create-char">
+          <div class="form-group">
+            <label for="new-char-name">Nome do Personagem</label>
+            <input type="text" id="new-char-name" class="form-input" placeholder="Ex: Red, Leaf, Gary..." maxlength="16" required />
+          </div>
+
+          <div class="form-group">
+            <label>Gênero & Sprite</label>
+            <div class="sprite-picker">
+              <div id="sprite-option-boy" class="sprite-option selected" data-gender="male" data-sprite="boy_run">
+                <canvas id="preview-canvas-boy" class="sprite-canvas-preview" width="32" height="48"></canvas>
+                <span>Menino (Red)</span>
+              </div>
+              <div id="sprite-option-girl" class="sprite-option" data-gender="female" data-sprite="girl_run">
+                <canvas id="preview-canvas-girl" class="sprite-canvas-preview" width="32" height="48"></canvas>
+                <span>Menina (Leaf)</span>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="fr-btn">Confirmar & Iniciar Jornada</button>
+          <button type="button" id="btn-back-to-char-list" class="fr-btn secondary">Voltar</button>
+          <div id="char-create-error" class="error-message"></div>
+        </form>
+      </div>
+    </div>
+
+    <!-- In-Game HUD -->
+    <div id="hud" class="hidden">
+      <!-- Top Status Bar -->
+      <div class="hud-top-bar">
+        <div class="hud-badge-group">
+          <div class="hud-badge">
+            <span style="color: var(--fr-light-red);">👤</span>
+            <span id="hud-player-name">Treinador</span>
+          </div>
+          <div class="hud-badge">
+            <span style="color: #64b5f6;">📍</span>
+            <span id="hud-room-name">Pallet Town</span>
+          </div>
+          <div class="hud-badge green">
+            <span>🟢</span>
+            <span id="hud-online-count">1 Online</span>
+          </div>
+        </div>
+
+        <div class="hud-badge-group">
+          <div class="hud-badge gold">
+            <span>₽</span>
+            <span id="hud-money">3,000</span>
+          </div>
+          <button id="hud-menu-btn" class="hud-btn">MENU</button>
+        </div>
+      </div>
+
+      <!-- Bottom Chat Box -->
+      <div class="chat-container">
+        <div class="chat-tabs">
+          <button class="chat-tab active" data-channel="room">SALA</button>
+          <button class="chat-tab" data-channel="global">GLOBAL</button>
+          <button class="chat-tab" data-channel="whisper">SUSSURRO</button>
+        </div>
+        <div id="chat-messages" class="chat-messages">
+          <div class="chat-msg system">Bem-vindo ao Pokémon Fire Red MMO! Use WASD para se mover e Enter para falar.</div>
+        </div>
+        <div class="chat-hint" id="chat-hint-bar">Canal: [SALA] - Visível para quem está neste mapa</div>
+        <form id="chat-form" class="chat-input-bar">
+          <input type="text" id="chat-input" class="chat-input" placeholder="Digite uma mensagem..." maxlength="180" autocomplete="off" />
+          <button type="submit" class="chat-send-btn">ENVIAR</button>
+        </form>
+      </div>
+
+      <!-- Controls Hint -->
+      <div class="controls-hint">
+        <span><kbd class="key-badge">W</kbd><kbd class="key-badge">A</kbd><kbd class="key-badge">S</kbd><kbd class="key-badge">D</kbd> Mover</span>
+        <span><kbd class="key-badge">ENTER</kbd> Chat</span>
+        <span><kbd class="key-badge">ESC</kbd> Menu</span>
+      </div>
+    </div>
+
+    <!-- Fire Red Menu Modal -->
+    <div id="menu-modal" class="modal-overlay hidden">
+      <div class="fr-modal">
+        <button id="menu-close-btn" class="modal-close-btn">✕</button>
+        <div class="fr-header">
+          <h1>MENU DO TREINADOR</h1>
+          <p id="menu-subtitle">Pokémon Fire Red MMO</p>
+        </div>
+
+        <div class="menu-options-grid">
+          <div class="menu-item-btn" id="menu-btn-pokemon">
+            <span class="icon">⚡</span>
+            <span>POKéMON</span>
+            <small style="color: var(--fr-text-muted);" id="menu-pokemon-count">1 no Time</small>
+          </div>
+          <div class="menu-item-btn" id="menu-btn-pokedex">
+            <span class="icon">📖</span>
+            <span>POKéDEX</span>
+            <small style="color: var(--fr-text-muted);" id="menu-pokedex-count">1 Visto</small>
+          </div>
+          <div class="menu-item-btn" id="menu-btn-bag">
+            <span class="icon">🎒</span>
+            <span>MOCHILA</span>
+            <small style="color: var(--fr-text-muted);" id="menu-bag-count">4 Itens</small>
+          </div>
+          <div class="menu-item-btn" id="menu-btn-card">
+            <span class="icon">🪪</span>
+            <span>CARTÃO</span>
+            <small style="color: var(--fr-text-muted);">Dados</small>
+          </div>
+        </div>
+
+        <!-- Details Box for Menu Views -->
+        <div id="menu-details-panel" style="margin-top: 16px; background: rgba(0,0,0,0.4); padding: 14px; border-radius: 8px; border: 1px solid var(--fr-border-light); font-size: 13px;">
+          <!-- Dynamically filled -->
+        </div>
+
+        <button id="btn-change-char" class="fr-btn secondary" style="margin-top: 16px;">Trocar de Personagem</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
