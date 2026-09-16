@@ -14,6 +14,17 @@ function setupPlayerHandlers(io, socket) {
         return socket.emit('error:msg', { message: 'Personagem não encontrado.' });
       }
 
+      // Safe position check for new map bounds
+      let spawnX = character.x;
+      let spawnY = character.y;
+      const roomDef = roomManager.getRoomDefinition(character.roomId);
+      if (character.roomId === 'pallet_town') {
+        if (spawnX < 900 || spawnY < 3000 || spawnX > 2128 || spawnY > 5440) {
+          spawnX = roomDef.defaultSpawn.x;
+          spawnY = roomDef.defaultSpawn.y;
+        }
+      }
+
       // Add to Room Manager
       const player = roomManager.addPlayer(socket.id, {
         userId: socket.user.userId,
@@ -22,15 +33,14 @@ function setupPlayerHandlers(io, socket) {
         gender: character.gender,
         sprite: character.sprite,
         roomId: character.roomId,
-        x: character.x,
-        y: character.y,
+        x: spawnX,
+        y: spawnY,
         direction: character.direction
       });
 
       // Join socket room
       socket.join(player.roomId);
 
-      const roomDef = roomManager.getRoomDefinition(player.roomId);
       const playersInRoom = roomManager.getPlayersInRoom(player.roomId);
 
       // Send initial data to joining player

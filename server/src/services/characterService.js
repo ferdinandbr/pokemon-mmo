@@ -32,8 +32,8 @@ async function createCharacter({ userId, name, gender, sprite }) {
       gender: charGender,
       sprite: charSprite,
       roomId: 'pallet_town',
-      x: 480,
-      y: 440,
+      x: 1064,
+      y: 3336,
       direction: 'down',
       money: 3000
     }

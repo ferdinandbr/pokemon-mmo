@@ -2,9 +2,9 @@ const ROOM_DEFINITIONS = {
   pallet_town: {
     id: 'pallet_town',
     name: 'Pallet Town',
-    width: 1152,
-    height: 640,
-    defaultSpawn: { x: 608, y: 350 },
+    width: 2128,
+    height: 5440,
+    defaultSpawn: { x: 1064, y: 3336 },
     portals: [
       {
         targetRoom: 'route_1',

@@ -23,6 +23,10 @@ export default class BootScene extends Phaser.Scene {
     // Keep legacy tileset for fallback procedural maps
     this.load.image('pokemon_tileset', '/assets/tilesets/pokemon_tileset.png');
 
+    // Tileset and Tilemap imported from pokevue-master
+    this.load.image('spz3zUx_small', '/assets/tilesets/spz3zUx_small.png');
+    this.load.tilemapTiledJSON('kanto_world', '/assets/maps/spz3zUx_small.json');
+
     // Tiled JSON maps
     this.load.tilemapTiledJSON('pallet_town', '/assets/maps/pallet_town.json');
   }

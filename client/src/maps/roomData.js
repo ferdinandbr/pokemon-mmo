@@ -2,37 +2,31 @@ export const ROOMS_CONFIG = {
   pallet_town: {
     id: 'pallet_town',
     name: 'Pallet Town',
-    // Real Tiled map: 36x20 tiles at 32px = 1152x640px
-    width: 1152,
-    height: 640,
-    tilemap: 'pallet_town',
+    width: 2128,
+    height: 5440,
+    tilemap: 'kanto_world',
     tilesets: [
-      { name: 'pallet_town_tiles', imageKey: 'pallet_town_tiles' }
+      { name: 'spz3zUx_small', imageKey: 'spz3zUx_small' }
     ],
     backgroundColor: '#70b860',
     theme: 'outdoor',
+    defaultSpawn: { x: 1064, y: 3336 },
     portals: [
       {
-        targetRoom: 'route_1',
-        trigger: { x: 576, y: 0, width: 64, height: 32 },
-        targetSpawn: { x: 400, y: 540 },
-        label: 'ROTA 1 ⬆'
-      },
-      {
         targetRoom: 'ash_house',
-        trigger: { x: 384, y: 224, width: 32, height: 32 },
+        trigger: { x: 1024, y: 3312, width: 16, height: 16 },
         targetSpawn: { x: 400, y: 480 },
         label: 'Casa do Red 🚪'
       },
       {
         targetRoom: 'rival_house',
-        trigger: { x: 672, y: 224, width: 32, height: 32 },
+        trigger: { x: 1168, y: 3312, width: 16, height: 16 },
         targetSpawn: { x: 400, y: 480 },
         label: 'Casa do Blue 🚪'
       },
       {
         targetRoom: 'oak_lab',
-        trigger: { x: 704, y: 416, width: 32, height: 32 },
+        trigger: { x: 1216, y: 3456, width: 16, height: 16 },
         targetSpawn: { x: 400, y: 480 },
         label: 'Lab. Pokémon 🚪'
       }

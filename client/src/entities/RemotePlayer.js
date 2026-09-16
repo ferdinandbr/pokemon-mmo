@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { PLAYER_VISUAL } from './playerVisualConfig';
 
 export default class RemotePlayer extends Phaser.GameObjects.Container {
   constructor(scene, x, y, data) {
@@ -18,29 +19,37 @@ export default class RemotePlayer extends Phaser.GameObjects.Container {
     this.isMoving = false;
 
     // 1. Soft Shadow
-    this.shadow = scene.add.ellipse(0, 20, 22, 10, 0x000000, 0.35);
+    this.shadow = scene.add.ellipse(
+      0,
+      PLAYER_VISUAL.shadowY,
+      PLAYER_VISUAL.shadowWidth,
+      PLAYER_VISUAL.shadowHeight,
+      0x000000,
+      0.35
+    );
     this.add(this.shadow);
 
     // 2. Character Sprite
     this.sprite = scene.add.sprite(0, 0, this.spriteKey, 0);
+    this.sprite.setScale(PLAYER_VISUAL.scale);
     this.sprite.setOrigin(0.5, 0.5);
     this.add(this.sprite);
 
     // 3. Name Tag
     const nameColor = this.gender === 'female' ? '#ff80ab' : '#90caf9';
-    this.nameTag = scene.add.text(0, -32, this.name, {
+    this.nameTag = scene.add.text(0, PLAYER_VISUAL.nameY, this.name, {
       fontFamily: "'Outfit', sans-serif",
-      fontSize: '11px',
+      fontSize: PLAYER_VISUAL.nameFontSize,
       fontWeight: '700',
       color: nameColor,
       stroke: '#000000',
-      strokeThickness: 3,
+      strokeThickness: PLAYER_VISUAL.nameStrokeThickness,
       align: 'center'
     }).setOrigin(0.5, 0.5);
     this.add(this.nameTag);
 
     // 4. Speech Bubble
-    this.bubbleContainer = scene.add.container(0, -56);
+    this.bubbleContainer = scene.add.container(0, PLAYER_VISUAL.bubbleY);
     this.bubbleContainer.setVisible(false);
     this.add(this.bubbleContainer);
 

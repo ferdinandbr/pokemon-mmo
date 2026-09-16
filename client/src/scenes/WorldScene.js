@@ -16,6 +16,12 @@ export default class WorldScene extends Phaser.Scene {
     this.currentTilemap = null;
     this.tilemapLayers = [];
     this.tiledCollisionLayers = [];
+    this.zones = [];
+    this.pointsOfInterest = [];
+    this.mapObjects = [];
+    this.npcSpawnPoints = [];
+    this.currentZone = null;
+    this.previousZone = null;
     this.isTransitioning = false;
     this.portalCooldown = 0;
     this.isChatting = false;
@@ -55,8 +61,9 @@ export default class WorldScene extends Phaser.Scene {
     const boundsW = this.roomDef?.width || room.width;
     const boundsH = this.roomDef?.height || room.height;
     this.cameras.main.setBounds(0, 0, boundsW, boundsH);
-    this.cameras.main.startFollow(this.localPlayer, true, 0.12, 0.12);
-    this.cameras.main.setZoom(1.75);
+    this.cameras.main.startFollow(this.localPlayer, true, 0.15, 0.15);
+    this.cameras.main.roundPixels = true;
+    this.cameras.main.setZoom(2.0);
 
     // Clear old remote players
     this.clearRemotePlayers();
@@ -88,6 +95,9 @@ export default class WorldScene extends Phaser.Scene {
     const boundsW = this.roomDef?.width || room.width;
     const boundsH = this.roomDef?.height || room.height;
     this.cameras.main.setBounds(0, 0, boundsW, boundsH);
+    this.cameras.main.startFollow(this.localPlayer, true, 0.15, 0.15);
+    this.cameras.main.roundPixels = true;
+    this.cameras.main.setZoom(2.0);
 
     this.clearRemotePlayers();
     for (const p of players) {
@@ -259,18 +269,76 @@ export default class WorldScene extends Phaser.Scene {
         layer.setCollisionByExclusion([-1, 0]);
         this.tiledCollisionLayers.push(layer);
       } else {
-        // Only tiles with explicit collides property set to true
+        // Tiles with explicit collides property set to true
         layer.setCollisionByProperty({ collides: true });
+        this.tiledCollisionLayers.push(layer);
       }
     }
 
-    // Process Object Layers (Collisions, Portals, Spawns)
+    // Process Object Layers (Zones, Points of Interest, Objects/NPCs, Collisions, Portals)
+    this.zones = [];
+    this.pointsOfInterest = [];
+    this.mapObjects = [];
+    this.npcSpawnPoints = [];
+
     if (map.objects) {
       for (const objGroup of map.objects) {
-        const groupName = objGroup.name.toLowerCase();
+        const groupName = objGroup.name;
+        const groupLower = groupName.toLowerCase();
 
-        // 1. Collisions Object Layer
-        if (groupName.includes('collision') || groupName.includes('obstacle')) {
+        // 1. Zones Layer (e.g. Bourg Palette, Route 1, Jadielle)
+        if (groupLower === 'zones') {
+          for (const zone of objGroup.objects) {
+            this.zones.push({
+              id: zone.id,
+              name: zone.name,
+              bounds: new Phaser.Geom.Rectangle(zone.x, zone.y, zone.width, zone.height),
+              properties: zone.properties || {}
+            });
+          }
+        }
+
+        // 2. Points of Interest Layer (signs, tips, house doors)
+        if (groupLower === 'points of interest') {
+          for (const poi of objGroup.objects) {
+            this.pointsOfInterest.push({
+              id: poi.id,
+              name: poi.name || '',
+              x: poi.x,
+              y: poi.y,
+              width: poi.width || 16,
+              height: poi.height || 16,
+              bounds: new Phaser.Geom.Rectangle(poi.x, poi.y, poi.width || 16, poi.height || 16),
+              properties: poi.properties || {}
+            });
+          }
+        }
+
+        // 3. Objects Layer (Spawn Point, NPCs, etc.)
+        if (groupLower === 'objects') {
+          for (const obj of objGroup.objects) {
+            this.mapObjects.push({
+              id: obj.id,
+              name: obj.name,
+              x: obj.x,
+              y: obj.y,
+              properties: obj.properties || {}
+            });
+
+            if (obj.name === 'Spawn Point') {
+              this.roomDef.defaultSpawn = { x: obj.x, y: obj.y };
+            } else if (obj.name) {
+              this.npcSpawnPoints.push({
+                name: obj.name,
+                x: obj.x,
+                y: obj.y
+              });
+            }
+          }
+        }
+
+        // 4. Collisions Object Layer
+        if (groupLower.includes('collision') || groupLower.includes('obstacle')) {
           for (const obj of objGroup.objects) {
             const obsBox = this.add.zone(
               obj.x + obj.width / 2,
@@ -283,8 +351,8 @@ export default class WorldScene extends Phaser.Scene {
           }
         }
 
-        // 2. Portals Object Layer
-        if (groupName.includes('portal') || groupName.includes('warp') || groupName.includes('door')) {
+        // 5. Portals Object Layer
+        if (groupLower.includes('portal') || groupLower.includes('warp') || groupLower.includes('door')) {
           const portals = [];
           for (const obj of objGroup.objects) {
             const props = {};
@@ -325,9 +393,9 @@ export default class WorldScene extends Phaser.Scene {
           }
         }
 
-        // 3. Spawns Object Layer
-        if (groupName.includes('spawn')) {
-          const defSpawn = objGroup.objects.find(o => o.name === 'default_spawn' || o.type === 'spawn') || objGroup.objects[0];
+        // 6. Spawns Object Layer fallback
+        if (groupLower.includes('spawn')) {
+          const defSpawn = objGroup.objects.find(o => o.name === 'Spawn Point' || o.name === 'default_spawn' || o.type === 'spawn') || objGroup.objects[0];
           if (defSpawn) {
             this.roomDef.defaultSpawn = { x: defSpawn.x, y: defSpawn.y };
           }
@@ -638,6 +706,22 @@ export default class WorldScene extends Phaser.Scene {
   update(time, delta) {
     if (this.localPlayer) {
       this.localPlayer.update(time);
+
+      // Check zone overlap for dynamic HUD zone title
+      if (this.zones && this.zones.length > 0) {
+        const px = this.localPlayer.x;
+        const py = this.localPlayer.y;
+        for (const zone of this.zones) {
+          if (zone.bounds.contains(px, py)) {
+            if (this.currentZone !== zone.name) {
+              this.previousZone = this.currentZone;
+              this.currentZone = zone.name;
+              this.updateHUD(zone.name);
+            }
+            break;
+          }
+        }
+      }
 
       // Check portal overlap
       if (!this.isTransitioning && time > this.portalCooldown && this.roomDef && this.roomDef.portals) {

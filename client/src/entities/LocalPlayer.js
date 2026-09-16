@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import SocketClient from '../network/SocketClient';
+import { PLAYER_VISUAL } from './playerVisualConfig';
 
 export default class LocalPlayer extends Phaser.GameObjects.Container {
   constructor(scene, x, y, data) {
@@ -12,38 +13,46 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
     this.spriteKey = data.sprite || 'boy_run';
     this.prefix = this.spriteKey.startsWith('boy') ? 'boy' : 'girl';
     this.direction = data.direction || 'down';
-    this.speed = 160; // Running speed
-
-    // Physics
+    this.speed = 135; // Running speed for 16x16 tilemap
+ 
+    // Physics follows the lower part of the scaled sprite (the character's feet).
     scene.physics.world.enable(this);
-    this.body.setSize(24, 20);
-    this.body.setOffset(-12, 10);
+    this.body.setSize(PLAYER_VISUAL.bodyWidth, PLAYER_VISUAL.bodyHeight);
+    this.body.setOffset(PLAYER_VISUAL.bodyOffsetX, PLAYER_VISUAL.bodyOffsetY);
     this.body.setCollideWorldBounds(true);
 
-    // 1. Soft Shadow
-    this.shadow = scene.add.ellipse(0, 20, 22, 10, 0x000000, 0.35);
+    // 1. Soft Shadow (under feet at y=11)
+    this.shadow = scene.add.ellipse(
+      0,
+      PLAYER_VISUAL.shadowY,
+      PLAYER_VISUAL.shadowWidth,
+      PLAYER_VISUAL.shadowHeight,
+      0x000000,
+      0.35
+    );
     this.add(this.shadow);
 
-    // 2. Character Sprite (32x48)
+    // 2. Character Sprite (32x48 scaled by 0.5 -> 16x24 FireRed proportion)
     this.sprite = scene.add.sprite(0, 0, this.spriteKey, 0);
+    this.sprite.setScale(PLAYER_VISUAL.scale);
     this.sprite.setOrigin(0.5, 0.5);
     this.add(this.sprite);
 
-    // 3. Name Tag
+    // 3. Name Tag (compact and positioned above head)
     const nameColor = this.gender === 'female' ? '#ff80ab' : '#90caf9';
-    this.nameTag = scene.add.text(0, -32, this.name, {
+    this.nameTag = scene.add.text(0, PLAYER_VISUAL.nameY, this.name, {
       fontFamily: "'Outfit', sans-serif",
-      fontSize: '11px',
+      fontSize: PLAYER_VISUAL.nameFontSize,
       fontWeight: '700',
       color: nameColor,
       stroke: '#000000',
-      strokeThickness: 3,
+      strokeThickness: PLAYER_VISUAL.nameStrokeThickness,
       align: 'center'
     }).setOrigin(0.5, 0.5);
     this.add(this.nameTag);
 
-    // 4. Speech Bubble Container
-    this.bubbleContainer = scene.add.container(0, -56);
+    // 4. Speech Bubble Container (positioned above name tag)
+    this.bubbleContainer = scene.add.container(0, PLAYER_VISUAL.bubbleY);
     this.bubbleContainer.setVisible(false);
     this.add(this.bubbleContainer);
 
