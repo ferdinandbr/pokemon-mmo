@@ -6,12 +6,7 @@
     "server": "npm --prefix server run dev",
     "client": "npm --prefix client run dev",
     "server:start": "npm --prefix server start",
-    "prisma:studio": "npm --prefix server run prisma:studio",
-    "test:api": "node server/test-api.js",
-    "test:multiplayer": "node server/test-multiplayer.js",
-    "maps:tilesets": "node scripts/download_kanto_assets.js --tilesets",
-    "maps:convert": "node scripts/convert_tmx_to_json.js",
-    "maps:download-all": "node scripts/download_kanto_assets.js --all"
+    "prisma:studio": "npm --prefix server run prisma:studio"
   },
   "devDependencies": {
     "canvas": "^3.2.3"

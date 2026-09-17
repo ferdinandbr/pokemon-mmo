@@ -1,11 +1,13 @@
 import Phaser from 'phaser';
 import BootScene from './scenes/BootScene';
 import WorldScene from './scenes/WorldScene';
+import EditorScene from './scenes/EditorScene';
 import SocketClient from './network/SocketClient';
 import AuthUI from './ui/AuthUI';
 import CharacterUI from './ui/CharacterUI';
 import ChatUI from './ui/ChatUI';
 import MenuUI from './ui/MenuUI';
+import EditorUI from './ui/EditorUI';
 
 // Phaser Game Configuration
 const config = {
@@ -26,7 +28,7 @@ const config = {
     mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
-  scene: [BootScene, WorldScene]
+  scene: [BootScene, WorldScene, EditorScene]
 };
 
 const game = new Phaser.Game(config);
@@ -35,14 +37,44 @@ let currentUser = null;
 let currentToken = null;
 let currentCharacter = null;
 let worldSceneInstance = null;
+let editorSceneInstance = null;
+let editorUI = null;
 
 // Wait for Phaser scene to be available
 game.events.once('ready', () => {
   worldSceneInstance = game.scene.getScene('WorldScene');
+  editorSceneInstance = game.scene.getScene('EditorScene');
+
+  checkRoute();
 });
 
 // Initialize UI Controllers
 let authUI, charUI, chatUI, menuUI;
+
+function checkRoute() {
+  const isEditorRoute = window.location.hash === '#editor' || window.location.pathname.startsWith('/editor');
+
+  if (isEditorRoute) {
+    // Add editor-mode class to body to force hide in-game HUD & chat completely
+    document.body.classList.add('editor-mode');
+
+    // Hide all game UI overlays
+    document.getElementById('auth-screen')?.classList.add('hidden');
+    document.getElementById('character-screen')?.classList.add('hidden');
+    document.getElementById('hud')?.classList.add('hidden');
+
+    // Pause world scene and start editor scene
+    game.scene.stop('WorldScene');
+    game.scene.start('EditorScene');
+
+    if (!editorUI) {
+      editorUI = new EditorUI(editorSceneInstance);
+    }
+    editorUI.show();
+  } else {
+    document.body.classList.remove('editor-mode');
+  }
+}
 
 function initApp() {
   menuUI = new MenuUI(() => {
@@ -56,6 +88,9 @@ function initApp() {
 
   charUI = new CharacterUI(
     async (character, token) => {
+      // If we are in editor mode, don't show game HUD
+      if (document.body.classList.contains('editor-mode')) return;
+
       // Enter Game Callback
       currentCharacter = character;
       currentToken = token;
@@ -71,8 +106,10 @@ function initApp() {
         menuUI.setData(character);
       }
 
-      // Show HUD
-      document.getElementById('hud').classList.remove('hidden');
+      // Show HUD only if not in editor mode
+      if (!document.body.classList.contains('editor-mode')) {
+        document.getElementById('hud').classList.remove('hidden');
+      }
 
       // Connect Socket
       SocketClient.connect(token);
@@ -98,8 +135,20 @@ function initApp() {
     charUI.loadCharacters(user, token);
   });
 
-  // Check existing session in localStorage
-  authUI.checkExistingSession();
+  // Check existing session in localStorage unless in editor mode
+  if (window.location.hash !== '#editor' && !window.location.pathname.startsWith('/editor')) {
+    authUI.checkExistingSession();
+  }
+
+  // Listen to hash changes for smooth route switching
+  window.addEventListener('hashchange', () => {
+    if (window.location.hash === '#editor') {
+      checkRoute();
+    } else {
+      document.body.classList.remove('editor-mode');
+      window.location.reload();
+    }
+  });
 }
 
 window.addEventListener('DOMContentLoaded', initApp);
