@@ -18,18 +18,7 @@ export default class RemotePlayer extends Phaser.GameObjects.Container {
     this.targetY = y;
     this.isMoving = false;
 
-    // 1. Soft Shadow
-    this.shadow = scene.add.ellipse(
-      0,
-      PLAYER_VISUAL.shadowY,
-      PLAYER_VISUAL.shadowWidth,
-      PLAYER_VISUAL.shadowHeight,
-      0x000000,
-      0.35
-    );
-    this.add(this.shadow);
-
-    // 2. Character Sprite
+    // 1. Character Sprite
     this.sprite = scene.add.sprite(0, 0, this.spriteKey, 0);
     this.sprite.setScale(PLAYER_VISUAL.scale);
     this.sprite.setOrigin(0.5, 0.5);
@@ -86,7 +75,7 @@ export default class RemotePlayer extends Phaser.GameObjects.Container {
       }
     }
 
-    this.setDepth(this.y);
+    this.setDepth(100 + this.y / 10000);
   }
 
   playIdle() {

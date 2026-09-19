@@ -18,12 +18,11 @@ function setupPlayerHandlers(io, socket) {
       let spawnX = character.x;
       let spawnY = character.y;
       const roomDef = roomManager.getRoomDefinition(character.roomId);
-      if (character.roomId === 'pallet_town') {
-        if (spawnX < 900 || spawnY < 3000 || spawnX > 2128 || spawnY > 5440) {
-          spawnX = roomDef.defaultSpawn.x;
-          spawnY = roomDef.defaultSpawn.y;
-        }
+      if (spawnX < 32 || spawnY < 32 || spawnX > (roomDef.width - 32) || spawnY > (roomDef.height - 32)) {
+        spawnX = roomDef.defaultSpawn.x;
+        spawnY = roomDef.defaultSpawn.y;
       }
+
 
       // Add to Room Manager
       const player = roomManager.addPlayer(socket.id, {

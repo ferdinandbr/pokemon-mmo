@@ -9,13 +9,13 @@ export default class EditorUI {
     this.tilesetCtx = null;
 
     this.tilesetImage = new Image();
-    this.tilesetImage.src = '/assets/tilesets/spz3zUx_small.png';
+    this.tilesetImage.src = '/assets/tilesets/Outside1 Spring.png';
 
     this.activeGid = 1;
     this.activeTileset = null;
-    this.columns = 133;
-    this.tileSize = 16;
-    this.totalTiles = 45220;
+    this.columns = 64;
+    this.tileSize = 32;
+    this.totalTiles = 4544;
 
     this.initHTML();
     this.bindEvents();
@@ -42,7 +42,7 @@ export default class EditorUI {
             </svg>
             <span class="editor-logo-text">POKéMMO EDITOR</span>
           </div>
-          <span class="editor-badge">spz3zUx_small.json (133x340)</span>
+          <span class="editor-badge">pallet_town.json (36x20)</span>
         </div>
 
         <div class="editor-status-bar">

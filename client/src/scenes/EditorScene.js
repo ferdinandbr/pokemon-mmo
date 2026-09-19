@@ -57,9 +57,9 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('spz3zUx_small', '/assets/tilesets/spz3zUx_small.png');
-    this.load.tilemapTiledJSON('kanto_editor_map', '/assets/maps/spz3zUx_small.json');
-    this.load.json('kanto_raw_json', '/assets/maps/spz3zUx_small.json');
+    this.load.image('Outside1 Spring', '/assets/tilesets/Outside1 Spring.png');
+    this.load.tilemapTiledJSON('kanto_editor_map', '/assets/maps/pallet_town.json');
+    this.load.json('kanto_raw_json', '/assets/maps/pallet_town.json');
   }
 
   create() {
@@ -84,7 +84,7 @@ export default class EditorScene extends Phaser.Scene {
       }
     }
     if (phaserTilesets.length === 0) {
-      const defaultTs = this.map.addTilesetImage('spz3zUx_small', 'spz3zUx_small');
+      const defaultTs = this.map.addTilesetImage('Outside1 Spring', 'Outside1 Spring');
       if (defaultTs) phaserTilesets.push(defaultTs);
     }
 

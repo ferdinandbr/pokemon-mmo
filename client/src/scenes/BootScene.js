@@ -16,9 +16,11 @@ export default class BootScene extends Phaser.Scene {
       frameHeight: 48
     });
 
-    // ── Pokevue-master map & tileset ──
-    this.load.image('spz3zUx_small', '/assets/tilesets/spz3zUx_small.png');
-    this.load.tilemapTiledJSON('kanto_world', '/assets/maps/spz3zUx_small.json');
+    // ── Tiled map & tileset ──
+    this.load.image('Outside1 Spring', '/assets/tilesets/Outside1 Spring.png');
+    this.load.tilemapTiledJSON('pallet_town', '/assets/maps/pallet_town.json');
+    this.load.tilemapTiledJSON('route_1', '/assets/maps/route_1.json');
+
   }
 
   create() {

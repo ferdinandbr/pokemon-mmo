@@ -2,36 +2,47 @@ import Phaser from 'phaser';
 import SocketClient from '../network/SocketClient';
 import LocalPlayer from '../entities/LocalPlayer';
 import RemotePlayer from '../entities/RemotePlayer';
+import { ROOMS_CONFIG } from '../maps/roomData';
 
-// ─── Room config: single source of truth for the Tiled map ───────────────────
-const ROOM = {
-  id: 'pallet_town',
-  name: 'Pallet Town',
-  tilemapKey: 'kanto_world',
-  tilesetName: 'spz3zUx_small',
-  tilesetImageKey: 'spz3zUx_small',
-  defaultSpawn: { x: 1064, y: 3336 },
-  portals: [
-    {
-      targetRoom: 'pallet_town',
-      trigger: { x: 1024, y: 3312, width: 16, height: 16 },
-      targetSpawn: { x: 1064, y: 3336 },
-      label: ''
-    }
-  ]
+const LAYER_DEPTHS = {
+  Ground: 10,
+  Paths: 20,
+  Grass: 30,
+  Water: 40,
+  Shore: 45,
+  Mountain: 50,
+  Mountains: 50,
+  Objects: 60,
+  Buildings: 70,
+  Building: 70,
+  Trees: 80,
+  Overhead: 1000,
+  Arch: 1000
 };
+
+const COLLISION_LAYERS = [
+  'Buildings',
+  'Building',
+  'Shore',
+  'Trees',
+  'Water',
+  'Mountain',
+  'Mountains',
+  'Objects'
+];
+
 
 export default class WorldScene extends Phaser.Scene {
   constructor() {
     super({ key: 'WorldScene' });
 
+    this.currentRoom = ROOMS_CONFIG.pallet_town;
     this.localPlayer = null;
     this.remotePlayers = new Map(); // socketId -> RemotePlayer
 
     this.currentMap = null;
-    this.worldLayer = null;       // base tile layer (below player)
-    this.overheadLayer = null;    // overhead tile layer (above player)
-    this.collisionLayer = null;   // reference for arcade collider
+    this.mapLayers = new Map();
+    this.collisionLayers = [];
 
     this.obstacleGroup = null;
     this.zones = [];
@@ -57,50 +68,59 @@ export default class WorldScene extends Phaser.Scene {
 
   onPlayerInit(data) {
     const { self, room, players } = data;
+    const roomId = room?.id || self?.roomId || 'pallet_town';
+    this.currentRoom = ROOMS_CONFIG[roomId] || room || ROOMS_CONFIG.pallet_town;
 
     this.buildMap();
 
     if (this.localPlayer) this.localPlayer.destroy();
     this.localPlayer = new LocalPlayer(this, self.x, self.y, self);
+    this.localPlayer.setDepth(100);
     this._attachPlayerColliders(this.localPlayer);
 
-    const w = this.currentMap?.widthInPixels  || room.width  || 2128;
-    const h = this.currentMap?.heightInPixels || room.height || 5440;
+    const w = this.currentMap?.widthInPixels  || this.currentRoom.width  || 1152;
+    const h = this.currentMap?.heightInPixels || this.currentRoom.height || 640;
     this.cameras.main.setBounds(0, 0, w, h);
     this.cameras.main.startFollow(this.localPlayer, true, 0.15, 0.15);
     this.cameras.main.roundPixels = true;
-    this.cameras.main.setZoom(2.0);
+    this.cameras.main.setZoom(1.35);
 
     this._clearRemotePlayers();
     for (const p of players) this._addRemotePlayer(p);
 
-    this._updateHUD(room.name || ROOM.name, self.name, data.money);
+    this._updateHUD(this.currentRoom.name || room.name, self.name, data.money);
   }
 
   onRoomChanged(data) {
     const { room, players, x, y } = data;
+    const roomId = room?.id || 'pallet_town';
+    this.currentRoom = ROOMS_CONFIG[roomId] || room || ROOMS_CONFIG.pallet_town;
 
     this.buildMap();
 
     if (this.localPlayer) {
+      this.add.existing(this.localPlayer);
       this.localPlayer.setPosition(x, y);
       this.localPlayer.body.reset(x, y);
+      this.localPlayer.setDepth(100);
       this._attachPlayerColliders(this.localPlayer);
     }
 
-    const w = this.currentMap?.widthInPixels  || room.width  || 2128;
-    const h = this.currentMap?.heightInPixels || room.height || 5440;
+    const w = this.currentMap?.widthInPixels  || this.currentRoom.width  || 1152;
+    const h = this.currentMap?.heightInPixels || this.currentRoom.height || 640;
     this.cameras.main.setBounds(0, 0, w, h);
     this.cameras.main.startFollow(this.localPlayer, true, 0.15, 0.15);
     this.cameras.main.roundPixels = true;
+    this.cameras.main.setZoom(1.35);
 
     this._clearRemotePlayers();
     for (const p of players) this._addRemotePlayer(p);
 
-    this._updateHUD(room.name || ROOM.name);
+    this._updateHUD(this.currentRoom.name || room.name);
     this.isTransitioning = false;
     this.portalCooldown = (this.time?.now ?? 0) + 1500;
   }
+
 
   onPlayerJoined(playerData) {
     if (this.localPlayer && playerData.characterId === this.localPlayer.characterId) return;
@@ -147,15 +167,15 @@ export default class WorldScene extends Phaser.Scene {
       this.currentMap.destroy();
       this.currentMap = null;
     }
-    this.worldLayer   = null;
-    this.overheadLayer = null;
-    this.collisionLayer = null;
+    this.mapLayers.clear();
+    this.collisionLayers = [];
 
     this.children.removeAll();
     this.obstacleGroup.clear(true, true);
 
     // ── Create Tiled map ──
-    const map = this.make.tilemap({ key: ROOM.tilemapKey });
+    const mapKey = this.currentRoom?.tilemapKey || this.currentRoom?.id || 'pallet_town';
+    const map = this.make.tilemap({ key: mapKey });
     this.currentMap = map;
 
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
@@ -169,48 +189,34 @@ export default class WorldScene extends Phaser.Scene {
       }
     }
     if (tilesetList.length === 0) {
-      const defaultTs = map.addTilesetImage(ROOM.tilesetName, ROOM.tilesetImageKey);
+      const defaultTs = map.addTilesetImage('Outside1 Spring', 'Outside1 Spring');
       if (defaultTs) tilesetList.push(defaultTs);
     }
 
-    // ── Base layer: renders below the player (depth 5) ──
-    const worldLayer = map.createLayer('World', tilesetList, 0, 0);
-    if (!worldLayer) {
-      console.error('[WorldScene] Layer "World" not found in tilemap');
-      return;
-    }
-    worldLayer.setDepth(5);
-    worldLayer.setCollisionByProperty({ collides: true });
-    this.worldLayer = worldLayer;
-    this.collisionLayer = worldLayer;
+    // ── Build all tile layers in defined stack order ──
+    if (map.layers && map.layers.length > 0) {
+      for (const layerData of map.layers) {
+        const layerName = layerData.name;
+        const layer = map.createLayer(layerName, tilesetList, 0, 0);
+        if (!layer) continue;
 
-    // ── Ground layer (depth 1): if present ──
-    const groundLayer = map.createLayer('Ground', tilesetList, 0, 0);
-    if (groundLayer) {
-      groundLayer.setDepth(1);
-    }
+        const depth = LAYER_DEPTHS[layerName] ?? 50;
+        layer.setDepth(depth);
 
-    // ── Overhead layer (depth 50000): renders ABOVE the player ──
-    const overheadLayer = map.createLayer('Overhead', tilesetList, 0, 0);
-    if (overheadLayer) {
-      overheadLayer.setDepth(50000);
-      this.overheadLayer = overheadLayer;
-    }
+        // Check if this layer has collision enabled
+        if (COLLISION_LAYERS.includes(layerName)) {
+          layer.setCollisionByExclusion([-1, 0]);
+          this.collisionLayers.push(layer);
+        }
 
-    // ── Dedicated Collision layer: if present in map JSON ──
-    const collisionLayer = map.createLayer('Collision', tilesetList, 0, 0);
-    if (collisionLayer) {
-      collisionLayer.setDepth(0);
-      collisionLayer.setVisible(false);
-      collisionLayer.setCollisionByExclusion([-1, 0]);
-      this.collisionLayer = collisionLayer;
+        this.mapLayers.set(layerName, layer);
+      }
     }
 
     // ── Object layers ──
     this._loadZones(map);
     this._loadPortals(map);
   }
-
 
   _loadZones(map) {
     this.zones = [];
@@ -226,7 +232,6 @@ export default class WorldScene extends Phaser.Scene {
   }
 
   _loadPortals(map) {
-    // Prefer portals defined in the Tiled "Warp" / "Portals" / "Doors" object layer
     const portalLayer =
       map.getObjectLayer('Portals') ||
       map.getObjectLayer('Warps') ||
@@ -236,16 +241,16 @@ export default class WorldScene extends Phaser.Scene {
       this._portals = portalLayer.objects.map(obj => {
         const props = this._readProps(obj.properties);
         return {
-          targetRoom:  props.targetRoom  || obj.name || ROOM.id,
+          targetRoom:  props.targetRoom  || obj.name || this.currentRoom.id,
           targetSpawn: { x: props.targetX ?? obj.x, y: props.targetY ?? obj.y },
           trigger:     { x: obj.x, y: obj.y, width: obj.width, height: obj.height }
         };
       });
     } else {
-      // Fallback: static portals from ROOM constant
-      this._portals = ROOM.portals;
+      this._portals = this.currentRoom?.portals || [];
     }
   }
+
 
   _readProps(properties) {
     if (!properties) return {};
@@ -258,10 +263,11 @@ export default class WorldScene extends Phaser.Scene {
   // ─── Player helpers ────────────────────────────────────────────────────────
 
   _attachPlayerColliders(player) {
-    if (this.collisionLayer) {
-      this.physics.add.collider(player, this.collisionLayer);
+    // Collide with all collidable layers (Buildings, Shore, Trees, Water)
+    for (const layer of this.collisionLayers) {
+      this.physics.add.collider(player, layer);
     }
-    if (this.obstacleGroup.getLength() > 0) {
+    if (this.obstacleGroup && this.obstacleGroup.getLength() > 0) {
       this.physics.add.collider(player, this.obstacleGroup);
     }
   }
@@ -271,6 +277,7 @@ export default class WorldScene extends Phaser.Scene {
       this.remotePlayers.get(playerData.socketId).destroy();
     }
     const remote = new RemotePlayer(this, playerData.x, playerData.y, playerData);
+    remote.setDepth(100);
     this.remotePlayers.set(playerData.socketId, remote);
   }
 
@@ -286,22 +293,11 @@ export default class WorldScene extends Phaser.Scene {
 
     this.localPlayer.update(time);
 
-    // Dynamic Overhead Layer Depth Y-Sorting
-    if (this.overheadLayer) {
-      const tileX = Math.floor(this.localPlayer.x / 16);
-      const tileY = Math.floor(this.localPlayer.y / 16);
-
-      // Check if there is an overhead tile at the player's tile position or 1 tile below
-      const currentTile = this.overheadLayer.getTileAt(tileX, tileY);
-      const tileBelow = this.overheadLayer.getTileAt(tileX, tileY + 1);
-
-      if (currentTile || tileBelow) {
-        // Player is walking inside / behind an overhead structure -> Roof is ABOVE player
-        this.overheadLayer.setDepth(this.localPlayer.y + 500);
-      } else {
-        // Player is outside overhead structures -> Roof is BELOW player (renders normally behind player)
-        this.overheadLayer.setDepth(this.localPlayer.y - 500);
-      }
+    // Dynamic depth sorting among players (around depth 100, below Overhead at 200)
+    this.localPlayer.setDepth(100 + this.localPlayer.y / 10000);
+    for (const remote of this.remotePlayers.values()) {
+      remote.setDepth(100 + remote.y / 10000);
+      remote.update();
     }
 
     // Zone detection
@@ -334,9 +330,6 @@ export default class WorldScene extends Phaser.Scene {
         }
       }
     }
-
-    // Remote players
-    for (const remote of this.remotePlayers.values()) remote.update();
   }
 
   // ─── HUD ───────────────────────────────────────────────────────────────────

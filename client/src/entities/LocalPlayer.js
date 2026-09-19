@@ -13,7 +13,7 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
     this.spriteKey = data.sprite || 'boy_run';
     this.prefix = this.spriteKey.startsWith('boy') ? 'boy' : 'girl';
     this.direction = data.direction || 'down';
-    this.speed = 135; // Running speed for 16x16 tilemap
+    this.speed = 175; // Running speed for 32x32 tilemap
  
     // Physics follows the lower part of the scaled sprite (the character's feet).
     scene.physics.world.enable(this);
@@ -21,18 +21,7 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
     this.body.setOffset(PLAYER_VISUAL.bodyOffsetX, PLAYER_VISUAL.bodyOffsetY);
     this.body.setCollideWorldBounds(true);
 
-    // 1. Soft Shadow (under feet at y=11)
-    this.shadow = scene.add.ellipse(
-      0,
-      PLAYER_VISUAL.shadowY,
-      PLAYER_VISUAL.shadowWidth,
-      PLAYER_VISUAL.shadowHeight,
-      0x000000,
-      0.35
-    );
-    this.add(this.shadow);
-
-    // 2. Character Sprite (32x48 scaled by 0.5 -> 16x24 FireRed proportion)
+    // 1. Character Sprite (32x48 FireRed proportion)
     this.sprite = scene.add.sprite(0, 0, this.spriteKey, 0);
     this.sprite.setScale(PLAYER_VISUAL.scale);
     this.sprite.setOrigin(0.5, 0.5);
@@ -134,7 +123,7 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
     }
 
     // Depth sorting
-    this.setDepth(this.y);
+    this.setDepth(100 + this.y / 10000);
 
     // Network Sync throttling (~15 times per second or on state stop/direction change)
     const movedFar = Math.hypot(this.x - this.lastX, this.y - this.lastY) > 4;

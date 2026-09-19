@@ -2,14 +2,14 @@ const ROOM_DEFINITIONS = {
   pallet_town: {
     id: 'pallet_town',
     name: 'Pallet Town',
-    width: 2128,
-    height: 5440,
-    defaultSpawn: { x: 1064, y: 3336 },
+    width: 1152,
+    height: 640,
+    defaultSpawn: { x: 560, y: 272 },
     portals: [
       {
         targetRoom: 'route_1',
         trigger: { x: 576, y: 0, width: 64, height: 32 },
-        targetSpawn: { x: 400, y: 540 }
+        targetSpawn: { x: 608, y: 1230 }
       },
       {
         targetRoom: 'ash_house',
@@ -32,22 +32,23 @@ const ROOM_DEFINITIONS = {
   route_1: {
     id: 'route_1',
     name: 'Route 1',
-    width: 800,
-    height: 600,
-    defaultSpawn: { x: 400, y: 540 },
+    width: 1408,
+    height: 1280,
+    defaultSpawn: { x: 608, y: 1230 },
     portals: [
       {
         targetRoom: 'pallet_town',
-        trigger: { x: 360, y: 570, width: 80, height: 30 },
+        trigger: { x: 576, y: 1248, width: 64, height: 32 },
         targetSpawn: { x: 608, y: 48 }
       },
       {
         targetRoom: 'viridian_city',
-        trigger: { x: 360, y: 0, width: 80, height: 30 },
+        trigger: { x: 512, y: 0, width: 128, height: 32 },
         targetSpawn: { x: 400, y: 540 }
       }
     ]
   },
+
 
   viridian_city: {
     id: 'viridian_city',
