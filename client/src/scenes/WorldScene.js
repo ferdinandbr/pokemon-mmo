@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import SocketClient from '../network/SocketClient';
 import LocalPlayer from '../entities/LocalPlayer';
 import RemotePlayer from '../entities/RemotePlayer';
+import DialogueBox from '../ui/DialogueBox';
 import { ROOMS_CONFIG } from '../maps/roomData';
 
 const LAYER_DEPTHS = {
@@ -16,6 +17,7 @@ const LAYER_DEPTHS = {
   Buildings: 70,
   Building: 70,
   Trees: 80,
+  Collision: 90000,
   Overhead: 1000,
   Arch: 1000
 };
@@ -28,7 +30,7 @@ const COLLISION_LAYERS = [
   'Water',
   'Mountain',
   'Mountains',
-  'Objects'
+  'Collision'
 ];
 
 
@@ -51,12 +53,86 @@ export default class WorldScene extends Phaser.Scene {
     this.isTransitioning = false;
     this.portalCooldown = 0;
     this.isChatting = false;
+    this.activeColliders = [];
+
+    // Dialogue & Sign system
+    this.dialogueBox = new DialogueBox();
+    this._signs = [];
+    this.nearbySign = null;
   }
 
   // ─── Network handlers ──────────────────────────────────────────────────────
 
   create() {
     this.obstacleGroup = this.physics.add.staticGroup();
+
+    // Clean up any legacy interact prompt if in DOM
+    document.getElementById('interact-prompt')?.remove();
+
+    // Clear keyboard captures so spacebar works properly everywhere
+    this.input.keyboard.clearCaptures();
+
+    // Interaction key listeners (Enter, Space, E)
+    this.input.keyboard.on('keydown-ENTER', () => this._handleInteract());
+    this.input.keyboard.on('keydown-SPACE', () => this._handleInteract());
+    this.input.keyboard.on('keydown-E', () => this._handleInteract());
+
+    // Mouse click interaction on map (clicking directly on a sign tile to open dialogue)
+    this.input.on('pointerdown', (pointer) => {
+      if (this.dialogueBox && this.dialogueBox.isOpen) {
+        this.dialogueBox.advance();
+        return;
+      }
+
+      if (!pointer.leftButtonDown()) return;
+
+      const worldPoint = pointer.positionToCamera(this.cameras.main);
+      if (this._signs && this._signs.length > 0) {
+        for (const sign of this._signs) {
+          const sw = sign.width || 32;
+          const sh = sign.height || 32;
+          // Click hit test on sign tile (with 6px margin for easy clicking)
+          if (worldPoint.x >= sign.x - 6 && worldPoint.x <= sign.x + sw + 6 &&
+              worldPoint.y >= sign.y - 6 && worldPoint.y <= sign.y + sh + 6) {
+            // Check player proximity (allow within 96px)
+            if (this.localPlayer) {
+              const px = this.localPlayer.x;
+              const py = this.localPlayer.y;
+              const cx = sign.x + sw / 2;
+              const cy = sign.y + sh / 2;
+              const dist = Phaser.Math.Distance.Between(px, py, cx, cy);
+              if (dist <= 96) {
+                this.nearbySign = sign;
+                this._handleInteract();
+                return;
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Window-level fallback for Space, Enter, E to ensure it reliably triggers when near a sign
+    window.addEventListener('keydown', (e) => {
+      if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+        return;
+      }
+      if (this.isChatting) return;
+      if (document.body.classList.contains('editor-mode')) return;
+
+      const k = e.key.toLowerCase();
+      if (k === ' ' || k === 'e' || k === 'enter') {
+        if (this.dialogueBox && this.dialogueBox.isOpen) {
+          e.preventDefault();
+          this.dialogueBox.advance();
+          return;
+        }
+        if (this.nearbySign) {
+          e.preventDefault();
+          this._handleInteract();
+        }
+      }
+    });
 
     SocketClient.on('player:init',   (d) => this.onPlayerInit(d));
     SocketClient.on('player:joined', (d) => this.onPlayerJoined(d));
@@ -83,7 +159,7 @@ export default class WorldScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, w, h);
     this.cameras.main.startFollow(this.localPlayer, true, 0.15, 0.15);
     this.cameras.main.roundPixels = true;
-    this.cameras.main.setZoom(1.35);
+    this.cameras.main.setZoom(1.0);
 
     this._clearRemotePlayers();
     for (const p of players) this._addRemotePlayer(p);
@@ -99,9 +175,13 @@ export default class WorldScene extends Phaser.Scene {
     this.buildMap();
 
     if (this.localPlayer) {
-      this.add.existing(this.localPlayer);
       this.localPlayer.setPosition(x, y);
-      this.localPlayer.body.reset(x, y);
+      if (this.localPlayer.body) {
+        this.localPlayer.body.reset(x, y);
+        this.localPlayer.body.setVelocity(0, 0);
+      }
+      this.localPlayer.lastX = x;
+      this.localPlayer.lastY = y;
       this.localPlayer.setDepth(100);
       this._attachPlayerColliders(this.localPlayer);
     }
@@ -111,7 +191,7 @@ export default class WorldScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, w, h);
     this.cameras.main.startFollow(this.localPlayer, true, 0.15, 0.15);
     this.cameras.main.roundPixels = true;
-    this.cameras.main.setZoom(1.35);
+    this.cameras.main.setZoom(1.0);
 
     this._clearRemotePlayers();
     for (const p of players) this._addRemotePlayer(p);
@@ -162,7 +242,17 @@ export default class WorldScene extends Phaser.Scene {
   // ─── Map building ──────────────────────────────────────────────────────────
 
   buildMap() {
-    // Destroy previous map assets
+    // 1. Clean up active colliders from previous map so Arcade Physics doesn't query destroyed layers
+    if (this.activeColliders && this.activeColliders.length > 0) {
+      for (const collider of this.activeColliders) {
+        if (collider && collider.destroy) {
+          collider.destroy();
+        }
+      }
+    }
+    this.activeColliders = [];
+
+    // 2. Destroy previous map assets
     if (this.currentMap) {
       this.currentMap.destroy();
       this.currentMap = null;
@@ -170,8 +260,9 @@ export default class WorldScene extends Phaser.Scene {
     this.mapLayers.clear();
     this.collisionLayers = [];
 
-    this.children.removeAll();
-    this.obstacleGroup.clear(true, true);
+    if (this.obstacleGroup) {
+      this.obstacleGroup.clear(true, true);
+    }
 
     // ── Create Tiled map ──
     const mapKey = this.currentRoom?.tilemapKey || this.currentRoom?.id || 'pallet_town';
@@ -209,6 +300,11 @@ export default class WorldScene extends Phaser.Scene {
           this.collisionLayers.push(layer);
         }
 
+        // Invisible collision masks should not render tiles on screen
+        if (layerName === 'Collision') {
+          layer.setVisible(false);
+        }
+
         this.mapLayers.set(layerName, layer);
       }
     }
@@ -216,6 +312,7 @@ export default class WorldScene extends Phaser.Scene {
     // ── Object layers ──
     this._loadZones(map);
     this._loadPortals(map);
+    this._loadSigns(map);
   }
 
   _loadZones(map) {
@@ -251,6 +348,56 @@ export default class WorldScene extends Phaser.Scene {
     }
   }
 
+  _loadSigns(map) {
+    this._signs = [];
+    if (!map.objects) return;
+
+    for (const layer of map.objects) {
+      if (!layer || !layer.objects) continue;
+      for (const obj of layer.objects) {
+        const props = this._readProps(obj.properties);
+        const isSign = obj.type === 'sign' ||
+                       layer.name === 'Points of interest' ||
+                       layer.name === 'Signs' ||
+                       props.dialogue ||
+                       (props.text && (props.title || obj.name));
+        if (isSign) {
+          const title = props.title || obj.name || 'PLACA';
+          const text = props.text || props.dialogue || '';
+          this._signs.push({
+            x: obj.x,
+            y: obj.y,
+            width: obj.width || 32,
+            height: obj.height || 32,
+            title,
+            text
+          });
+        }
+      }
+    }
+  }
+
+  _handleInteract() {
+    // If typing in an input field or chat is open, do nothing
+    if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+      return;
+    }
+    if (this.isChatting) return;
+
+    if (this.dialogueBox) {
+      if (this.dialogueBox.isOpen) {
+        this.dialogueBox.advance();
+        return;
+      }
+      if (this.dialogueBox.justClosed) {
+        return;
+      }
+    }
+
+    if (this.nearbySign) {
+      this.dialogueBox.show(this.nearbySign.title, this.nearbySign.text);
+    }
+  }
 
   _readProps(properties) {
     if (!properties) return {};
@@ -263,12 +410,16 @@ export default class WorldScene extends Phaser.Scene {
   // ─── Player helpers ────────────────────────────────────────────────────────
 
   _attachPlayerColliders(player) {
-    // Collide with all collidable layers (Buildings, Shore, Trees, Water)
+    if (!this.activeColliders) this.activeColliders = [];
+
+    // Collide with all collidable layers (Buildings, Shore, Trees, Water, Mountain, Mountains)
     for (const layer of this.collisionLayers) {
-      this.physics.add.collider(player, layer);
+      const col = this.physics.add.collider(player, layer);
+      this.activeColliders.push(col);
     }
     if (this.obstacleGroup && this.obstacleGroup.getLength() > 0) {
-      this.physics.add.collider(player, this.obstacleGroup);
+      const col = this.physics.add.collider(player, this.obstacleGroup);
+      this.activeColliders.push(col);
     }
   }
 
@@ -299,6 +450,30 @@ export default class WorldScene extends Phaser.Scene {
       remote.setDepth(100 + remote.y / 10000);
       remote.update();
     }
+
+    // Sign proximity detection (generous distance to comfortably interact with adjacent 32x32 tiles)
+    let closestSign = null;
+    let minDist = 72;
+    if (this._signs && this._signs.length > 0 && (!this.dialogueBox || !this.dialogueBox.isOpen)) {
+      const px = this.localPlayer.x;
+      const py = this.localPlayer.y;
+
+      for (const sign of this._signs) {
+        const cx = sign.x + sign.width / 2;
+        const cy = sign.y + sign.height / 2;
+        const dx = Math.abs(px - cx);
+        const dy = Math.abs(py - cy);
+        if (dx <= 60 && dy <= 72) {
+          const dist = Phaser.Math.Distance.Between(px, py, cx, cy);
+          if (dist < minDist) {
+            minDist = dist;
+            closestSign = sign;
+          }
+        }
+      }
+    }
+
+    this.nearbySign = closestSign;
 
     // Zone detection
     if (this.zones.length > 0) {

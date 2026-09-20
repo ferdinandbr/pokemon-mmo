@@ -10,31 +10,34 @@ const TILESETS_DIR = path.join(__dirname, '../../../client/public/assets/tileset
 function resolveMapPath(mapName) {
   if (!mapName) return DEFAULT_MAP_PATH;
   const clean = mapName.replace(/[^a-zA-Z0-9_\-]/g, '');
-  const candidates = [
-    path.join(MAPS_DIR, `${clean}.json`),
-    path.join(MAPS_DIR, 'cities', `${clean}.json`),
-    path.join(MAPS_DIR, 'routes', `${clean}.json`)
-  ];
-  for (const c of candidates) {
-    if (fs.existsSync(c)) return c;
-  }
   return path.join(MAPS_DIR, `${clean}.json`);
 }
 
-// GET list all available maps (categorized)
+// GET list all available maps (categorized cleanly from single source of truth)
 router.get('/list', (req, res) => {
   try {
-    const listFolder = (folder) => {
-      const dir = path.join(MAPS_DIR, folder);
-      if (!fs.existsSync(dir)) return [];
-      return fs.readdirSync(dir).filter(f => f.endsWith('.json')).map(f => f.replace('.json', ''));
-    };
+    if (!fs.existsSync(MAPS_DIR)) {
+      return res.json({ cities: [], routes: [], root: [] });
+    }
 
-    res.json({
-      cities: listFolder('cities'),
-      routes: listFolder('routes'),
-      root: fs.readdirSync(MAPS_DIR).filter(f => f.endsWith('.json')).map(f => f.replace('.json', ''))
+    const allFiles = fs.readdirSync(MAPS_DIR).filter(f => f.endsWith('.json') && !f.endsWith('.bak'));
+    const mapNames = allFiles.map(f => f.replace('.json', ''));
+
+    const CITIES_LIST = [
+      'pallet_town', 'viridian_city', 'pewter_city', 'cerulean_city',
+      'vermilion_city', 'lavender_town', 'celadon_city', 'saffron_city',
+      'fuchsia_city', 'cinnabar_island', 'indigo_plateau'
+    ];
+
+    const cities = mapNames.filter(m => CITIES_LIST.includes(m) || m.endsWith('_city') || m.endsWith('_town'));
+    const routes = mapNames.filter(m => m.startsWith('route_')).sort((a, b) => {
+      const numA = parseInt(a.replace('route_', ''), 10) || 0;
+      const numB = parseInt(b.replace('route_', ''), 10) || 0;
+      return numA - numB;
     });
+    const root = mapNames.filter(m => !cities.includes(m) && !routes.includes(m));
+
+    res.json({ cities, routes, root });
   } catch (err) {
     console.error('[MapRoute Error GET /list]:', err);
     res.status(500).json({ error: 'Erro ao listar mapas: ' + err.message });

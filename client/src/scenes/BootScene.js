@@ -18,8 +18,19 @@ export default class BootScene extends Phaser.Scene {
 
     // ── Tiled map & tileset ──
     this.load.image('Outside1 Spring', '/assets/tilesets/Outside1 Spring.png');
-    this.load.tilemapTiledJSON('pallet_town', '/assets/maps/pallet_town.json');
-    this.load.tilemapTiledJSON('route_1', '/assets/maps/route_1.json');
+
+    const kantoMaps = [
+      'pallet_town', 'viridian_city', 'pewter_city', 'cerulean_city',
+      'vermilion_city', 'lavender_town', 'celadon_city', 'saffron_city',
+      'fuchsia_city', 'cinnabar_island', 'indigo_plateau',
+      'route_1', 'route_2', 'route_3', 'route_4', 'route_5',
+      'route_6', 'route_7', 'route_8', 'route_9', 'route_10', 'route_11'
+    ];
+
+    const timestamp = Date.now();
+    for (const mapKey of kantoMaps) {
+      this.load.tilemapTiledJSON(mapKey, `/assets/maps/${mapKey}.json?t=${timestamp}`);
+    }
 
   }
 

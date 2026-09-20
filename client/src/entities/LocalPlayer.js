@@ -70,7 +70,7 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
   }
 
   update(time) {
-    if (this.scene.isChatting) {
+    if (this.scene.isChatting || (this.scene.dialogueBox && this.scene.dialogueBox.isOpen)) {
       this.body.setVelocity(0, 0);
       this.playIdle();
       return;

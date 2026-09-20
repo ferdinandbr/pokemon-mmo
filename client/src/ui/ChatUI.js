@@ -45,6 +45,15 @@ export default class ChatUI {
           const menuModal = document.getElementById('menu-modal');
           if (menuModal && !menuModal.classList.contains('hidden')) return;
 
+          // If in editor mode, don't open chat
+          if (document.body.classList.contains('editor-mode')) return;
+
+          // If dialogue box is open or was just closed, don't open chat
+          if (this.worldScene?.dialogueBox?.isOpen || this.worldScene?.dialogueBox?.justClosed) return;
+
+          // If player is close to a sign, let the sign interact trigger on Enter
+          if (this.worldScene?.nearbySign) return;
+
           e.preventDefault();
           this.chatInput.focus();
           if (this.worldScene) this.worldScene.isChatting = true;

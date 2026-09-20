@@ -190,61 +190,61 @@ const MAP_REGISTRY = {
     category: 'cities',
     filename: 'viridian_city.json',
     tmxRelPath: 'Kanto Citites/Viridian City/Viridian City Spring.tmx',
-    aliases: []
+    aliases: ['viridian_city.json']
   },
   pewter_city: {
     category: 'cities',
     filename: 'pewter_city.json',
     tmxRelPath: 'Kanto Citites/Peweter City/Peweter City Spring.tmx',
-    aliases: []
+    aliases: ['pewter_city.json']
   },
   cerulean_city: {
     category: 'cities',
     filename: 'cerulean_city.json',
     tmxRelPath: 'Kanto Citites/Cerulean City/Cerulean City Spring.tmx',
-    aliases: []
+    aliases: ['cerulean_city.json']
   },
   vermilion_city: {
     category: 'cities',
     filename: 'vermilion_city.json',
     tmxRelPath: 'Kanto Citites/Vermilion City/Vermilion City Spring.tmx',
-    aliases: []
+    aliases: ['vermilion_city.json']
   },
   lavender_town: {
     category: 'cities',
     filename: 'lavender_town.json',
     tmxRelPath: 'Kanto Citites/Lavender Town/Lavender Town Spring.tmx',
-    aliases: []
+    aliases: ['lavender_town.json']
   },
   celadon_city: {
     category: 'cities',
     filename: 'celadon_city.json',
     tmxRelPath: 'Kanto Citites/Celadon City/Celadon City Spring.tmx',
-    aliases: []
+    aliases: ['celadon_city.json']
   },
   saffron_city: {
     category: 'cities',
     filename: 'saffron_city.json',
     tmxRelPath: 'Kanto Citites/Saffron City/Saffron City Spring.tmx',
-    aliases: []
+    aliases: ['saffron_city.json']
   },
   fuchsia_city: {
     category: 'cities',
     filename: 'fuchsia_city.json',
     tmxRelPath: 'Kanto Citites/Fuchsia City/Fuchsia City Spring.tmx',
-    aliases: []
+    aliases: ['fuchsia_city.json']
   },
   cinnabar_island: {
     category: 'cities',
     filename: 'cinnabar_island.json',
     tmxRelPath: 'Kanto Citites/Cinnabar Island/Cinnabar Island Spring.tmx',
-    aliases: []
+    aliases: ['cinnabar_island.json']
   },
   indigo_plateau: {
     category: 'cities',
     filename: 'indigo_plateau.json',
     tmxRelPath: 'Kanto Citites/Indigo Plateau/Indigo Plateau Spring.tmx',
-    aliases: []
+    aliases: ['indigo_plateau.json']
   },
 
   // Routes
@@ -271,6 +271,48 @@ const MAP_REGISTRY = {
     filename: 'route_004.json',
     tmxRelPath: 'Kanto Routes/Kanto Route 004/Kanto Route 4 Spring.tmx',
     aliases: ['route_4.json']
+  },
+  route_5: {
+    category: 'routes',
+    filename: 'route_005.json',
+    tmxRelPath: 'Kanto Routes/Kanto Route 005/Kanto Route 5 Spring.tmx',
+    aliases: ['route_5.json']
+  },
+  route_6: {
+    category: 'routes',
+    filename: 'route_006.json',
+    tmxRelPath: 'Kanto Routes/Kanto Route 006/Kanto Route 6 Spring.tmx',
+    aliases: ['route_6.json']
+  },
+  route_7: {
+    category: 'routes',
+    filename: 'route_007.json',
+    tmxRelPath: 'Kanto Routes/Kanto Route 007/Kanto Route 7 Spring.tmx',
+    aliases: ['route_7.json']
+  },
+  route_8: {
+    category: 'routes',
+    filename: 'route_008.json',
+    tmxRelPath: 'Kanto Routes/Kanto Route 008/Kanto Route 8 Spring.tmx',
+    aliases: ['route_8.json']
+  },
+  route_9: {
+    category: 'routes',
+    filename: 'route_009.json',
+    tmxRelPath: 'Kanto Routes/Kanto Route 009/Kanto Route 9 Spring.tmx',
+    aliases: ['route_9.json']
+  },
+  route_10: {
+    category: 'routes',
+    filename: 'route_010.json',
+    tmxRelPath: 'Kanto Routes/Kanto Route 010/Kanto Route 10 Spring.tmx',
+    aliases: ['route_10.json']
+  },
+  route_11: {
+    category: 'routes',
+    filename: 'route_011.json',
+    tmxRelPath: 'Kanto Routes/Kanto Route 011/Kanto Route 11 Spring.tmx',
+    aliases: ['route_11.json']
   }
 };
 

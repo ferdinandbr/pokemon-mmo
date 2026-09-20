@@ -13,8 +13,8 @@ import EditorUI from './ui/EditorUI';
 const config = {
   type: Phaser.AUTO,
   parent: 'game-container',
-  width: 800,
-  height: 600,
+  width: 960,
+  height: 640,
   pixelArt: true,
   roundPixels: true,
   physics: {
@@ -25,7 +25,7 @@ const config = {
     }
   },
   scale: {
-    mode: Phaser.Scale.RESIZE,
+    mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
   scene: [BootScene, WorldScene, EditorScene]

@@ -1,4 +1,33 @@
 import Phaser from 'phaser';
+import { ROOMS_CONFIG } from '../maps/roomData';
+
+const LAYER_DEPTHS = {
+  Ground: 10,
+  Paths: 20,
+  Grass: 30,
+  Water: 40,
+  Shore: 45,
+  Mountain: 50,
+  Mountains: 50,
+  Objects: 60,
+  Buildings: 70,
+  Building: 70,
+  Trees: 80,
+  Collision: 99000,
+  Overhead: 1000,
+  Arch: 1000
+};
+
+const COLLISION_LAYERS = [
+  'Buildings',
+  'Building',
+  'Shore',
+  'Trees',
+  'Water',
+  'Mountain',
+  'Mountains',
+  'Collision'
+];
 
 export default class EditorScene extends Phaser.Scene {
   constructor() {
@@ -6,28 +35,20 @@ export default class EditorScene extends Phaser.Scene {
 
     this.map = null;
     this.mapJsonData = null;
+    this.currentMapName = 'pallet_town';
 
-    // Tile layers data structure
-    this.tileLayerData = {
-      Ground: null,     // Grass / terrain base (Depth 1)
-      World: null,      // Building walls / structures (Depth 5)
-      Overhead: null,   // Roof tops / tree canopies (Depth 50000)
-      Collision: null   // Collision barrier layer (Depth 90000)
-    };
-
-    this.phaserLayers = {
-      Ground: null,
-      World: null,
-      Overhead: null,
-      Collision: null
-    };
+    // Dynamic tile layers data
+    this.tileLayerData = {};  // layerName -> Uint32Array
+    this.phaserLayers = {};   // layerName -> Phaser.Tilemaps.TilemapLayer
+    this.allTileLayerNames = [];
 
     // Active State
-    this.activeTool = 'pencil'; // 'pencil', 'eraser', 'bucket', 'picker', 'object'
+    this.activeTool = 'pencil'; // 'hand', 'link', 'pencil', 'eraser', 'bucket', 'picker', 'object', 'sign'
     this.selectedTileGid = 1;
-    this.activeLayerName = 'World'; // 'Ground', 'World', 'Overhead', 'Collision'
+    this.activeLayerName = 'Ground';
     this.showGrid = true;
     this.showObjects = true;
+    this.showCollisions = true;
 
     // Graphics Overlays
     this.gridGraphics = null;
@@ -44,8 +65,9 @@ export default class EditorScene extends Phaser.Scene {
     this.camStartY = 0;
     this.isPainting = false;
 
-    // Portal Linking State
-    this.portalLinkState = null; // { linkId, origin, waypoints: [], destination }
+    // Portal & Sign Marking State
+    this.isMarkingPortal = false;
+    this.portalDragStart = null;
     this.lastPointerWorldX = 0;
     this.lastPointerWorldY = 0;
 
@@ -53,32 +75,106 @@ export default class EditorScene extends Phaser.Scene {
     this.onCoordsUpdate = null;
     this.onTilePicked = null;
     this.onObjectSelected = null;
+    this.onPortalSelected = null;
+    this.onSignSelected = null;
+    this.onMapLoaded = null;
     this.onToast = null;
   }
 
   preload() {
+    const t = Date.now();
     this.load.image('Outside1 Spring', '/assets/tilesets/Outside1 Spring.png');
-    this.load.tilemapTiledJSON('kanto_editor_map', '/assets/maps/pallet_town.json');
-    this.load.json('kanto_raw_json', '/assets/maps/pallet_town.json');
+    this.load.tilemapTiledJSON('pallet_town_editor', `/assets/maps/pallet_town.json?t=${t}`);
+    this.load.json('pallet_town_raw_json', `/assets/maps/pallet_town.json?t=${t}`);
   }
 
   create() {
-    this.mapJsonData = JSON.parse(JSON.stringify(this.cache.json.get('kanto_raw_json')));
-    this.map = this.make.tilemap({ key: 'kanto_editor_map' });
+    // Create Graphics Overlays
+    this.gridGraphics = this.add.graphics().setDepth(100000);
+    this.cursorGraphics = this.add.graphics().setDepth(100001);
+    this.objectGraphics = this.add.graphics().setDepth(99999);
+    this.collisionGraphics = this.add.graphics().setDepth(89999);
 
-    const width = this.map.width;
-    const height = this.map.height;
-    const layerDepths = {
-      Ground: 1,
-      World: 5,
-      Overhead: 50000,
-      Collision: 90000
+    // Initial map setup
+    const initialJson = this.cache.json.get('pallet_town_raw_json');
+    if (initialJson) {
+      this.initMapData('pallet_town', initialJson);
+    }
+
+    // Input Listeners
+    this.input.on('pointerdown', this.onPointerDown, this);
+    this.input.on('pointermove', this.onPointerMove, this);
+    this.input.on('pointerup', this.onPointerUp, this);
+    this.input.on('wheel', this.onWheel, this);
+
+    // Ensure keyboard captures do not intercept space or other keys globally in browser inputs
+    this.input.keyboard.clearCaptures();
+    this.spaceKey = this.input.keyboard.addKey('SPACE', false);
+
+    // Keyboard Shortcuts (only when not typing in an input/textarea)
+    const isTyping = () => {
+      const el = document.activeElement;
+      return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
     };
 
-    // Bind all tilesets dynamically
+    this.input.keyboard.on('keydown-H', () => { if (!isTyping()) this.setTool('hand'); });
+    this.input.keyboard.on('keydown-L', () => { if (!isTyping()) this.setTool('link'); });
+    this.input.keyboard.on('keydown-B', () => { if (!isTyping()) this.setTool('pencil'); });
+    this.input.keyboard.on('keydown-E', () => { if (!isTyping()) this.setTool('eraser'); });
+    this.input.keyboard.on('keydown-F', () => { if (!isTyping()) this.setTool('bucket'); });
+    this.input.keyboard.on('keydown-I', () => { if (!isTyping()) this.setTool('picker'); });
+    this.input.keyboard.on('keydown-O', () => { if (!isTyping()) this.setTool('object'); });
+    this.input.keyboard.on('keydown-G', () => { if (!isTyping()) this.toggleGrid(); });
+    this.input.keyboard.on('keydown-C', () => { if (!isTyping()) this.toggleCollisions(); });
+    this.input.keyboard.on('keydown-ESC', () => { if (!isTyping()) this.cancelPortalMarking(); });
+  }
+
+  // ─── Dynamic Map Loading ──────────────────────────────────────────────────
+
+  async loadMapByName(mapName) {
+    if (this.onToast) this.onToast(`Carregando mapa: ${mapName}...`, 'info');
+    try {
+      const res = await fetch(`/api/admin/map?map=${encodeURIComponent(mapName)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}: Mapa não encontrado`);
+      const mapJson = await res.json();
+      this.initMapData(mapName, mapJson);
+      if (this.onToast) this.onToast(`✅ Mapa '${mapName}' carregado com sucesso!`, 'success');
+    } catch (err) {
+      console.error('[EditorScene loadMapByName Error]:', err);
+      if (this.onToast) this.onToast(`❌ Erro ao carregar mapa: ${err.message}`, 'error');
+    }
+  }
+
+  initMapData(mapName, rawJson) {
+    this.currentMapName = mapName;
+    this.mapJsonData = JSON.parse(JSON.stringify(rawJson));
+    this.selectedObject = null;
+    this.isMarkingPortal = false;
+    this.portalDragStart = null;
+
+    // Destroy previous Phaser tilemap
+    if (this.map) {
+      this.map.destroy();
+      this.map = null;
+    }
+
+    this.tileLayerData = {};
+    this.phaserLayers = {};
+    this.allTileLayerNames = [];
+
+    // Ensure Phaser has the tilemap JSON in cache
+    const cacheKey = `editor_map_${mapName}_${Date.now()}`;
+    this.cache.tilemap.add(cacheKey, { format: Phaser.Tilemaps.Formats.TILED_JSON, data: this.mapJsonData });
+    this.map = this.make.tilemap({ key: cacheKey });
+
+    // Tilesets
     const phaserTilesets = [];
     if (this.mapJsonData.tilesets && this.mapJsonData.tilesets.length > 0) {
       for (const t of this.mapJsonData.tilesets) {
+        if (!this.textures.exists(t.name)) {
+          const imgUrl = t.image.startsWith('/') ? t.image : `/assets/tilesets/${t.image.split('/').pop()}`;
+          this.load.image(t.name, imgUrl);
+        }
         const ts = this.map.addTilesetImage(t.name, t.name);
         if (ts) phaserTilesets.push(ts);
       }
@@ -88,68 +184,114 @@ export default class EditorScene extends Phaser.Scene {
       if (defaultTs) phaserTilesets.push(defaultTs);
     }
 
-    // Decode base64 layer data for memory modification
-    ['Ground', 'World', 'Overhead', 'Collision'].forEach(layerName => {
-      let layerJson = this.mapJsonData.layers.find(l => l.name === layerName && l.type === 'tilelayer');
-      if (layerJson && layerJson.data) {
-        this.tileLayerData[layerName] = this._decodeBase64(layerJson.data);
+    // Discover all tile layers in map JSON
+    const width = this.map.width;
+    const height = this.map.height;
+
+    const tileLayers = this.mapJsonData.layers.filter(l => l.type === 'tilelayer');
+    for (const l of tileLayers) {
+      this.allTileLayerNames.push(l.name);
+      if (Array.isArray(l.data)) {
+        this.tileLayerData[l.name] = new Uint32Array(l.data);
+      } else if (typeof l.data === 'string') {
+        this.tileLayerData[l.name] = this._decodeBase64(l.data);
       } else {
-        this.tileLayerData[layerName] = new Uint32Array(width * height);
+        this.tileLayerData[l.name] = new Uint32Array(width * height);
       }
 
       // Create Phaser tilemap layer
-      if (this.map.getLayerIndex(layerName) !== null) {
-        this.phaserLayers[layerName] = this.map.createLayer(layerName, phaserTilesets, 0, 0);
-      } else {
-        this.phaserLayers[layerName] = this.map.createBlankLayer(layerName, phaserTilesets, 0, 0);
-      }
-      this.phaserLayers[layerName].setDepth(layerDepths[layerName]);
-    });
+      let pLayer = this.map.getLayerIndex(l.name) !== null
+        ? this.map.createLayer(l.name, phaserTilesets, 0, 0)
+        : this.map.createBlankLayer(l.name, phaserTilesets, 0, 0);
 
-    if (this.phaserLayers.Collision) {
-      this.phaserLayers.Collision.setVisible(false);
+      if (pLayer) {
+        pLayer.setDepth(LAYER_DEPTHS[l.name] || 50);
+        if (l.name === 'Collision') {
+          pLayer.setVisible(false);
+        }
+        this.phaserLayers[l.name] = pLayer;
+      }
     }
+
+    // Ensure Collision layer exists in memory for painting
+    if (!this.tileLayerData['Collision']) {
+      this.tileLayerData['Collision'] = new Uint32Array(width * height);
+    }
+
+    // Default active layer
+    if (this.allTileLayerNames.includes('Ground')) {
+      this.activeLayerName = 'Ground';
+    } else if (this.allTileLayerNames.length > 0) {
+      this.activeLayerName = this.allTileLayerNames[0];
+    } else {
+      this.activeLayerName = 'Ground';
+    }
+
+    // Sincronizar Portais com ROOMS_CONFIG caso o mapa não possua camada de portais
+    this._syncPortalsFromRoomConfig(mapName);
 
     // Setup Camera
     this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
     this.cameras.main.setZoom(1.5);
-    this.cameras.main.centerOn(1064, 3336);
 
-    // Create Graphics Overlays
-    this.gridGraphics = this.add.graphics().setDepth(100000);
-    this.cursorGraphics = this.add.graphics().setDepth(100001);
-    this.objectGraphics = this.add.graphics().setDepth(99999);
-    this.collisionGraphics = this.add.graphics().setDepth(89999);
+    // Center camera on default spawn or map center
+    const roomDef = ROOMS_CONFIG[mapName];
+    if (roomDef && roomDef.defaultSpawn) {
+      this.cameras.main.centerOn(roomDef.defaultSpawn.x, roomDef.defaultSpawn.y);
+    } else {
+      this.cameras.main.centerOn(this.map.widthInPixels / 2, this.map.heightInPixels / 2);
+    }
 
-    // Draw Initial Overlays
+    // Redraw Overlays
     this.drawGrid();
     this.drawObjects();
     this.drawCollisionOverlay();
 
-    // Input Listeners
-    this.input.on('pointerdown', this.onPointerDown, this);
-    this.input.on('pointermove', this.onPointerMove, this);
-    this.input.on('pointerup', this.onPointerUp, this);
-    this.input.on('wheel', this.onWheel, this);
+    if (this.onMapLoaded) {
+      this.onMapLoaded(mapName, this.mapJsonData, this.allTileLayerNames);
+    }
+  }
 
-    // Keyboard Shortcuts
-    this.input.keyboard.on('keydown-H', () => this.setTool('hand'));
-    this.input.keyboard.on('keydown-L', () => this.setTool('link'));
-    this.input.keyboard.on('keydown-B', () => this.setTool('pencil'));
-    this.input.keyboard.on('keydown-E', () => this.setTool('eraser'));
-    this.input.keyboard.on('keydown-F', () => this.setTool('bucket'));
-    this.input.keyboard.on('keydown-I', () => this.setTool('picker'));
-    this.input.keyboard.on('keydown-O', () => this.setTool('object'));
-    this.input.keyboard.on('keydown-G', () => this.toggleGrid());
-    this.input.keyboard.on('keydown-ESC', () => this.cancelPortalLink());
-    this.input.keyboard.on('keydown-ENTER', () => {
-      if (this.portalLinkState && this.portalLinkState.origin) {
-        const lastWp = (this.portalLinkState.waypoints && this.portalLinkState.waypoints.length > 0)
-          ? this.portalLinkState.waypoints[this.portalLinkState.waypoints.length - 1]
-          : { x: this.portalLinkState.origin.x + 64, y: this.portalLinkState.origin.y };
-        this.finishPortalLinkDestination(Math.floor(lastWp.x / 16) * 16, Math.floor(lastWp.y / 16) * 16);
+  _syncPortalsFromRoomConfig(mapName) {
+    if (!this.mapJsonData) return;
+    let portalLayer = this.mapJsonData.layers.find(l => (l.name === 'Portals' || l.name === 'Warps') && l.type === 'objectgroup');
+
+    // If no portal layer or empty, import from ROOMS_CONFIG if available
+    const roomConfig = ROOMS_CONFIG[mapName];
+    if ((!portalLayer || portalLayer.objects.length === 0) && roomConfig && roomConfig.portals && roomConfig.portals.length > 0) {
+      if (!portalLayer) {
+        portalLayer = {
+          name: 'Portals',
+          type: 'objectgroup',
+          visible: true,
+          opacity: 1,
+          x: 0,
+          y: 0,
+          objects: []
+        };
+        this.mapJsonData.layers.push(portalLayer);
       }
-    });
+
+      roomConfig.portals.forEach((p, idx) => {
+        const obj = {
+          id: Date.now() + idx,
+          name: p.label || `Portal_${p.targetRoom}`,
+          type: 'portal_link',
+          x: p.trigger.x,
+          y: p.trigger.y,
+          width: p.trigger.width || 32,
+          height: p.trigger.height || 32,
+          properties: [
+            { name: 'targetRoom', value: p.targetRoom },
+            { name: 'targetX', value: p.targetSpawn.x },
+            { name: 'targetY', value: p.targetSpawn.y },
+            { name: 'label', value: p.label || p.targetRoom },
+            { name: 'isLinked', value: true }
+          ]
+        };
+        portalLayer.objects.push(obj);
+      });
+    }
   }
 
   // ─── Base64 Utilities ──────────────────────────────────────────────────
@@ -175,11 +317,19 @@ export default class EditorScene extends Phaser.Scene {
     return btoa(binaryString);
   }
 
-  // ─── Rendering Overlays ───────────────────────────────────────────────────
+  _readProps(properties) {
+    if (!properties) return {};
+    if (Array.isArray(properties)) {
+      return Object.fromEntries(properties.map(p => [p.name, p.value]));
+    }
+    return { ...properties };
+  }
+
+  // ─── Overlays Drawing ──────────────────────────────────────────────────
 
   drawGrid() {
     this.gridGraphics.clear();
-    if (!this.showGrid) return;
+    if (!this.showGrid || !this.map) return;
 
     this.gridGraphics.lineStyle(1, 0xffffff, 0.15);
     const tileW = this.map.tileWidth;
@@ -195,34 +345,35 @@ export default class EditorScene extends Phaser.Scene {
     }
   }
 
-  _drawDashedLine(graphics, x1, y1, x2, y2, dashLen = 8, gapLen = 6) {
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist === 0) return;
+  drawCollisionOverlay() {
+    this.collisionGraphics.clear();
+    if (!this.showCollisions || !this.map) return;
 
-    const angle = Math.atan2(dy, dx);
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
+    const width = this.map.width;
+    const height = this.map.height;
+    const tileW = this.map.tileWidth;
+    const tileH = this.map.tileHeight;
 
-    let current = 0;
-    while (current < dist) {
-      const end = Math.min(current + dashLen, dist);
-      const startX = x1 + cos * current;
-      const startY = y1 + sin * current;
-      const endX = x1 + cos * end;
-      const endY = y1 + sin * end;
-      graphics.lineBetween(startX, startY, endX, endY);
-      current += dashLen + gapLen;
+    this.collisionGraphics.fillStyle(0xff1744, 0.35);
+    this.collisionGraphics.lineStyle(1, 0xff1744, 0.7);
+
+    // 1. Check all COLLISION_LAYERS from real map
+    for (const layerName of COLLISION_LAYERS) {
+      const layerData = this.tileLayerData[layerName];
+      if (!layerData) continue;
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const gid = layerData[y * width + x];
+          if (gid > 0) {
+            const px = x * tileW;
+            const py = y * tileH;
+            this.collisionGraphics.fillRect(px, py, tileW, tileH);
+            this.collisionGraphics.strokeRect(px, py, tileW, tileH);
+          }
+        }
+      }
     }
-  }
-
-  _readProps(properties) {
-    if (!properties) return {};
-    if (Array.isArray(properties)) {
-      return Object.fromEntries(properties.map(p => [p.name, p.value]));
-    }
-    return { ...properties };
   }
 
   drawObjects() {
@@ -232,20 +383,28 @@ export default class EditorScene extends Phaser.Scene {
     const objectLayers = this.mapJsonData.layers.filter(l => l.type === 'objectgroup');
 
     for (const layer of objectLayers) {
-      let color = 0x00e5ff; // cyan (Zones)
-      if (layer.name === 'Objects') color = 0xff5252; // red
-      if (layer.name === 'Points of interest') color = 0xffcc00; // yellow
-      if (layer.name === 'Portals' || layer.name === 'Warps' || layer.name === 'Doors') color = 0xab47bc; // purple
+      const isPortalLayer = (layer.name === 'Portals' || layer.name === 'Warps' || layer.name === 'Doors');
+      const isSignLayer = (layer.name === 'Points of interest' || layer.name === 'Signs');
 
       for (const obj of layer.objects) {
-        if (obj.type === 'portal_link') continue; // Handled separately in _drawPortalLinks()
+        if (isPortalLayer) {
+          this._drawSinglePortal(obj);
+          continue;
+        }
+
+        if (isSignLayer || (obj.properties && (this._readProps(obj.properties).dialogue || this._readProps(obj.properties).text))) {
+          this._drawSignObject(obj, layer.name);
+          continue;
+        }
+
+        // Generic objects
+        let color = 0x00e5ff;
+        if (layer.name === 'Objects') color = 0xff5252;
 
         this.objectGraphics.lineStyle(2, color, 0.85);
-
         if (obj.point) {
           this.objectGraphics.fillStyle(color, 0.6);
           this.objectGraphics.fillCircle(obj.x, obj.y, 6);
-          this.objectGraphics.strokeCircle(obj.x, obj.y, 8);
         } else {
           const w = obj.width || 16;
           const h = obj.height || 16;
@@ -254,7 +413,7 @@ export default class EditorScene extends Phaser.Scene {
           this.objectGraphics.strokeRect(obj.x, obj.y, w, h);
         }
 
-        if (this.selectedObject && this.selectedObject.id === obj.id && this.selectedObject.layerName === layer.name) {
+        if (this.selectedObject && this.selectedObject.id === obj.id) {
           this.objectGraphics.lineStyle(3, 0xffffff, 1);
           const w = obj.width || 16;
           const h = obj.height || 16;
@@ -263,174 +422,174 @@ export default class EditorScene extends Phaser.Scene {
       }
     }
 
-    this._drawPortalLinks();
   }
 
-  _drawPortalLinks() {
-    if (!this.mapJsonData) return;
+  _drawSinglePortal(obj) {
+    const props = this._readProps(obj.properties);
+    const targetRoom = props.targetRoom || obj.name || 'Destino';
 
-    const portalLinksMap = new Map();
+    const tileW = (this.map && this.map.tileWidth) ? this.map.tileWidth : 32;
+    const tileH = (this.map && this.map.tileHeight) ? this.map.tileHeight : 32;
+    const w = obj.width || tileW;
+    const h = obj.height || tileH;
 
-    const portalLayers = this.mapJsonData.layers.filter(l => l.type === 'objectgroup');
-    for (const layer of portalLayers) {
+    // Vibrant purple/magenta portal trigger styling
+    this.objectGraphics.fillStyle(0xab47bc, 0.32);
+    this.objectGraphics.lineStyle(2, 0xba68c8, 0.95);
+    this.objectGraphics.fillRect(obj.x, obj.y, w, h);
+    this.objectGraphics.strokeRect(obj.x, obj.y, w, h);
+
+    // If multi-grid portal, draw light inner grid lines
+    if (w > tileW || h > tileH) {
+      this.objectGraphics.lineStyle(1, 0xba68c8, 0.4);
+      for (let x = obj.x + tileW; x < obj.x + w; x += tileW) {
+        this.objectGraphics.lineBetween(x, obj.y, x, obj.y + h);
+      }
+      for (let y = obj.y + tileH; y < obj.y + h; y += tileH) {
+        this.objectGraphics.lineBetween(obj.x, y, obj.x + w, y);
+      }
+    }
+
+    // Portal center warp core icon
+    const cx = obj.x + w / 2;
+    const cy = obj.y + h / 2;
+    this.objectGraphics.fillStyle(0xe1bee7, 0.9);
+    this.objectGraphics.fillCircle(cx, cy, 6);
+    this.objectGraphics.lineStyle(2, 0xffffff, 1);
+    this.objectGraphics.strokeCircle(cx, cy, 8);
+
+    // Selected highlight
+    if (this.selectedObject && this.selectedObject.id === obj.id) {
+      this.objectGraphics.lineStyle(3, 0xffeb3b, 1);
+      this.objectGraphics.strokeRect(obj.x - 3, obj.y - 3, w + 6, h + 6);
+    }
+  }
+
+  _drawSignObject(obj, layerName) {
+    const props = this._readProps(obj.properties);
+    const title = props.title || obj.name || 'Placa';
+
+    const tileW = (this.map && this.map.tileWidth) ? this.map.tileWidth : 32;
+    const tileH = (this.map && this.map.tileHeight) ? this.map.tileHeight : 32;
+    const w = obj.width || tileW;
+    const h = obj.height || tileH;
+
+    // Amber / Gold Signboard highlight
+    this.objectGraphics.fillStyle(0xfbc02d, 0.35);
+    this.objectGraphics.lineStyle(2, 0xffd54f, 0.95);
+    this.objectGraphics.fillRect(obj.x, obj.y, w, h);
+    this.objectGraphics.strokeRect(obj.x, obj.y, w, h);
+
+    // Signpost bubble marker
+    const cx = obj.x + w / 2;
+    const cy = obj.y + h / 2;
+    this.objectGraphics.fillStyle(0xfff176, 0.95);
+    this.objectGraphics.fillCircle(cx, cy, Math.min(6, w / 4));
+
+    if (this.selectedObject && this.selectedObject.id === obj.id) {
+      this.objectGraphics.lineStyle(3, 0xffffff, 1);
+      this.objectGraphics.strokeRect(obj.x - 2, obj.y - 2, w + 4, h + 4);
+    }
+  }
+
+  findPortalAt(worldX, worldY) {
+    if (!this.mapJsonData) return null;
+    const portalLayer = this.mapJsonData.layers.find(l => (l.name === 'Portals' || l.name === 'Warps' || l.name === 'Doors') && l.type === 'objectgroup');
+    if (!portalLayer) return null;
+    for (const obj of portalLayer.objects) {
+      const w = obj.width || 32;
+      const h = obj.height || 32;
+      if (worldX >= obj.x && worldX <= obj.x + w && worldY >= obj.y && worldY <= obj.y + h) {
+        return { ...obj, layerName: portalLayer.name };
+      }
+    }
+    return null;
+  }
+
+  findSignAt(worldX, worldY) {
+    if (!this.mapJsonData) return null;
+    const objectLayers = this.mapJsonData.layers.filter(l => l.type === 'objectgroup');
+    const tileW = (this.map && this.map.tileWidth) ? this.map.tileWidth : 32;
+    const tileH = (this.map && this.map.tileHeight) ? this.map.tileHeight : 32;
+
+    for (const layer of objectLayers) {
+      if (!layer.objects) continue;
       for (const obj of layer.objects) {
-        if (obj.type === 'portal_link') {
-          const props = this._readProps(obj.properties);
-          const linkId = props.linkId || obj.name;
-          if (!portalLinksMap.has(linkId)) {
-            portalLinksMap.set(linkId, { waypoints: [], isLinked: false });
-          }
-          const entry = portalLinksMap.get(linkId);
-
-          if (props.role === 'origin') {
-            entry.origin = obj;
-            entry.isLinked = (props.isLinked === true || props.isLinked === 'true');
-            if (props.waypoints) {
-              try { entry.waypoints = typeof props.waypoints === 'string' ? JSON.parse(props.waypoints) : props.waypoints; } catch (e) {}
-            }
-          } else if (props.role === 'destination') {
-            entry.destination = obj;
+        const isSign = obj.type === 'sign' || layer.name === 'Points of interest' || layer.name === 'Signs';
+        if (isSign) {
+          const w = obj.width || tileW;
+          const h = obj.height || tileH;
+          if (worldX >= obj.x && worldX <= obj.x + w && worldY >= obj.y && worldY <= obj.y + h) {
+            return { ...obj, layerName: layer.name };
           }
         }
       }
     }
+    return null;
+  }
 
-    // Render linked and unlinked portal pairs
-    for (const [linkId, linkData] of portalLinksMap.entries()) {
-      const { origin, destination, waypoints, isLinked } = linkData;
-
-      if (origin) {
-        const ox = origin.x + (origin.width || 32) / 2;
-        const oy = origin.y + (origin.height || 32) / 2;
-
-        const colorOrigin = isLinked ? 0xab47bc : 0xff1744; // Purple if linked, Red if unlinked
-        this.objectGraphics.lineStyle(2, colorOrigin, 0.9);
-        this.objectGraphics.fillStyle(colorOrigin, 0.25);
-        this.objectGraphics.fillRect(origin.x, origin.y, origin.width || 32, origin.height || 32);
-        this.objectGraphics.strokeRect(origin.x, origin.y, origin.width || 32, origin.height || 32);
-        this.objectGraphics.fillCircle(ox, oy, 6);
-
-        let currentX = ox;
-        let currentY = oy;
-
-        if (waypoints && waypoints.length > 0) {
-          for (let i = 0; i < waypoints.length; i++) {
-            const wp = waypoints[i];
-            this.objectGraphics.lineStyle(2, 0x00e5ff, 0.9);
-            this.objectGraphics.fillStyle(0x00e5ff, 0.7);
-            this.objectGraphics.fillCircle(wp.x, wp.y, 5);
-            this.objectGraphics.strokeCircle(wp.x, wp.y, 7);
-
-            this.objectGraphics.lineStyle(2, colorOrigin, 0.85);
-            this._drawDashedLine(this.objectGraphics, currentX, currentY, wp.x, wp.y, 8, 6);
-
-            currentX = wp.x;
-            currentY = wp.y;
-          }
-        }
-
-        if (destination && isLinked) {
-          const dx = destination.x + (destination.width || 32) / 2;
-          const dy = destination.y + (destination.height || 32) / 2;
-
-          this.objectGraphics.lineStyle(2, 0xff4081, 0.9);
-          this.objectGraphics.fillStyle(0xff4081, 0.25);
-          this.objectGraphics.fillRect(destination.x, destination.y, destination.width || 32, destination.height || 32);
-          this.objectGraphics.strokeRect(destination.x, destination.y, destination.width || 32, destination.height || 32);
-          this.objectGraphics.fillCircle(dx, dy, 6);
-
-          this.objectGraphics.lineStyle(2, 0xff4081, 0.85);
-          this._drawDashedLine(this.objectGraphics, currentX, currentY, dx, dy, 8, 6);
-        } else {
-          // Unlinked warning circle indicator
-          this.objectGraphics.lineStyle(3, 0xff0000, 1);
-          this.objectGraphics.strokeCircle(ox, oy, 14);
-        }
-      }
-    }
-
-    // Render active in-progress portal link creation (rubberband dashed line)
-    if (this.portalLinkState && this.portalLinkState.origin) {
-      const { origin, waypoints } = this.portalLinkState;
-      const ox = origin.x + (origin.width || 32) / 2;
-      const oy = origin.y + (origin.height || 32) / 2;
-
-      this.objectGraphics.lineStyle(3, 0xffff00, 0.9);
-      this.objectGraphics.fillStyle(0xffff00, 0.3);
-      this.objectGraphics.fillRect(origin.x, origin.y, origin.width || 32, origin.height || 32);
-      this.objectGraphics.strokeRect(origin.x, origin.y, origin.width || 32, origin.height || 32);
-
-      let currentX = ox;
-      let currentY = oy;
-
-      if (waypoints && waypoints.length > 0) {
-        for (const wp of waypoints) {
-          this.objectGraphics.lineStyle(2, 0x00e5ff, 0.9);
-          this.objectGraphics.fillStyle(0x00e5ff, 0.8);
-          this.objectGraphics.fillCircle(wp.x, wp.y, 6);
-
-          this.objectGraphics.lineStyle(2, 0xffff00, 0.85);
-          this._drawDashedLine(this.objectGraphics, currentX, currentY, wp.x, wp.y, 8, 6);
-
-          currentX = wp.x;
-          currentY = wp.y;
-        }
-      }
-
-      if (this.lastPointerWorldX !== undefined && this.lastPointerWorldY !== undefined) {
-        this.objectGraphics.lineStyle(2, 0xffff00, 0.7);
-        this._drawDashedLine(this.objectGraphics, currentX, currentY, this.lastPointerWorldX, this.lastPointerWorldY, 8, 6);
-      }
+  cancelPortalMarking() {
+    if (this.isMarkingPortal) {
+      this.isMarkingPortal = false;
+      this.portalDragStart = null;
+      this.cursorGraphics.clear();
+      if (this.onToast) this.onToast('🚫 Marcação de teleporte cancelada.', 'info');
     }
   }
 
-  drawCollisionOverlay() {
-    this.collisionGraphics.clear();
-    const collisionData = this.tileLayerData.Collision;
-    if (!collisionData) return;
-
-    const width = this.map.width;
-    const height = this.map.height;
-    const tileW = this.map.tileWidth;
-    const tileH = this.map.tileHeight;
-
-    this.collisionGraphics.fillStyle(0xff0000, 0.35);
-    this.collisionGraphics.lineStyle(1, 0xff0000, 0.7);
-
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const gid = collisionData[y * width + x];
-        if (gid > 0) {
-          const px = x * tileW;
-          const py = y * tileH;
-          this.collisionGraphics.fillRect(px, py, tileW, tileH);
-          this.collisionGraphics.strokeRect(px, py, tileW, tileH);
-        }
-      }
-    }
-  }
+  // ─── Cursor & Interaction ─────────────────────────────────────────────────
 
   updateCursor(worldX, worldY) {
     this.cursorGraphics.clear();
+    if (!this.map) return;
 
-    const tileX = Math.floor(worldX / this.map.tileWidth);
-    const tileY = Math.floor(worldY / this.map.tileHeight);
+    const tileW = this.map.tileWidth || 32;
+    const tileH = this.map.tileHeight || 32;
+    const tileX = Math.floor(worldX / tileW);
+    const tileY = Math.floor(worldY / tileH);
 
     if (tileX < 0 || tileX >= this.map.width || tileY < 0 || tileY >= this.map.height) {
       return;
     }
 
-    const snapX = tileX * this.map.tileWidth;
-    const snapY = tileY * this.map.tileHeight;
-
     if (this.activeTool === 'hand') {
       return;
-    } else if (this.activeLayerName === 'Collision') {
+    }
+
+    // Active drag box for Teleport/Portal (1 or more grids)
+    if (this.isMarkingPortal && this.portalDragStart) {
+      const minTileX = Math.max(0, Math.min(this.portalDragStart.tileX, tileX));
+      const maxTileX = Math.min(this.map.width - 1, Math.max(this.portalDragStart.tileX, tileX));
+      const minTileY = Math.max(0, Math.min(this.portalDragStart.tileY, tileY));
+      const maxTileY = Math.min(this.map.height - 1, Math.max(this.portalDragStart.tileY, tileY));
+
+      const boxX = minTileX * tileW;
+      const boxY = minTileY * tileH;
+      const boxW = (maxTileX - minTileX + 1) * tileW;
+      const boxH = (maxTileY - minTileY + 1) * tileH;
+
+      this.cursorGraphics.fillStyle(0xba68c8, 0.45);
+      this.cursorGraphics.fillRect(boxX, boxY, boxW, boxH);
+      this.cursorGraphics.lineStyle(2, 0xff80ab, 1);
+      this.cursorGraphics.strokeRect(boxX, boxY, boxW, boxH);
+
+      // Inner grid subdivisions if multi-tile
+      this.cursorGraphics.lineStyle(1, 0xffffff, 0.35);
+      for (let x = boxX + tileW; x < boxX + boxW; x += tileW) {
+        this.cursorGraphics.lineBetween(x, boxY, x, boxY + boxH);
+      }
+      for (let y = boxY + tileH; y < boxY + boxH; y += tileH) {
+        this.cursorGraphics.lineBetween(boxX, y, boxX + boxW, y);
+      }
+      return;
+    }
+
+    const snapX = tileX * tileW;
+    const snapY = tileY * tileH;
+
+    if (this.activeLayerName === 'Collision') {
       this.cursorGraphics.lineStyle(2, 0xff0000, 0.9);
       this.cursorGraphics.fillStyle(0xff0000, 0.4);
-    } else if (this.activeLayerName === 'Overhead') {
-      this.cursorGraphics.lineStyle(2, 0x00e5ff, 0.9);
-      this.cursorGraphics.fillStyle(0x00e5ff, 0.3);
     } else if (this.activeTool === 'pencil') {
       this.cursorGraphics.lineStyle(2, 0x00ff00, 0.9);
       this.cursorGraphics.fillStyle(0x00ff00, 0.25);
@@ -443,34 +602,101 @@ export default class EditorScene extends Phaser.Scene {
     } else if (this.activeTool === 'picker') {
       this.cursorGraphics.lineStyle(2, 0x00e5ff, 0.9);
       this.cursorGraphics.fillStyle(0x00e5ff, 0.25);
+    } else if (this.activeTool === 'sign') {
+      // 1 grid indicator for Sign (Amber/Gold)
+      this.cursorGraphics.lineStyle(2, 0xffd54f, 1);
+      this.cursorGraphics.fillStyle(0xfbc02d, 0.4);
+      this.cursorGraphics.fillRect(snapX, snapY, tileW, tileH);
+      this.cursorGraphics.strokeRect(snapX, snapY, tileW, tileH);
+      this.cursorGraphics.fillStyle(0xfff176, 0.95);
+      this.cursorGraphics.fillCircle(snapX + tileW / 2, snapY + tileH / 2, Math.min(6, tileW / 4));
+      return;
+    } else if (this.activeTool === 'link') {
+      // 1 grid hover indicator for Teleport (Purple)
+      this.cursorGraphics.lineStyle(2, 0xba68c8, 1);
+      this.cursorGraphics.fillStyle(0xab47bc, 0.35);
+      this.cursorGraphics.fillRect(snapX, snapY, tileW, tileH);
+      this.cursorGraphics.strokeRect(snapX, snapY, tileW, tileH);
+      return;
     } else {
       this.cursorGraphics.lineStyle(2, 0xffffff, 0.9);
       this.cursorGraphics.fillStyle(0xffffff, 0.1);
     }
 
-    this.cursorGraphics.fillRect(snapX, snapY, this.map.tileWidth, this.map.tileHeight);
-    this.cursorGraphics.strokeRect(snapX, snapY, this.map.tileWidth, this.map.tileHeight);
+    this.cursorGraphics.fillRect(snapX, snapY, tileW, tileH);
+    this.cursorGraphics.strokeRect(snapX, snapY, tileW, tileH);
   }
 
-  // ─── Input Handlers ───────────────────────────────────────────────────────
-
   onPointerDown(pointer) {
-    if (this.activeTool === 'hand' || pointer.middleButtonDown() || pointer.rightButtonDown() || this.input.keyboard.addKey('SPACE').isDown) {
+    if (!this.map) return;
+
+    const isSpaceDown = (this.spaceKey && this.spaceKey.isDown);
+    if (pointer.middleButtonDown() || pointer.rightButtonDown() || isSpaceDown) {
       this.isDraggingMap = true;
       this.dragStartX = pointer.x;
       this.dragStartY = pointer.y;
       this.camStartX = this.cameras.main.scrollX;
       this.camStartY = this.cameras.main.scrollY;
-      if (this.sys.game.canvas) {
-        this.sys.game.canvas.style.cursor = 'grabbing';
-      }
+      if (this.sys.game.canvas) this.sys.game.canvas.style.cursor = 'grabbing';
       return;
     }
 
     if (pointer.leftButtonDown()) {
       const worldPoint = pointer.positionToCamera(this.cameras.main);
-      const tileX = Math.floor(worldPoint.x / this.map.tileWidth);
-      const tileY = Math.floor(worldPoint.y / this.map.tileHeight);
+      const tileW = this.map.tileWidth || 32;
+      const tileH = this.map.tileHeight || 32;
+      const tileX = Math.floor(worldPoint.x / tileW);
+      const tileY = Math.floor(worldPoint.y / tileH);
+
+      // Check if clicking on an existing sign on the map (when using sign tool, hand tool, or picker)
+      const existingSign = this.findSignAt(worldPoint.x, worldPoint.y);
+      if (existingSign && (this.activeTool === 'sign' || this.activeTool === 'hand' || this.activeTool === 'picker')) {
+        this.selectedObject = existingSign;
+        this.drawObjects();
+        if (this.onSignSelected) this.onSignSelected(this.selectedObject);
+        return;
+      }
+
+      // Check if clicking on an existing portal on the map (when using hand tool)
+      if (this.activeTool === 'hand') {
+        const existingPortal = this.findPortalAt(worldPoint.x, worldPoint.y);
+        if (existingPortal) {
+          this.selectedObject = existingPortal;
+          this.drawObjects();
+          if (this.onPortalSelected) this.onPortalSelected(this.selectedObject);
+          return;
+        }
+
+        // Hand tool with no object clicked: drag the map
+        this.isDraggingMap = true;
+        this.dragStartX = pointer.x;
+        this.dragStartY = pointer.y;
+        this.camStartX = this.cameras.main.scrollX;
+        this.camStartY = this.cameras.main.scrollY;
+        if (this.sys.game.canvas) this.sys.game.canvas.style.cursor = 'grabbing';
+        return;
+      }
+
+      // Placa (1 grid): mark immediately on click and open modal
+      if (this.activeTool === 'sign') {
+        this.addOrSelectSignAt(worldPoint.x, worldPoint.y);
+        return;
+      }
+
+      // Teleporte: start marking 1 or more grids via drag
+      if (this.activeTool === 'link') {
+        const existingPortal = this.findPortalAt(worldPoint.x, worldPoint.y);
+        this.isMarkingPortal = true;
+        this.portalDragStart = {
+          tileX,
+          tileY,
+          startX: worldPoint.x,
+          startY: worldPoint.y,
+          existingPortal
+        };
+        this.updateCursor(worldPoint.x, worldPoint.y);
+        return;
+      }
 
       this.isPainting = true;
       this.applyToolAt(tileX, tileY, worldPoint.x, worldPoint.y);
@@ -478,9 +704,13 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   onPointerMove(pointer) {
+    if (!this.map) return;
+
     const worldPoint = pointer.positionToCamera(this.cameras.main);
-    const tileX = Math.floor(worldPoint.x / this.map.tileWidth);
-    const tileY = Math.floor(worldPoint.y / this.map.tileHeight);
+    const tileW = this.map.tileWidth || 32;
+    const tileH = this.map.tileHeight || 32;
+    const tileX = Math.floor(worldPoint.x / tileW);
+    const tileY = Math.floor(worldPoint.y / tileH);
 
     this.lastPointerWorldX = worldPoint.x;
     this.lastPointerWorldY = worldPoint.y;
@@ -489,10 +719,6 @@ export default class EditorScene extends Phaser.Scene {
 
     if (this.onCoordsUpdate) {
       this.onCoordsUpdate(tileX, tileY, Math.floor(worldPoint.x), Math.floor(worldPoint.y));
-    }
-
-    if (this.portalLinkState) {
-      this.drawObjects();
     }
 
     if (this.isDraggingMap) {
@@ -512,6 +738,51 @@ export default class EditorScene extends Phaser.Scene {
   onPointerUp(pointer) {
     this.isDraggingMap = false;
     this.isPainting = false;
+
+    if (this.isMarkingPortal && this.portalDragStart) {
+      const worldPoint = pointer.positionToCamera(this.cameras.main);
+      const tileW = this.map.tileWidth || 32;
+      const tileH = this.map.tileHeight || 32;
+      const curTileX = Math.floor(worldPoint.x / tileW);
+      const curTileY = Math.floor(worldPoint.y / tileH);
+
+      const dist = Phaser.Math.Distance.Between(this.portalDragStart.startX, this.portalDragStart.startY, worldPoint.x, worldPoint.y);
+
+      // If clicked without dragging on an existing portal, select it
+      if (dist < 8 && this.portalDragStart.existingPortal) {
+        this.selectedObject = this.portalDragStart.existingPortal;
+        this.drawObjects();
+        if (this.onPortalSelected) this.onPortalSelected(this.selectedObject);
+      } else {
+        const minTileX = Math.max(0, Math.min(this.portalDragStart.tileX, curTileX));
+        const maxTileX = Math.min(this.map.width - 1, Math.max(this.portalDragStart.tileX, curTileX));
+        const minTileY = Math.max(0, Math.min(this.portalDragStart.tileY, curTileY));
+        const maxTileY = Math.min(this.map.height - 1, Math.max(this.portalDragStart.tileY, curTileY));
+
+        const boxX = minTileX * tileW;
+        const boxY = minTileY * tileH;
+        const boxW = (maxTileX - minTileX + 1) * tileW;
+        const boxH = (maxTileY - minTileY + 1) * tileH;
+
+        // If single click without drag on existing portal covering that tile
+        const existingUnder = (dist < 8) ? this.findPortalAt(boxX + tileW / 2, boxY + tileH / 2) : null;
+        if (existingUnder) {
+          this.selectedObject = existingUnder;
+          this.drawObjects();
+          if (this.onPortalSelected) this.onPortalSelected(this.selectedObject);
+        } else {
+          // Create the teleporte with the marked grid area (1 or more grids)
+          const targetRoom = (this.currentMapName === 'pallet_town') ? 'route_1' : 'pallet_town';
+          const newPortal = this.addPortalTrigger(boxX, boxY, boxW, boxH, targetRoom, 0, 0, 'Novo Portal');
+          if (this.onPortalSelected) this.onPortalSelected({ ...newPortal, layerName: 'Portals' });
+        }
+      }
+
+      this.isMarkingPortal = false;
+      this.portalDragStart = null;
+      this.updateCursor(worldPoint.x, worldPoint.y);
+    }
+
     if (this.sys.game.canvas) {
       this.sys.game.canvas.style.cursor = (this.activeTool === 'hand') ? 'grab' : 'crosshair';
     }
@@ -520,54 +791,22 @@ export default class EditorScene extends Phaser.Scene {
   onWheel(pointer, gameObjects, deltaX, deltaY, deltaZ) {
     let zoom = this.cameras.main.zoom;
     if (deltaY > 0) {
-      zoom = Math.max(0.5, zoom - 0.15);
+      zoom = Math.max(0.4, zoom - 0.15);
     } else if (deltaY < 0) {
       zoom = Math.min(4.0, zoom + 0.15);
     }
     this.cameras.main.setZoom(zoom);
   }
 
-  // ─── Operations ──────────────────────────────────────────────────────────
+  // ─── Tools & Editing Operations ──────────────────────────────────────────
 
   applyToolAt(tileX, tileY, worldX, worldY) {
-    if (tileX < 0 || tileX >= this.map.width || tileY < 0 || tileY >= this.map.height) {
+    if (!this.map || tileX < 0 || tileX >= this.map.width || tileY < 0 || tileY >= this.map.height) {
       return;
     }
 
-    if (this.activeTool === 'link') {
-      const snapX = Math.floor(worldX / 16) * 16;
-      const snapY = Math.floor(worldY / 16) * 16;
-
-      if (!this.portalLinkState) {
-        // Step 1: Set Origin Portal
-        const linkId = 'portal_' + (Date.now() % 10000);
-        this.portalLinkState = {
-          linkId: linkId,
-          origin: { x: snapX, y: snapY, width: 32, height: 32 },
-          waypoints: [],
-          destination: null
-        };
-        if (this.onToast) {
-          this.onToast(`📍 Portal Origem [${linkId}] definido! Clique para criar pontos intermediários de intervalo, ou duplo-clique/Enter para CONCLUIR no Destino.`, 'info');
-        }
-      } else {
-        // Step 2: Double click or check click interval to finish or add waypoint
-        const now = Date.now();
-        if (this._lastClickTime && (now - this._lastClickTime < 350)) {
-          // Double Click -> Finish Destination!
-          this.finishPortalLinkDestination(snapX, snapY);
-          this._lastClickTime = 0;
-          return;
-        }
-        this._lastClickTime = now;
-
-        // Otherwise add waypoint
-        this.portalLinkState.waypoints.push({ x: snapX + 8, y: snapY + 8 });
-        if (this.onToast) {
-          this.onToast(`➕ Ponto de intervalo #${this.portalLinkState.waypoints.length} adicionado! Clique no local final e dê duplo-clique (ou tecle Enter) para concluir.`, 'info');
-        }
-      }
-      this.drawObjects();
+    if (this.activeTool === 'sign') {
+      this.addOrSelectSignAt(worldX, worldY);
       return;
     }
 
@@ -603,13 +842,14 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   setTile(x, y, gid, layerName = this.activeLayerName) {
-    const data = this.tileLayerData[layerName];
-    const phaserLayer = this.phaserLayers[layerName];
-    if (!data) return;
+    let data = this.tileLayerData[layerName];
+    if (!data) {
+      data = new Uint32Array(this.map.width * this.map.height);
+      this.tileLayerData[layerName] = data;
+    }
 
     const index = y * this.map.width + x;
     if (data[index] === gid) return;
-
     data[index] = gid;
 
     if (layerName === 'Collision') {
@@ -617,6 +857,7 @@ export default class EditorScene extends Phaser.Scene {
       return;
     }
 
+    const phaserLayer = this.phaserLayers[layerName];
     if (phaserLayer) {
       if (gid === 0) {
         phaserLayer.removeTileAt(x, y);
@@ -654,6 +895,8 @@ export default class EditorScene extends Phaser.Scene {
     }
   }
 
+  // ─── Object, Portal & Sign Management ─────────────────────────────────────
+
   selectObjectAt(worldX, worldY) {
     if (!this.mapJsonData) return;
 
@@ -675,12 +918,107 @@ export default class EditorScene extends Phaser.Scene {
     this.selectedObject = found;
     this.drawObjects();
 
-    if (this.onObjectSelected) {
-      this.onObjectSelected(found);
+    if (found) {
+      const isSign = found.layerName === 'Points of interest' || found.layerName === 'Signs' || (found.properties && (this._readProps(found.properties).dialogue || this._readProps(found.properties).text));
+      if (isSign && this.onSignSelected) {
+        this.onSignSelected(found);
+      } else if (this.onObjectSelected) {
+        this.onObjectSelected(found);
+      }
     }
   }
 
-  // ─── Setters ──────────────────────────────────────────────────────────────
+  addOrSelectSignAt(worldX, worldY) {
+    const tileW = (this.map && this.map.tileWidth) ? this.map.tileWidth : 32;
+    const tileH = (this.map && this.map.tileHeight) ? this.map.tileHeight : 32;
+    const snapX = Math.floor(worldX / tileW) * tileW;
+    const snapY = Math.floor(worldY / tileH) * tileH;
+
+    // Check if clicking existing sign at this location (across all layers)
+    const existing = this.findSignAt(worldX, worldY);
+    if (existing) {
+      this.selectedObject = existing;
+      this.drawObjects();
+      if (this.onSignSelected) this.onSignSelected(this.selectedObject);
+      return existing;
+    }
+
+    const signLayer = this._getOrCreateObjectLayer('Points of interest');
+
+    // Create new sign object (exactly 1 grid cell)
+    const newSign = {
+      id: Date.now(),
+      name: 'Placa',
+      type: 'sign',
+      x: snapX,
+      y: snapY,
+      width: tileW,
+      height: tileH,
+      properties: [
+        { name: 'title', value: 'PLACA' },
+        { name: 'text', value: 'Mensagem da placa aqui...' }
+      ]
+    };
+
+    signLayer.objects.push(newSign);
+    this.selectedObject = { ...newSign, layerName: 'Points of interest' };
+    this.drawObjects();
+
+    if (this.onToast) this.onToast(`💬 Nova placa criada em [${snapX}, ${snapY}] (1 grid)!`, 'success');
+    if (this.onSignSelected) this.onSignSelected(this.selectedObject);
+    return newSign;
+  }
+
+  addPortalTrigger(x, y, w = 32, h = 32, targetRoom = 'route_1', targetX = 608, targetY = 1184, label = 'Portal') {
+    const portalLayer = this._getOrCreateObjectLayer('Portals');
+    const newPortal = {
+      id: Date.now(),
+      name: label,
+      type: 'portal_link',
+      x: x,
+      y: y,
+      width: w,
+      height: h,
+      properties: [
+        { name: 'targetRoom', value: targetRoom },
+        { name: 'targetX', value: targetX },
+        { name: 'targetY', value: targetY },
+        { name: 'label', value: label },
+        { name: 'isLinked', value: true }
+      ]
+    };
+
+    portalLayer.objects.push(newPortal);
+    this.selectedObject = { ...newPortal, layerName: 'Portals' };
+    this.drawObjects();
+
+    const tileW = (this.map && this.map.tileWidth) ? this.map.tileWidth : 32;
+    const tileH = (this.map && this.map.tileHeight) ? this.map.tileHeight : 32;
+    const gridCols = Math.round(w / tileW);
+    const gridRows = Math.round(h / tileH);
+    if (this.onToast) this.onToast(`🚪 Teleporte (${gridCols}x${gridRows} grid${gridCols * gridRows > 1 ? 's' : ''}) criado em [${x}, ${y}]!`, 'success');
+    return newPortal;
+  }
+
+  _getOrCreateObjectLayer(layerName = 'Portals') {
+    if (!this.mapJsonData) return null;
+    let layer = this.mapJsonData.layers.find(l => l.name === layerName && l.type === 'objectgroup');
+    if (!layer) {
+      layer = {
+        name: layerName,
+        type: 'objectgroup',
+        visible: true,
+        opacity: 1,
+        x: 0,
+        y: 0,
+        objects: []
+      };
+      this.mapJsonData.layers.push(layer);
+    }
+    return layer;
+  }
+
+  // ─── Setters & Toggles ───────────────────────────────────────────────────
 
   setActiveLayer(layerName) {
     this.activeLayerName = layerName;
@@ -688,10 +1026,8 @@ export default class EditorScene extends Phaser.Scene {
 
   setLayerVisible(layerName, visible) {
     if (layerName === 'Collision') {
-      if (this.phaserLayers.Collision) {
-        this.phaserLayers.Collision.setVisible(false);
-      }
-      this.collisionGraphics.setVisible(visible);
+      this.showCollisions = visible;
+      this.drawCollisionOverlay();
     } else if (this.phaserLayers[layerName]) {
       this.phaserLayers[layerName].setVisible(visible);
     }
@@ -713,6 +1049,14 @@ export default class EditorScene extends Phaser.Scene {
     this.drawGrid();
   }
 
+  toggleCollisions() {
+    this.showCollisions = !this.showCollisions;
+    this.drawCollisionOverlay();
+    if (this.onToast) {
+      this.onToast(this.showCollisions ? '🛡️ Overlay de Colisões: LIGADO' : '🛡️ Overlay de Colisões: DESLIGADO', 'info');
+    }
+  }
+
   toggleObjects() {
     this.showObjects = !this.showObjects;
     this.drawObjects();
@@ -724,132 +1068,8 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   zoomOut() {
-    const newZoom = Math.max(0.5, this.cameras.main.zoom - 0.25);
+    const newZoom = Math.max(0.4, this.cameras.main.zoom - 0.25);
     this.cameras.main.setZoom(newZoom);
-  }
-
-  // ─── Portal Linking Helpers ─────────────────────────────────────────────
-
-  _getOrCreateObjectLayer(layerName = 'Portals') {
-    if (!this.mapJsonData) return null;
-    let layer = this.mapJsonData.layers.find(l => l.name === layerName && l.type === 'objectgroup');
-    if (!layer) {
-      layer = {
-        name: layerName,
-        type: 'objectgroup',
-        visible: true,
-        opacity: 1,
-        x: 0,
-        y: 0,
-        objects: []
-      };
-      this.mapJsonData.layers.push(layer);
-    }
-    return layer;
-  }
-
-  finishPortalLinkDestination(destX, destY) {
-    if (!this.portalLinkState || !this.portalLinkState.origin) return;
-
-    const { linkId, origin, waypoints } = this.portalLinkState;
-    const portalLayer = this._getOrCreateObjectLayer('Portals');
-    if (!portalLayer) return;
-
-    const waypointsCopy = JSON.parse(JSON.stringify(waypoints || []));
-
-    const originObj = {
-      id: Date.now(),
-      name: `Portal_${linkId}_Entrada`,
-      type: 'portal_link',
-      x: origin.x,
-      y: origin.y,
-      width: origin.width || 32,
-      height: origin.height || 32,
-      properties: [
-        { name: 'linkId', value: linkId },
-        { name: 'role', value: 'origin' },
-        { name: 'targetX', value: destX },
-        { name: 'targetY', value: destY },
-        { name: 'waypoints', value: JSON.stringify(waypointsCopy) },
-        { name: 'isLinked', value: true }
-      ]
-    };
-
-    const destObj = {
-      id: Date.now() + 1,
-      name: `Portal_${linkId}_Saida`,
-      type: 'portal_link',
-      x: destX,
-      y: destY,
-      width: 32,
-      height: 32,
-      properties: [
-        { name: 'linkId', value: linkId },
-        { name: 'role', value: 'destination' },
-        { name: 'targetX', value: origin.x },
-        { name: 'targetY', value: origin.y },
-        { name: 'waypoints', value: JSON.stringify(waypointsCopy) },
-        { name: 'isLinked', value: true }
-      ]
-    };
-
-    portalLayer.objects.push(originObj, destObj);
-    this.portalLinkState = null;
-
-    if (this.onToast) {
-      this.onToast(`✅ Portal '${linkId}' conectado com sucesso! (${waypointsCopy.length} ponto(s) de intervalo)`, 'success');
-    }
-    this.drawObjects();
-  }
-
-  cancelPortalLink() {
-    if (this.portalLinkState) {
-      this.portalLinkState = null;
-      if (this.onToast) this.onToast('🚫 Criação de portal cancelada.', 'info');
-      this.drawObjects();
-    }
-  }
-
-  getUnlinkedPortals() {
-    if (!this.mapJsonData) return [];
-    const unlinked = [];
-
-    // Check active in-progress creation
-    if (this.portalLinkState && this.portalLinkState.origin && !this.portalLinkState.destination) {
-      unlinked.push({ name: this.portalLinkState.linkId, type: 'in_progress' });
-    }
-
-    // Check saved portal objects in map Json layers
-    const portalLayers = this.mapJsonData.layers.filter(l => l.type === 'objectgroup');
-    const portalMap = new Map();
-
-    for (const layer of portalLayers) {
-      for (const obj of layer.objects) {
-        if (obj.type === 'portal_link') {
-          const props = this._readProps(obj.properties);
-          const linkId = props.linkId || obj.name;
-          if (!portalMap.has(linkId)) {
-            portalMap.set(linkId, { origin: false, destination: false, isLinked: false });
-          }
-          const item = portalMap.get(linkId);
-          if (props.role === 'origin') {
-            item.origin = true;
-            if (props.isLinked === true || props.isLinked === 'true') item.isLinked = true;
-          }
-          if (props.role === 'destination') {
-            item.destination = true;
-          }
-        }
-      }
-    }
-
-    for (const [linkId, status] of portalMap.entries()) {
-      if (!status.origin || !status.destination || !status.isLinked) {
-        unlinked.push({ name: linkId });
-      }
-    }
-
-    return unlinked;
   }
 
   // ─── Export JSON ─────────────────────────────────────────────────────────
@@ -861,34 +1081,38 @@ export default class EditorScene extends Phaser.Scene {
     const width = this.map.width;
     const height = this.map.height;
 
-    ['Ground', 'World', 'Overhead', 'Collision'].forEach(layerName => {
-      const dataArr = this.tileLayerData[layerName];
-      if (dataArr) {
-        let jsonLayer = exportMap.layers.find(l => l.name === layerName && l.type === 'tilelayer');
-        if (!jsonLayer) {
-          jsonLayer = {
-            name: layerName,
-            type: 'tilelayer',
-            encoding: 'base64',
-            width: width,
-            height: height,
-            x: 0,
-            y: 0,
-            visible: true,
-            opacity: 1,
-            data: ''
-          };
-          const firstObjIndex = exportMap.layers.findIndex(l => l.type === 'objectgroup');
-          if (firstObjIndex >= 0) {
-            exportMap.layers.splice(firstObjIndex, 0, jsonLayer);
-          } else {
-            exportMap.layers.push(jsonLayer);
-          }
+    // Save all tile layers as standard JSON arrays (native Kanto format)
+    for (const [layerName, dataArr] of Object.entries(this.tileLayerData)) {
+      if (!dataArr) continue;
+
+      let jsonLayer = exportMap.layers.find(l => l.name === layerName && l.type === 'tilelayer');
+      if (!jsonLayer) {
+        jsonLayer = {
+          name: layerName,
+          type: 'tilelayer',
+          width: width,
+          height: height,
+          x: 0,
+          y: 0,
+          visible: true,
+          opacity: 1,
+          data: []
+        };
+        const firstObjIndex = exportMap.layers.findIndex(l => l.type === 'objectgroup');
+        if (firstObjIndex >= 0) {
+          exportMap.layers.splice(firstObjIndex, 0, jsonLayer);
+        } else {
+          exportMap.layers.push(jsonLayer);
         }
-        jsonLayer.data = this._encodeBase64(dataArr);
       }
-    });
+
+      // Delete any base64 / compression flags so Phaser loads as standard array
+      delete jsonLayer.encoding;
+      delete jsonLayer.compression;
+      jsonLayer.data = Array.from(dataArr);
+    }
 
     return exportMap;
   }
 }
+

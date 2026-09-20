@@ -3,5 +3,9 @@ dist/
 .env
 *.db
 *.db-journal
+*.db.backup
+*.bak
+*.backup
 *.log
 .DS_Store
+Thumbs.db
