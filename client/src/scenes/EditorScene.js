@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { ROOMS_CONFIG } from '../maps/roomData';
+import { COLLISION_TYPES, COLLISION_META } from '../maps/collisionConfig';
 
 const LAYER_DEPTHS = {
   Ground: 10,
@@ -45,6 +46,8 @@ export default class EditorScene extends Phaser.Scene {
     // Active State
     this.activeTool = 'pencil'; // 'hand', 'link', 'pencil', 'eraser', 'bucket', 'picker', 'object', 'sign'
     this.selectedTileGid = 1;
+    this.selectedCollisionType = COLLISION_TYPES.SOLID;
+    this.onCollisionTypePicked = null;
     this.activeLayerName = 'Ground';
     this.showGrid = true;
     this.showObjects = true;
@@ -83,7 +86,7 @@ export default class EditorScene extends Phaser.Scene {
 
   preload() {
     const t = Date.now();
-    this.load.image('Outside1 Spring', '/assets/tilesets/Outside1 Spring.png');
+    this.load.image('Outside1 Spring', '/assets/tilesets/Outside1 Spring_extruded.png');
     this.load.tilemapTiledJSON('pallet_town_editor', `/assets/maps/pallet_town.json?t=${t}`);
     this.load.json('pallet_town_raw_json', `/assets/maps/pallet_town.json?t=${t}`);
   }
@@ -175,12 +178,12 @@ export default class EditorScene extends Phaser.Scene {
           const imgUrl = t.image.startsWith('/') ? t.image : `/assets/tilesets/${t.image.split('/').pop()}`;
           this.load.image(t.name, imgUrl);
         }
-        const ts = this.map.addTilesetImage(t.name, t.name);
+        const ts = this.map.addTilesetImage(t.name, t.name, 32, 32, 1, 2);
         if (ts) phaserTilesets.push(ts);
       }
     }
     if (phaserTilesets.length === 0) {
-      const defaultTs = this.map.addTilesetImage('Outside1 Spring', 'Outside1 Spring');
+      const defaultTs = this.map.addTilesetImage('Outside1 Spring', 'Outside1 Spring', 32, 32, 1, 2);
       if (defaultTs) phaserTilesets.push(defaultTs);
     }
 
@@ -354,20 +357,75 @@ export default class EditorScene extends Phaser.Scene {
     const tileW = this.map.tileWidth;
     const tileH = this.map.tileHeight;
 
-    this.collisionGraphics.fillStyle(0xff1744, 0.35);
-    this.collisionGraphics.lineStyle(1, 0xff1744, 0.7);
-
-    // 1. Check all COLLISION_LAYERS from real map
     for (const layerName of COLLISION_LAYERS) {
       const layerData = this.tileLayerData[layerName];
       if (!layerData) continue;
 
+      const isExplicitCollisionLayer = (layerName === 'Collision');
+
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
           const gid = layerData[y * width + x];
-          if (gid > 0) {
-            const px = x * tileW;
-            const py = y * tileH;
+          if (gid <= 0) continue;
+
+          const px = x * tileW;
+          const py = y * tileH;
+          const cx = px + tileW / 2;
+          const cy = py + tileH / 2;
+
+          if (isExplicitCollisionLayer && gid in COLLISION_META) {
+            const meta = COLLISION_META[gid];
+            this.collisionGraphics.fillStyle(meta.color, meta.fillAlpha);
+            this.collisionGraphics.lineStyle(1.5, meta.color, meta.strokeAlpha);
+            this.collisionGraphics.fillRect(px, py, tileW, tileH);
+            this.collisionGraphics.strokeRect(px, py, tileW, tileH);
+
+            // Draw directional indicators for ledges
+            if (gid === COLLISION_TYPES.LEDGE_DOWN) {
+              // Top barrier line
+              this.collisionGraphics.lineStyle(3, 0xffeb3b, 1);
+              this.collisionGraphics.lineBetween(px + 2, py + 2, px + tileW - 2, py + 2);
+
+              // Down arrow
+              this.collisionGraphics.lineStyle(2, 0xffffff, 1);
+              this.collisionGraphics.lineBetween(cx, cy - 7, cx, cy + 7);
+              this.collisionGraphics.lineBetween(cx - 5, cy + 2, cx, cy + 7);
+              this.collisionGraphics.lineBetween(cx + 5, cy + 2, cx, cy + 7);
+            } else if (gid === COLLISION_TYPES.LEDGE_LEFT) {
+              // Right barrier line
+              this.collisionGraphics.lineStyle(3, 0xffeb3b, 1);
+              this.collisionGraphics.lineBetween(px + tileW - 2, py + 2, px + tileW - 2, py + tileH - 2);
+
+              // Left arrow
+              this.collisionGraphics.lineStyle(2, 0xffffff, 1);
+              this.collisionGraphics.lineBetween(cx + 7, cy, cx - 7, cy);
+              this.collisionGraphics.lineBetween(cx - 2, cy - 5, cx - 7, cy);
+              this.collisionGraphics.lineBetween(cx - 2, cy + 5, cx - 7, cy);
+            } else if (gid === COLLISION_TYPES.LEDGE_RIGHT) {
+              // Left barrier line
+              this.collisionGraphics.lineStyle(3, 0xffeb3b, 1);
+              this.collisionGraphics.lineBetween(px + 2, py + 2, px + 2, py + tileH - 2);
+
+              // Right arrow
+              this.collisionGraphics.lineStyle(2, 0xffffff, 1);
+              this.collisionGraphics.lineBetween(cx - 7, cy, cx + 7, cy);
+              this.collisionGraphics.lineBetween(cx + 2, cy - 5, cx + 7, cy);
+              this.collisionGraphics.lineBetween(cx + 2, cy + 5, cx + 7, cy);
+            } else if (gid === COLLISION_TYPES.LEDGE_UP) {
+              // Bottom barrier line
+              this.collisionGraphics.lineStyle(3, 0xffeb3b, 1);
+              this.collisionGraphics.lineBetween(px + 2, py + tileH - 2, px + tileW - 2, py + tileH - 2);
+
+              // Up arrow
+              this.collisionGraphics.lineStyle(2, 0xffffff, 1);
+              this.collisionGraphics.lineBetween(cx, cy + 7, cx, cy - 7);
+              this.collisionGraphics.lineBetween(cx - 5, cy - 2, cx, cy - 7);
+              this.collisionGraphics.lineBetween(cx + 5, cy - 2, cx, cy - 7);
+            }
+          } else {
+            // Standard solid collision
+            this.collisionGraphics.fillStyle(0xff1744, 0.35);
+            this.collisionGraphics.lineStyle(1, 0xff1744, 0.7);
             this.collisionGraphics.fillRect(px, py, tileW, tileH);
             this.collisionGraphics.strokeRect(px, py, tileW, tileH);
           }
@@ -588,8 +646,49 @@ export default class EditorScene extends Phaser.Scene {
     const snapY = tileY * tileH;
 
     if (this.activeLayerName === 'Collision') {
-      this.cursorGraphics.lineStyle(2, 0xff0000, 0.9);
-      this.cursorGraphics.fillStyle(0xff0000, 0.4);
+      if (this.activeTool === 'eraser') {
+        this.cursorGraphics.lineStyle(2, 0xff1744, 0.9);
+        this.cursorGraphics.fillStyle(0xff1744, 0.25);
+        this.cursorGraphics.fillRect(snapX, snapY, tileW, tileH);
+        this.cursorGraphics.strokeRect(snapX, snapY, tileW, tileH);
+        // Draw eraser X
+        this.cursorGraphics.lineStyle(2, 0xffffff, 0.85);
+        this.cursorGraphics.lineBetween(snapX + 6, snapY + 6, snapX + tileW - 6, snapY + tileH - 6);
+        this.cursorGraphics.lineBetween(snapX + tileW - 6, snapY + 6, snapX + 6, snapY + tileH - 6);
+        return;
+      }
+
+      const colType = this.selectedCollisionType || COLLISION_TYPES.SOLID;
+      const meta = COLLISION_META[colType] || COLLISION_META[COLLISION_TYPES.SOLID];
+      this.cursorGraphics.lineStyle(2, meta.color, 0.95);
+      this.cursorGraphics.fillStyle(meta.color, meta.fillAlpha);
+      this.cursorGraphics.fillRect(snapX, snapY, tileW, tileH);
+      this.cursorGraphics.strokeRect(snapX, snapY, tileW, tileH);
+
+      const cx = snapX + tileW / 2;
+      const cy = snapY + tileH / 2;
+      if (colType === COLLISION_TYPES.LEDGE_DOWN) {
+        this.cursorGraphics.lineStyle(2, 0xffffff, 1);
+        this.cursorGraphics.lineBetween(cx, cy - 7, cx, cy + 7);
+        this.cursorGraphics.lineBetween(cx - 5, cy + 2, cx, cy + 7);
+        this.cursorGraphics.lineBetween(cx + 5, cy + 2, cx, cy + 7);
+      } else if (colType === COLLISION_TYPES.LEDGE_LEFT) {
+        this.cursorGraphics.lineStyle(2, 0xffffff, 1);
+        this.cursorGraphics.lineBetween(cx + 7, cy, cx - 7, cy);
+        this.cursorGraphics.lineBetween(cx - 2, cy - 5, cx - 7, cy);
+        this.cursorGraphics.lineBetween(cx - 2, cy + 5, cx - 7, cy);
+      } else if (colType === COLLISION_TYPES.LEDGE_RIGHT) {
+        this.cursorGraphics.lineStyle(2, 0xffffff, 1);
+        this.cursorGraphics.lineBetween(cx - 7, cy, cx + 7, cy);
+        this.cursorGraphics.lineBetween(cx + 2, cy - 5, cx + 7, cy);
+        this.cursorGraphics.lineBetween(cx + 2, cy + 5, cx + 7, cy);
+      } else if (colType === COLLISION_TYPES.LEDGE_UP) {
+        this.cursorGraphics.lineStyle(2, 0xffffff, 1);
+        this.cursorGraphics.lineBetween(cx, cy + 7, cx, cy - 7);
+        this.cursorGraphics.lineBetween(cx - 5, cy - 2, cx, cy - 7);
+        this.cursorGraphics.lineBetween(cx + 5, cy - 2, cx, cy - 7);
+      }
+      return;
     } else if (this.activeTool === 'pencil') {
       this.cursorGraphics.lineStyle(2, 0x00ff00, 0.9);
       this.cursorGraphics.fillStyle(0x00ff00, 0.25);
@@ -813,8 +912,21 @@ export default class EditorScene extends Phaser.Scene {
     const layerName = this.activeLayerName;
 
     if (layerName === 'Collision') {
-      const gidToPaint = (this.activeTool === 'eraser') ? 0 : 1;
-      this.setTile(tileX, tileY, gidToPaint, 'Collision');
+      if (this.activeTool === 'bucket') {
+        const fillGid = (this.selectedCollisionType || COLLISION_TYPES.SOLID);
+        this.floodFill(tileX, tileY, fillGid, 'Collision');
+      } else if (this.activeTool === 'eraser') {
+        this.setTile(tileX, tileY, 0, 'Collision');
+      } else if (this.activeTool === 'picker') {
+        const currentGid = this.getTile(tileX, tileY, 'Collision');
+        if (currentGid in COLLISION_META) {
+          this.selectedCollisionType = currentGid;
+          if (this.onCollisionTypePicked) this.onCollisionTypePicked(currentGid);
+        }
+      } else {
+        const gidToPaint = (this.selectedCollisionType || COLLISION_TYPES.SOLID);
+        this.setTile(tileX, tileY, gidToPaint, 'Collision');
+      }
       return;
     }
 
@@ -835,13 +947,17 @@ export default class EditorScene extends Phaser.Scene {
     }
   }
 
+  setCollisionType(type) {
+    this.selectedCollisionType = type;
+  }
+
   getTile(x, y, layerName = this.activeLayerName) {
     const data = this.tileLayerData[layerName];
     if (!data) return 0;
     return data[y * this.map.width + x];
   }
 
-  setTile(x, y, gid, layerName = this.activeLayerName) {
+  setTile(x, y, gid, layerName = this.activeLayerName, skipOverlay = false) {
     let data = this.tileLayerData[layerName];
     if (!data) {
       data = new Uint32Array(this.map.width * this.map.height);
@@ -853,7 +969,7 @@ export default class EditorScene extends Phaser.Scene {
     data[index] = gid;
 
     if (layerName === 'Collision') {
-      this.drawCollisionOverlay();
+      if (!skipOverlay) this.drawCollisionOverlay();
       return;
     }
 
@@ -886,12 +1002,16 @@ export default class EditorScene extends Phaser.Scene {
       visited.add(key);
 
       if (this.getTile(x, y, layerName) === targetGid) {
-        this.setTile(x, y, fillGid, layerName);
+        this.setTile(x, y, fillGid, layerName, true);
         queue.push([x + 1, y]);
         queue.push([x - 1, y]);
         queue.push([x, y + 1]);
         queue.push([x, y - 1]);
       }
+    }
+
+    if (layerName === 'Collision') {
+      this.drawCollisionOverlay();
     }
   }
 

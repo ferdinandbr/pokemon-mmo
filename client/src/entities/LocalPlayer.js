@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import SocketClient from '../network/SocketClient';
 import { PLAYER_VISUAL } from './playerVisualConfig';
+import { spawnDustEffect, spawnLandingDust } from './dustEffect';
+import { COLLISION_TYPES } from '../maps/collisionConfig';
 
 export default class LocalPlayer extends Phaser.GameObjects.Container {
   constructor(scene, x, y, data) {
@@ -13,13 +15,18 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
     this.spriteKey = data.sprite || 'boy_run';
     this.prefix = this.spriteKey.startsWith('boy') ? 'boy' : 'girl';
     this.direction = data.direction || 'down';
-    this.speed = 175; // Running speed for 32x32 tilemap
- 
+    this.speed = 180; // Exactly 3.0 px/frame at 60Hz to eliminate subpixel jitter
+
     // Physics follows the lower part of the scaled sprite (the character's feet).
     scene.physics.world.enable(this);
     this.body.setSize(PLAYER_VISUAL.bodyWidth, PLAYER_VISUAL.bodyHeight);
     this.body.setOffset(PLAYER_VISUAL.bodyOffsetX, PLAYER_VISUAL.bodyOffsetY);
     this.body.setCollideWorldBounds(true);
+
+    // 0. Character Shadow (feet level, rendered underneath character sprite)
+    this.shadow = scene.add.image(0, 18, 'character_shadow');
+    this.shadow.setOrigin(0.5, 0.5);
+    this.add(this.shadow);
 
     // 1. Character Sprite (32x48 FireRed proportion)
     this.sprite = scene.add.sprite(0, 0, this.spriteKey, 0);
@@ -51,6 +58,11 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
     this.lastY = y;
     this.lastDir = this.direction;
     this.wasMoving = false;
+    this.lastDustTime = 0;
+    this.dustStepToggle = false;
+    this.lastAnimFrameIndex = -1;
+    this.isJumping = false;
+    this.isInGrass = false;
 
     // Keys setup
     this.keys = scene.input.keyboard.addKeys({
@@ -65,11 +77,13 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
     });
 
     scene.add.existing(this);
-    this.setDepth(y);
+    this.setDepth(100 + y / 10000);
     this.playIdle();
   }
 
   update(time) {
+    if (this.isJumping) return;
+
     if (this.scene.isChatting || (this.scene.dialogueBox && this.scene.dialogueBox.isOpen)) {
       this.body.setVelocity(0, 0);
       this.playIdle();
@@ -102,6 +116,12 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
       newDirection = 'down';
     }
 
+    // Check for ledge jump (one-way hop in permitted direction)
+    if (isDown && this._checkLedgeJump('down')) return;
+    if (isLeft && this._checkLedgeJump('left')) return;
+    if (isRight && this._checkLedgeJump('right')) return;
+    if (isUp && this._checkLedgeJump('up')) return;
+
     // Diagonal normalization
     if (vx !== 0 && vy !== 0) {
       vx *= 0.7071;
@@ -117,6 +137,18 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
       const animKey = `${this.prefix}_run_${this.direction}`;
       if (this.sprite.anims.currentAnim?.key !== animKey) {
         this.sprite.play(animKey);
+      }
+
+      // Footstep dust puff synchronized to actual footstep frames (frames 2 and 4 of walk cycle)
+      const currentFrameIndex = this.sprite.anims.currentFrame?.index;
+      if (currentFrameIndex !== this.lastAnimFrameIndex) {
+        this.lastAnimFrameIndex = currentFrameIndex;
+        if (currentFrameIndex === 2 || currentFrameIndex === 4) {
+          this.dustStepToggle = !this.dustStepToggle;
+          if (!this.isInGrass) {
+            spawnDustEffect(this.scene, this.x, this.y, this.direction, this.dustStepToggle);
+          }
+        }
       }
     } else {
       this.playIdle();
@@ -144,6 +176,194 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
       this.lastDir = this.direction;
       this.wasMoving = isMoving;
     }
+  }
+
+  _checkLedgeJump(dir) {
+    if (this.isJumping || !this.scene.getCollisionAt) return false;
+
+    if (dir === 'down') {
+      const feetY = this.y + 24;
+      const targetTileY = Math.floor((feetY + 4) / 32);
+      const targetTileX = Math.floor(this.x / 32);
+      const colType = this.scene.getCollisionAt(targetTileX, targetTileY);
+
+      if (colType === COLLISION_TYPES.LEDGE_DOWN) {
+        const ledgeTop = targetTileY * 32;
+        const dist = ledgeTop - feetY;
+        if (dist >= -6 && dist <= 10) {
+          const landingTileX = targetTileX;
+          const landingTileY = targetTileY + 1;
+          if (this.scene.isTileWalkable(landingTileX, landingTileY)) {
+            this.jumpLedge('down', targetTileX, targetTileY, landingTileX, landingTileY);
+            return true;
+          }
+        }
+      }
+    } else if (dir === 'left') {
+      const leftX = this.x - 10;
+      const feetY = this.y + 17;
+      const targetTileX = Math.floor((leftX - 4) / 32);
+      const targetTileY = Math.floor(feetY / 32);
+      const colType = this.scene.getCollisionAt(targetTileX, targetTileY);
+
+      if (colType === COLLISION_TYPES.LEDGE_LEFT) {
+        const ledgeRight = (targetTileX + 1) * 32;
+        const dist = leftX - ledgeRight;
+        if (dist >= -6 && dist <= 10) {
+          const landingTileX = targetTileX - 1;
+          const landingTileY = targetTileY;
+          if (this.scene.isTileWalkable(landingTileX, landingTileY)) {
+            this.jumpLedge('left', targetTileX, targetTileY, landingTileX, landingTileY);
+            return true;
+          }
+        }
+      }
+    } else if (dir === 'right') {
+      const rightX = this.x + 10;
+      const feetY = this.y + 17;
+      const targetTileX = Math.floor((rightX + 4) / 32);
+      const targetTileY = Math.floor(feetY / 32);
+      const colType = this.scene.getCollisionAt(targetTileX, targetTileY);
+
+      if (colType === COLLISION_TYPES.LEDGE_RIGHT) {
+        const ledgeLeft = targetTileX * 32;
+        const dist = ledgeLeft - rightX;
+        if (dist >= -6 && dist <= 10) {
+          const landingTileX = targetTileX + 1;
+          const landingTileY = targetTileY;
+          if (this.scene.isTileWalkable(landingTileX, landingTileY)) {
+            this.jumpLedge('right', targetTileX, targetTileY, landingTileX, landingTileY);
+            return true;
+          }
+        }
+      }
+    } else if (dir === 'up') {
+      const topY = this.y + 10;
+      const targetTileY = Math.floor((topY - 4) / 32);
+      const targetTileX = Math.floor(this.x / 32);
+      const colType = this.scene.getCollisionAt(targetTileX, targetTileY);
+
+      if (colType === COLLISION_TYPES.LEDGE_UP) {
+        const ledgeBottom = (targetTileY + 1) * 32;
+        const dist = topY - ledgeBottom;
+        if (dist >= -6 && dist <= 10) {
+          const landingTileX = targetTileX;
+          const landingTileY = targetTileY - 1;
+          if (this.scene.isTileWalkable(landingTileX, landingTileY)) {
+            this.jumpLedge('up', targetTileX, targetTileY, landingTileX, landingTileY);
+            return true;
+          }
+        }
+      }
+    }
+
+    return false;
+  }
+
+  jumpLedge(direction, ledgeTileX, ledgeTileY, landingTileX, landingTileY) {
+    if (this.isJumping) return;
+    this.isJumping = true;
+    this.direction = direction;
+
+    // Halt physics and disable physics collisions during hop
+    this.body.setVelocity(0, 0);
+    this.body.checkCollision.none = true;
+
+    // Play jumping pose (stepping frame for the direction)
+    const animKey = `${this.prefix}_run_${direction}`;
+    this.sprite.play(animKey);
+    this.sprite.anims.pause();
+
+    const targetX = landingTileX * 32 + 16;
+    const targetY = landingTileY * 32 + 6;
+    const jumpDuration = 360;
+
+    // Parabolic arc on sprite
+    this.scene.tweens.add({
+      targets: this.sprite,
+      y: -20,
+      duration: jumpDuration / 2,
+      ease: 'Sine.easeOut',
+      yoyo: true,
+      onComplete: () => {
+        this.sprite.y = 0;
+      }
+    });
+
+    // Name tag & bubble follow jump arc
+    this.scene.tweens.add({
+      targets: [this.nameTag, this.bubbleContainer],
+      y: '-=20',
+      duration: jumpDuration / 2,
+      ease: 'Sine.easeOut',
+      yoyo: true,
+      onComplete: () => {
+        this.nameTag.y = PLAYER_VISUAL.nameY;
+        this.bubbleContainer.y = PLAYER_VISUAL.bubbleY;
+      }
+    });
+
+    // Shadow scales slightly down at apex
+    this.scene.tweens.add({
+      targets: this.shadow,
+      scaleX: 0.75,
+      scaleY: 0.75,
+      alpha: 0.2,
+      duration: jumpDuration / 2,
+      ease: 'Sine.easeOut',
+      yoyo: true,
+      onComplete: () => {
+        this.shadow.setScale(1.0);
+        this.shadow.setAlpha(0.3);
+      }
+    });
+
+    // Move container over the ledge to the landing position
+    this.scene.tweens.add({
+      targets: this,
+      x: targetX,
+      y: targetY,
+      duration: jumpDuration,
+      ease: 'Linear',
+      onComplete: () => {
+        this.isJumping = false;
+        this.body.checkCollision.none = false;
+
+        this.x = targetX;
+        this.y = targetY;
+        this.setDepth(100 + this.y / 10000);
+
+        this.playIdle();
+
+        // 1. Energetic landing dust burst
+        spawnLandingDust(this.scene, this.x, this.y);
+
+        // 2. Landing squash & stretch for juicy game feel
+        this.scene.tweens.add({
+          targets: this.sprite,
+          scaleX: PLAYER_VISUAL.scale * 1.18,
+          scaleY: PLAYER_VISUAL.scale * 0.82,
+          duration: 70,
+          yoyo: true,
+          ease: 'Quad.easeOut',
+          onComplete: () => {
+            this.sprite.setScale(PLAYER_VISUAL.scale);
+          }
+        });
+
+        // 3. Sync final position with server
+        SocketClient.sendMove({
+          x: Math.round(this.x),
+          y: Math.round(this.y),
+          direction: this.direction,
+          isMoving: false
+        });
+        this.lastX = this.x;
+        this.lastY = this.y;
+        this.lastDir = this.direction;
+        this.wasMoving = false;
+      }
+    });
   }
 
   playIdle() {

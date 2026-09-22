@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { PLAYER_VISUAL } from './playerVisualConfig';
+import { spawnDustEffect } from './dustEffect';
 
 export default class RemotePlayer extends Phaser.GameObjects.Container {
   constructor(scene, x, y, data) {
@@ -17,6 +18,14 @@ export default class RemotePlayer extends Phaser.GameObjects.Container {
     this.targetX = x;
     this.targetY = y;
     this.isMoving = false;
+    this.lastDustTime = 0;
+    this.dustStepToggle = false;
+    this.isInGrass = false;
+
+    // 0. Character Shadow (feet level, rendered underneath character sprite)
+    this.shadow = scene.add.image(0, 18, 'character_shadow');
+    this.shadow.setOrigin(0.5, 0.5);
+    this.add(this.shadow);
 
     // 1. Character Sprite
     this.sprite = scene.add.sprite(0, 0, this.spriteKey, 0);
@@ -45,7 +54,7 @@ export default class RemotePlayer extends Phaser.GameObjects.Container {
     this.speechTimer = null;
 
     scene.add.existing(this);
-    this.setDepth(y);
+    this.setDepth(100 + y / 10000);
     this.playIdle();
   }
 
@@ -66,6 +75,16 @@ export default class RemotePlayer extends Phaser.GameObjects.Container {
       const animKey = `${this.prefix}_run_${this.direction}`;
       if (this.sprite.anims.currentAnim?.key !== animKey) {
         this.sprite.play(animKey);
+      }
+
+      // Footstep dust puff trail for remote player
+      const now = this.scene.time?.now || Date.now();
+      if (now - this.lastDustTime > 140) {
+        this.lastDustTime = now;
+        this.dustStepToggle = !this.dustStepToggle;
+        if (!this.isInGrass) {
+          spawnDustEffect(this.scene, this.x, this.y, this.direction, this.dustStepToggle);
+        }
       }
     } else {
       this.x = this.targetX;

@@ -14,15 +14,29 @@ const config = {
   type: Phaser.AUTO,
   parent: 'game-container',
   width: 960,
-  height: 640,
+  height: 540,
   pixelArt: true,
   roundPixels: true,
+  render: {
+    pixelArt: true,
+    roundPixels: true,
+    antialias: false,
+    antialiasGL: false,
+    powerPreference: 'high-performance'
+  },
   physics: {
     default: 'arcade',
     arcade: {
       gravity: { y: 0 },
-      debug: false
+      debug: false,
+      fixedStep: true,
+      fps: 60
     }
+  },
+  fps: {
+    target: 60,
+    min: 30,
+    forceSetTimeOut: false
   },
   scale: {
     mode: Phaser.Scale.FIT,
@@ -135,6 +149,18 @@ function initApp() {
     charUI.loadCharacters(user, token);
   });
 
+  // Fullscreen Toggle Button in HUD
+  const fsBtn = document.getElementById('hud-fullscreen-btn');
+  if (fsBtn) {
+    fsBtn.addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    });
+  }
+
   // Check existing session in localStorage unless in editor mode
   if (window.location.hash !== '#editor' && !window.location.pathname.startsWith('/editor')) {
     authUI.checkExistingSession();
@@ -151,4 +177,18 @@ function initApp() {
   });
 }
 
-window.addEventListener('DOMContentLoaded', initApp);
+function alignGameWrapper() {
+  const wrapper = document.getElementById('game-wrapper');
+  if (!wrapper) return;
+  const top = Math.floor((window.innerHeight - wrapper.offsetHeight) / 2);
+  const left = Math.floor((window.innerWidth - wrapper.offsetWidth) / 2);
+  wrapper.style.position = 'absolute';
+  wrapper.style.top = `${Math.max(0, top)}px`;
+  wrapper.style.left = `${Math.max(0, left)}px`;
+}
+
+window.addEventListener('resize', alignGameWrapper);
+window.addEventListener('DOMContentLoaded', () => {
+  alignGameWrapper();
+  initApp();
+});

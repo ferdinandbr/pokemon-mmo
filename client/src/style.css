@@ -42,25 +42,29 @@ body, html {
   display: flex;
   justify-content: center;
   align-items: center;
-  background: radial-gradient(circle at center, #1a1d2e 0%, #0a0b12 100%);
+  background: radial-gradient(circle at center, #1b2133 0%, #0a0b12 100%);
   overflow: hidden;
 }
 
 #game-wrapper {
   position: relative;
   width: 960px;
-  height: 640px;
-  max-width: 96vw;
-  max-height: 92vh;
-  aspect-ratio: 960 / 640;
+  height: 540px;
+  max-width: min(960px, calc(100vw - 32px));
+  max-height: min(540px, calc(100vh - 120px));
+  aspect-ratio: 16 / 9;
   display: flex;
   justify-content: center;
   align-items: center;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 0 0 3px #2c3347, 0 15px 45px rgba(0, 0, 0, 0.95), 0 0 30px rgba(0, 0, 0, 0.7);
-  background: #000;
+  box-shadow: 
+    0 0 0 3px #2c3347, 
+    0 0 0 6px rgba(10, 11, 18, 0.85),
+    0 20px 50px rgba(0, 0, 0, 0.95), 
+    0 0 30px rgba(0, 0, 0, 0.7);
   border: 2px solid rgba(255, 255, 255, 0.15);
+  background: #000;
   z-index: 10;
 }
 
@@ -335,22 +339,23 @@ body, html {
   font-weight: 700;
 }
 
-/* In-Game HUD */
+/* In-Game HUD — Full-screen GUI layer */
 #hud {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   pointer-events: none;
   z-index: 50;
+  overflow: hidden;
 }
 
 .hud-top-bar {
   position: absolute;
   top: 14px;
-  left: 14px;
-  right: 14px;
+  left: 18px;
+  right: 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -385,6 +390,31 @@ body, html {
   color: #4caf50;
 }
 
+.hud-badge.time-day {
+  color: #ffd54f;
+  border-color: #ffe082;
+}
+
+.hud-badge.time-dusk {
+  color: #ff9800;
+  border-color: #ffb74d;
+  background: linear-gradient(135deg, rgba(38, 16, 8, 0.95) 0%, rgba(200, 75, 0, 0.85) 100%);
+  box-shadow: 0 0 0 2px #4a2408, 0 4px 10px rgba(0, 0, 0, 0.6), 0 0 10px rgba(255, 112, 0, 0.35);
+}
+
+.hud-badge.time-night {
+  color: #82b1ff;
+  border-color: #448aff;
+  background: linear-gradient(135deg, rgba(8, 12, 28, 0.96) 0%, rgba(4, 7, 20, 0.98) 100%);
+  box-shadow: 0 0 0 2px #0a1028, 0 4px 10px rgba(0, 0, 0, 0.7), 0 0 10px rgba(68, 138, 255, 0.3);
+}
+
+.hud-badge.time-dawn {
+  color: #ffb74d;
+  border-color: #ffe082;
+  background: linear-gradient(135deg, rgba(30, 20, 35, 0.94) 0%, rgba(160, 80, 50, 0.8) 100%);
+}
+
 .hud-btn {
   background: var(--fr-panel-bg);
   border: 2px solid #ffffff;
@@ -407,11 +437,11 @@ body, html {
 /* In-Game Chat Box */
 .chat-container {
   position: absolute;
-  bottom: 12px;
-  left: 12px;
-  width: 320px;
-  max-width: calc(100% - 24px);
-  background: rgba(18, 20, 30, 0.9);
+  bottom: 14px;
+  left: 18px;
+  width: 330px;
+  max-width: calc(100% - 36px);
+  background: rgba(18, 20, 30, 0.92);
   border: 2px solid #ffffff;
   box-shadow: 0 0 0 2px #2c3347, 0 8px 24px rgba(0, 0, 0, 0.6);
   border-radius: 8px;
@@ -535,6 +565,38 @@ body, html {
   color: var(--fr-text-muted);
   padding: 3px 8px;
   background: rgba(0, 0, 0, 0.3);
+}
+
+/* Controls Hint */
+.controls-hint {
+  position: absolute;
+  bottom: 14px;
+  right: 18px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  pointer-events: auto;
+  background: rgba(14, 16, 24, 0.85);
+  border: 1px solid var(--fr-border-light);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--fr-text-muted);
+  backdrop-filter: blur(4px);
+  z-index: 60;
+}
+
+.key-badge {
+  display: inline-block;
+  background: #252a3d;
+  color: var(--fr-gold);
+  border: 1px solid #455272;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: var(--font-retro);
+  font-size: 9px;
+  margin: 0 2px;
 }
 
 /* Modals (Menu, Inventory, Pokedex) */
@@ -979,6 +1041,76 @@ body.editor-mode #game-wrapper {
   background: rgba(0,229,255,0.15);
 }
 
+/* Collision Palette Section */
+#editor-collision-palette {
+  display: flex;
+  flex-direction: column;
+}
+
+.collision-types-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.collision-type-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--fr-border-light);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  user-select: none;
+}
+
+.collision-type-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: #ffffff;
+  transform: translateX(2px);
+}
+
+.collision-type-btn.active {
+  background: rgba(255, 145, 0, 0.22);
+  border-color: #ff9100;
+  box-shadow: 0 0 12px rgba(255, 145, 0, 0.45);
+}
+
+.collision-type-btn[data-type="1"].active {
+  background: rgba(255, 23, 68, 0.22);
+  border-color: #ff1744;
+  box-shadow: 0 0 12px rgba(255, 23, 68, 0.45);
+}
+
+.collision-type-btn .col-icon {
+  font-size: 20px;
+  min-width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.collision-type-btn .col-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.collision-type-btn strong {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.collision-type-btn small {
+  font-size: 10px;
+  color: var(--fr-text-muted);
+}
+
 /* Tileset Picker Section */
 .tileset-section {
   flex: 1;
@@ -1183,7 +1315,7 @@ body.editor-mode #game-wrapper {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .fr-dialogue-box {
-  position: absolute;
+  position: fixed;
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);

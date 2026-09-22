@@ -1,5 +1,6 @@
 import DialogueBox from './DialogueBox';
 import { ROOMS_CONFIG } from '../maps/roomData';
+import { COLLISION_TYPES, COLLISION_META } from '../maps/collisionConfig';
 
 /**
  * EditorUI – Modern HTML/CSS overlay and control system for the Phaser Map Editor.
@@ -227,6 +228,57 @@ export default class EditorUI {
             </div>
             <div id="editor-layers-list" class="layer-list" style="max-height: 180px; overflow-y: auto;">
               <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- COLLISION TYPES PALETTE (Shown when layer Collision is active) -->
+          <div id="editor-collision-palette" class="sidebar-section hidden">
+            <div class="section-header">
+              <div class="section-title-group">
+                <span style="font-size: 15px;">🛡️</span>
+                <h3>TIPO DE COLISÃO</h3>
+              </div>
+              <span id="selected-collision-badge" class="badge-gid" style="background:#ff1744; color:#fff;">Sólido</span>
+            </div>
+            <p style="font-size: 11px; color: var(--fr-text-muted); margin-bottom: 8px;">
+              Selecione o tipo de colisão para pintar no mapa:
+            </p>
+            <div class="collision-types-list">
+              <button class="collision-type-btn active" data-type="1" title="Bloqueio total - impede passagem de todos os lados">
+                <span class="col-icon">🟥</span>
+                <div class="col-details">
+                  <strong>Sólido</strong>
+                  <small>Bloqueio total de passagem</small>
+                </div>
+              </button>
+              <button class="collision-type-btn" data-type="2" title="Barranco - pode pular/descer para baixo, bloqueia subida">
+                <span class="col-icon">⬇️</span>
+                <div class="col-details">
+                  <strong>Barranco (Descer ⬇️)</strong>
+                  <small>Pula para baixo, bloqueia subida</small>
+                </div>
+              </button>
+              <button class="collision-type-btn" data-type="3" title="Barranco - pode pular para esquerda, bloqueia retorno">
+                <span class="col-icon">⬅️</span>
+                <div class="col-details">
+                  <strong>Barranco (Esquerda ⬅️)</strong>
+                  <small>Pula para esq., bloqueia retorno</small>
+                </div>
+              </button>
+              <button class="collision-type-btn" data-type="4" title="Barranco - pode pular para direita, bloqueia retorno">
+                <span class="col-icon">➡️</span>
+                <div class="col-details">
+                  <strong>Barranco (Direita ➡️)</strong>
+                  <small>Pula para dir., bloqueia retorno</small>
+                </div>
+              </button>
+              <button class="collision-type-btn" data-type="5" title="Barranco - pode pular para cima, bloqueia descida">
+                <span class="col-icon">⬆️</span>
+                <div class="col-details">
+                  <strong>Barranco (Subir ⬆️)</strong>
+                  <small>Pula para cima, bloqueia descida</small>
+                </div>
+              </button>
             </div>
           </div>
 
@@ -507,6 +559,20 @@ export default class EditorUI {
       e.currentTarget.classList.toggle('active', this.editorScene.showCollisions);
     });
 
+    // Collision Type Palette Buttons
+    document.querySelectorAll('.collision-type-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const type = parseInt(e.currentTarget.dataset.type, 10);
+        this.selectCollisionType(type);
+      });
+    });
+
+    if (this.editorScene) {
+      this.editorScene.onCollisionTypePicked = (type) => {
+        this.selectCollisionType(type);
+      };
+    }
+
     // Tool Buttons
     const tools = ['hand', 'pencil', 'eraser', 'bucket', 'picker', 'sign', 'link', 'object'];
     tools.forEach(tool => {
@@ -763,6 +829,14 @@ export default class EditorUI {
 
         if (name === 'Collision') {
           this.selectTool('pencil');
+          document.getElementById('editor-collision-palette')?.classList.remove('hidden');
+          document.querySelector('.tileset-section')?.classList.add('hidden');
+          this.selectCollisionType(this.editorScene.selectedCollisionType || COLLISION_TYPES.SOLID);
+        } else {
+          document.getElementById('editor-collision-palette')?.classList.add('hidden');
+          document.querySelector('.tileset-section')?.classList.remove('hidden');
+          const indicator = document.getElementById('editor-gid-indicator');
+          if (indicator) indicator.textContent = `GID: ${this.activeGid}`;
         }
       });
 
@@ -778,6 +852,14 @@ export default class EditorUI {
 
       container.appendChild(item);
     });
+
+    // Initial state check for Collision layer vs normal layers
+    const isCol = this.editorScene.activeLayerName === 'Collision';
+    document.getElementById('editor-collision-palette')?.classList.toggle('hidden', !isCol);
+    document.querySelector('.tileset-section')?.classList.toggle('hidden', isCol);
+    if (isCol) {
+      this.selectCollisionType(this.editorScene.selectedCollisionType || COLLISION_TYPES.SOLID);
+    }
   }
 
   // ─── Portals List & Editor ────────────────────────────────────────────────
@@ -1152,6 +1234,29 @@ export default class EditorUI {
   }
 
   // ─── Tools & Tilesets ─────────────────────────────────────────────────────
+
+  selectCollisionType(type) {
+    type = Number(type);
+    this.editorScene.setCollisionType(type);
+
+    document.querySelectorAll('.collision-type-btn').forEach(btn => {
+      btn.classList.toggle('active', parseInt(btn.dataset.type, 10) === type);
+    });
+
+    const meta = COLLISION_META[type] || COLLISION_META[COLLISION_TYPES.SOLID];
+    const badge = document.getElementById('selected-collision-badge');
+    if (badge) {
+      badge.textContent = meta.shortName;
+      badge.style.backgroundColor = meta.colorHex;
+    }
+
+    const gidEl = document.getElementById('editor-gid-indicator');
+    if (gidEl) {
+      gidEl.textContent = `Colisão: ${meta.shortName}`;
+    }
+
+    this.showToast(`Colisão selecionada: ${meta.name}`, 'info');
+  }
 
   selectTool(toolName) {
     this.editorScene.setTool(toolName);

@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "description": "Pokemon Fire Red MMO - Node.js + Prisma + Socket.IO + Phaser 3",
   "scripts": {
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"cyan.bold,magenta.bold\" \"npm run server\" \"npm run client\"",
+    "dv": "npm run dev",
     "server": "npm --prefix server run dev",
     "client": "npm --prefix client run dev",
     "server:start": "npm --prefix server start",
@@ -10,6 +12,7 @@
     "sync:maps": "node scripts/sync-tiled-maps.js"
   },
   "devDependencies": {
-    "canvas": "^3.2.3"
+    "canvas": "^3.2.3",
+    "concurrently": "^10.0.5"
   }
 }

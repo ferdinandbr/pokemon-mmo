@@ -3,7 +3,11 @@ import SocketClient from '../network/SocketClient';
 import LocalPlayer from '../entities/LocalPlayer';
 import RemotePlayer from '../entities/RemotePlayer';
 import DialogueBox from '../ui/DialogueBox';
+import TallGrassManager from '../entities/TallGrassManager';
 import { ROOMS_CONFIG } from '../maps/roomData';
+import { COLLISION_TYPES } from '../maps/collisionConfig';
+import DayNightManager from '../systems/DayNightManager';
+import WaterAnimationManager from '../systems/WaterAnimationManager';
 
 const LAYER_DEPTHS = {
   Ground: 10,
@@ -59,12 +63,32 @@ export default class WorldScene extends Phaser.Scene {
     this.dialogueBox = new DialogueBox();
     this._signs = [];
     this.nearbySign = null;
+
+    // Tall grass immersion & rustle system
+    this.tallGrassManager = new TallGrassManager(this);
   }
 
   // ─── Network handlers ──────────────────────────────────────────────────────
 
   create() {
     this.obstacleGroup = this.physics.add.staticGroup();
+
+    // Day & Night cycle system
+    this.dayNightManager = new DayNightManager(this);
+
+    // Water wave tile animation system
+    this.waterAnimationManager = new WaterAnimationManager(this);
+
+    this.events.on('shutdown', () => {
+      if (this.dayNightManager) {
+        this.dayNightManager.destroy();
+        this.dayNightManager = null;
+      }
+      if (this.waterAnimationManager) {
+        this.waterAnimationManager.destroy();
+        this.waterAnimationManager = null;
+      }
+    });
 
     // Clean up any legacy interact prompt if in DOM
     document.getElementById('interact-prompt')?.remove();
@@ -140,6 +164,14 @@ export default class WorldScene extends Phaser.Scene {
     SocketClient.on('player:left',   (d) => this.onPlayerLeft(d));
     SocketClient.on('room:changed',  (d) => this.onRoomChanged(d));
     SocketClient.on('chat:message',  (d) => this.onChatMessage(d));
+
+    // Snap player position to exact integer pixels after physics update to eliminate subpixel rendering jitter
+    this.events.on('postupdate', () => {
+      if (this.localPlayer) {
+        this.localPlayer.x = Math.round(this.localPlayer.x);
+        this.localPlayer.y = Math.round(this.localPlayer.y);
+      }
+    });
   }
 
   onPlayerInit(data) {
@@ -151,13 +183,13 @@ export default class WorldScene extends Phaser.Scene {
 
     if (this.localPlayer) this.localPlayer.destroy();
     this.localPlayer = new LocalPlayer(this, self.x, self.y, self);
-    this.localPlayer.setDepth(100);
+    this.localPlayer.setDepth(100 + self.y / 10000);
     this._attachPlayerColliders(this.localPlayer);
 
     const w = this.currentMap?.widthInPixels  || this.currentRoom.width  || 1152;
     const h = this.currentMap?.heightInPixels || this.currentRoom.height || 640;
     this.cameras.main.setBounds(0, 0, w, h);
-    this.cameras.main.startFollow(this.localPlayer, true, 0.15, 0.15);
+    this.cameras.main.startFollow(this.localPlayer, true, 1, 1);
     this.cameras.main.roundPixels = true;
     this.cameras.main.setZoom(1.0);
 
@@ -182,14 +214,14 @@ export default class WorldScene extends Phaser.Scene {
       }
       this.localPlayer.lastX = x;
       this.localPlayer.lastY = y;
-      this.localPlayer.setDepth(100);
+      this.localPlayer.setDepth(100 + y / 10000);
       this._attachPlayerColliders(this.localPlayer);
     }
 
     const w = this.currentMap?.widthInPixels  || this.currentRoom.width  || 1152;
     const h = this.currentMap?.heightInPixels || this.currentRoom.height || 640;
     this.cameras.main.setBounds(0, 0, w, h);
-    this.cameras.main.startFollow(this.localPlayer, true, 0.15, 0.15);
+    this.cameras.main.startFollow(this.localPlayer, true, 1, 1);
     this.cameras.main.roundPixels = true;
     this.cameras.main.setZoom(1.0);
 
@@ -253,6 +285,9 @@ export default class WorldScene extends Phaser.Scene {
     this.activeColliders = [];
 
     // 2. Destroy previous map assets
+    if (this.tallGrassManager) {
+      this.tallGrassManager.clear();
+    }
     if (this.currentMap) {
       this.currentMap.destroy();
       this.currentMap = null;
@@ -275,12 +310,12 @@ export default class WorldScene extends Phaser.Scene {
     const tilesetList = [];
     if (map.tilesets && map.tilesets.length > 0) {
       for (const t of map.tilesets) {
-        const ts = map.addTilesetImage(t.name, t.name);
+        const ts = map.addTilesetImage(t.name, t.name, 32, 32, 1, 2);
         if (ts) tilesetList.push(ts);
       }
     }
     if (tilesetList.length === 0) {
-      const defaultTs = map.addTilesetImage('Outside1 Spring', 'Outside1 Spring');
+      const defaultTs = map.addTilesetImage('Outside1 Spring', 'Outside1 Spring', 32, 32, 1, 2);
       if (defaultTs) tilesetList.push(defaultTs);
     }
 
@@ -307,6 +342,11 @@ export default class WorldScene extends Phaser.Scene {
 
         this.mapLayers.set(layerName, layer);
       }
+    }
+
+    // ── Setup Tall Grass Layer ──
+    if (this.tallGrassManager) {
+      this.tallGrassManager.setLayer(this.mapLayers.get('Grass'));
     }
 
     // ── Object layers ──
@@ -407,6 +447,49 @@ export default class WorldScene extends Phaser.Scene {
     return { ...properties };
   }
 
+  getCollisionAt(tileX, tileY) {
+    if (!this.currentMap) return COLLISION_TYPES.NONE;
+    if (tileX < 0 || tileX >= this.currentMap.width || tileY < 0 || tileY >= this.currentMap.height) {
+      return COLLISION_TYPES.SOLID;
+    }
+
+    const collisionLayer = this.mapLayers.get('Collision');
+    if (collisionLayer) {
+      const tile = collisionLayer.getTileAt(tileX, tileY);
+      if (tile && tile.index > 0) {
+        return tile.index;
+      }
+    }
+    return COLLISION_TYPES.NONE;
+  }
+
+  isTileWalkable(tileX, tileY) {
+    if (!this.currentMap) return false;
+    if (tileX < 0 || tileX >= this.currentMap.width || tileY < 0 || tileY >= this.currentMap.height) {
+      return false;
+    }
+
+    // 1. Check Collision layer
+    const colType = this.getCollisionAt(tileX, tileY);
+    if (colType !== COLLISION_TYPES.NONE) {
+      return false;
+    }
+
+    // 2. Check other COLLISION_LAYERS
+    for (const layerName of COLLISION_LAYERS) {
+      if (layerName === 'Collision') continue;
+      const layer = this.mapLayers.get(layerName);
+      if (layer) {
+        const tile = layer.getTileAt(tileX, tileY);
+        if (tile && tile.index > 0) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
   // ─── Player helpers ────────────────────────────────────────────────────────
 
   _attachPlayerColliders(player) {
@@ -428,7 +511,7 @@ export default class WorldScene extends Phaser.Scene {
       this.remotePlayers.get(playerData.socketId).destroy();
     }
     const remote = new RemotePlayer(this, playerData.x, playerData.y, playerData);
-    remote.setDepth(100);
+    remote.setDepth(100 + playerData.y / 10000);
     this.remotePlayers.set(playerData.socketId, remote);
   }
 
@@ -440,6 +523,16 @@ export default class WorldScene extends Phaser.Scene {
   // ─── Update loop ───────────────────────────────────────────────────────────
 
   update(time) {
+    // Day and Night cycle update (ambient overlay + player light aura + HUD badge)
+    if (this.dayNightManager) {
+      this.dayNightManager.update(time, this.localPlayer);
+    }
+
+    // Water wave tile animation update
+    if (this.waterAnimationManager) {
+      this.waterAnimationManager.update(time);
+    }
+
     if (!this.localPlayer) return;
 
     this.localPlayer.update(time);
@@ -449,6 +542,12 @@ export default class WorldScene extends Phaser.Scene {
     for (const remote of this.remotePlayers.values()) {
       remote.setDepth(100 + remote.y / 10000);
       remote.update();
+    }
+
+    // Tall grass immersion and rustle effects
+    if (this.tallGrassManager) {
+      const allPlayers = [this.localPlayer, ...this.remotePlayers.values()].filter(Boolean);
+      this.tallGrassManager.update(allPlayers, time);
     }
 
     // Sign proximity detection (generous distance to comfortably interact with adjacent 32x32 tiles)

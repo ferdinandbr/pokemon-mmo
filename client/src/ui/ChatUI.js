@@ -92,6 +92,43 @@ export default class ChatUI {
     const text = this.chatInput.value.trim();
     if (!text) return;
 
+    // Comandos de teste e controle do ciclo Dia/Noite
+    if (text.startsWith('/')) {
+      const lower = text.toLowerCase();
+      if (lower === '/dia' || lower === '/day') {
+        window.setDayNightPhase?.('day');
+        this.addMessage({ sender: 'Sistema', text: '☀️ Horário alterado para Dia!', channel: 'room' });
+        this.chatInput.value = '';
+        this.chatInput.blur();
+        if (this.worldScene) this.worldScene.isChatting = false;
+        return;
+      }
+      if (lower === '/tarde' || lower === '/dusk' || lower === '/entardecer') {
+        window.setDayNightPhase?.('dusk');
+        this.addMessage({ sender: 'Sistema', text: '🌅 Horário alterado para Entardecer (Laranja)!', channel: 'room' });
+        this.chatInput.value = '';
+        this.chatInput.blur();
+        if (this.worldScene) this.worldScene.isChatting = false;
+        return;
+      }
+      if (lower === '/noite' || lower === '/night') {
+        window.setDayNightPhase?.('night');
+        this.addMessage({ sender: 'Sistema', text: '🌙 Horário alterado para Noite (Preto-Azul com iluminação 2D)!', channel: 'room' });
+        this.chatInput.value = '';
+        this.chatInput.blur();
+        if (this.worldScene) this.worldScene.isChatting = false;
+        return;
+      }
+      if (lower === '/amanhecer' || lower === '/dawn') {
+        window.setDayNightPhase?.('dawn');
+        this.addMessage({ sender: 'Sistema', text: '🌄 Horário alterado para Amanhecer!', channel: 'room' });
+        this.chatInput.value = '';
+        this.chatInput.blur();
+        if (this.worldScene) this.worldScene.isChatting = false;
+        return;
+      }
+    }
+
     SocketClient.sendChat(text, this.currentChannel);
     this.chatInput.value = '';
     this.chatInput.blur();

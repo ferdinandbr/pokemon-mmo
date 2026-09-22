@@ -9,5 +9,9 @@ export const PLAYER_VISUAL = Object.freeze({
   bodyWidth: 20,
   bodyHeight: 14,
   bodyOffsetX: -10,
-  bodyOffsetY: 10
+  bodyOffsetY: 10,
+  shadowY: 19,
+  shadowWidth: 16,
+  shadowHeight: 7,
+  shadowAlpha: 0.3
 });

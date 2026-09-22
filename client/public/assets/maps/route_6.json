@@ -16365,14 +16365,14 @@
   "tileheight": 32,
   "tilesets": [
     {
-      "columns": 8,
+      "columns": 64,
       "firstgid": 1,
-      "image": "/assets/tilesets/Outside1 Spring.png",
-      "imageheight": 2272,
-      "imagewidth": 2048,
-      "margin": 0,
+      "image": "/assets/tilesets/Outside1 Spring_extruded.png",
+      "imageheight": 2414,
+      "imagewidth": 2176,
+      "margin": 1,
       "name": "Outside1 Spring",
-      "spacing": 0,
+      "spacing": 2,
       "tilecount": 4544,
       "tileheight": 32,
       "tilewidth": 32

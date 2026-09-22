@@ -11,6 +11,7 @@
     <!-- Centered Game Frame -->
     <div id="game-wrapper">
       <div id="game-container"></div>
+    </div>
 
     <!-- Screen 1: Auth (Login & Register) -->
     <div id="auth-screen" class="overlay-screen">
@@ -133,6 +134,10 @@
             <span>🟢</span>
             <span id="hud-online-count">1 Online</span>
           </div>
+          <div id="hud-time-badge" class="hud-badge time-day" title="Ciclo de Dia e Noite">
+            <span id="hud-time-icon">☀️</span>
+            <span id="hud-time-label">Dia</span>
+          </div>
         </div>
 
         <div class="hud-badge-group">
@@ -140,6 +145,7 @@
             <span>₽</span>
             <span id="hud-money">3,000</span>
           </div>
+          <button id="hud-fullscreen-btn" class="hud-btn" title="Alternar Tela Cheia">⛶</button>
           <button id="hud-menu-btn" class="hud-btn">MENU</button>
         </div>
       </div>
@@ -168,7 +174,6 @@
         <span><kbd class="key-badge">ESC</kbd> Menu</span>
       </div>
     </div>
-  </div>
 
     <!-- Fire Red Menu Modal -->
     <div id="menu-modal" class="modal-overlay hidden">

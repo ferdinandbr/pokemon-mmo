@@ -105,19 +105,35 @@ async function convertTmxToJson(tmxPath, outputJsonPath) {
       imgHeight = repacked.imageheight;
     }
 
-    tilesets.push({
-      columns: tsColumns,
-      firstgid: firstgid,
-      image: `/assets/tilesets/${imgSrc}`,
-      imageheight: imgHeight,
-      imagewidth: imgWidth,
-      margin: 0,
-      name: tsName,
-      spacing: 0,
-      tilecount: tsTileCount,
-      tileheight: tsTileHeight,
-      tilewidth: tsTileWidth
-    });
+    if (tsName === 'Outside1 Spring') {
+      tilesets.push({
+        columns: 64,
+        firstgid: firstgid,
+        image: `/assets/tilesets/Outside1 Spring_extruded.png`,
+        imageheight: 2414,
+        imagewidth: 2176,
+        margin: 1,
+        name: tsName,
+        spacing: 2,
+        tilecount: tsTileCount,
+        tileheight: tsTileHeight,
+        tilewidth: tsTileWidth
+      });
+    } else {
+      tilesets.push({
+        columns: tsColumns,
+        firstgid: firstgid,
+        image: `/assets/tilesets/${imgSrc}`,
+        imageheight: imgHeight,
+        imagewidth: imgWidth,
+        margin: 0,
+        name: tsName,
+        spacing: 0,
+        tilecount: tsTileCount,
+        tileheight: tsTileHeight,
+        tilewidth: tsTileWidth
+      });
+    }
   }
 
   // Extract layers
