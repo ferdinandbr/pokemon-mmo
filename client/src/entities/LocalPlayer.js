@@ -75,6 +75,7 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
       arrowLeft: Phaser.Input.Keyboard.KeyCodes.LEFT,
       arrowRight: Phaser.Input.Keyboard.KeyCodes.RIGHT
     });
+    scene.input.keyboard.clearCaptures();
 
     scene.add.existing(this);
     this.setDepth(100 + y / 10000);

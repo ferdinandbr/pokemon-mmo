@@ -5,6 +5,7 @@ export const COLLISION_TYPES = Object.freeze({
   LEDGE_LEFT: 3,
   LEDGE_RIGHT: 4,
   LEDGE_UP: 5,
+  WALKABLE_OVERRIDE: 6,
 });
 
 export const COLLISION_META = Object.freeze({
@@ -62,5 +63,16 @@ export const COLLISION_META = Object.freeze({
     fillAlpha: 0.45,
     strokeAlpha: 0.95,
     direction: 'up'
+  },
+  [COLLISION_TYPES.WALKABLE_OVERRIDE]: {
+    id: COLLISION_TYPES.WALKABLE_OVERRIDE,
+    name: 'Livre / Passável (Apagar Colisão de Camada)',
+    shortName: 'Passável',
+    icon: '🟩',
+    color: 0x00e676,
+    colorHex: '#00e676',
+    fillAlpha: 0.28,
+    strokeAlpha: 0.85,
+    direction: null
   }
 });

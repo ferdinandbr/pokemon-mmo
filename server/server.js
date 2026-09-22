@@ -59,6 +59,8 @@ io.use((socket, next) => {
   next();
 });
 
+const worldService = require('./src/services/worldService');
+
 // Socket.IO connection event
 io.on('connection', (socket) => {
   console.log(`[Socket] Conexão estabelecida: ${socket.id} (Usuário ID: ${socket.user.userId})`);
@@ -77,6 +79,9 @@ server.listen(PORT, () => {
   console.log(` Pokémon Fire Red MMO Server rodando na porta ${PORT}`);
   console.log(` SQLite + Prisma ORM conectado`);
   console.log(`===========================================`);
+
+  // Start authoritative Day/Night and Weather service
+  worldService.init(io);
 });
 
 // Graceful shutdown

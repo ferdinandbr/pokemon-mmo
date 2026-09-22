@@ -66,11 +66,21 @@ game.events.once('ready', () => {
 let authUI, charUI, chatUI, menuUI;
 
 function checkRoute() {
-  const isEditorRoute = window.location.hash === '#editor' || window.location.pathname.startsWith('/editor');
+  const isEditorRoute = window.location.hash.startsWith('#editor') || window.location.pathname.startsWith('/editor');
 
   if (isEditorRoute) {
     // Add editor-mode class to body to force hide in-game HUD & chat completely
     document.body.classList.add('editor-mode');
+
+    // Remove any inline styles set by game mode centering
+    const wrapper = document.getElementById('game-wrapper');
+    if (wrapper) {
+      wrapper.style.position = '';
+      wrapper.style.top = '';
+      wrapper.style.left = '';
+      wrapper.style.width = '';
+      wrapper.style.height = '';
+    }
 
     // Hide all game UI overlays
     document.getElementById('auth-screen')?.classList.add('hidden');
@@ -85,6 +95,16 @@ function checkRoute() {
       editorUI = new EditorUI(editorSceneInstance);
     }
     editorUI.show();
+
+    // Check if a specific map was requested in URL
+    const hashPart = window.location.hash.includes('?') ? window.location.hash.split('?')[1] : '';
+    const params = new URLSearchParams(hashPart || window.location.search);
+    const targetMap = params.get('map');
+    if (targetMap && targetMap !== 'pallet_town') {
+      setTimeout(() => {
+        editorSceneInstance?.loadMapByName(targetMap);
+      }, 200);
+    }
   } else {
     document.body.classList.remove('editor-mode');
   }
@@ -180,11 +200,14 @@ function initApp() {
 function alignGameWrapper() {
   const wrapper = document.getElementById('game-wrapper');
   if (!wrapper) return;
-  const top = Math.floor((window.innerHeight - wrapper.offsetHeight) / 2);
-  const left = Math.floor((window.innerWidth - wrapper.offsetWidth) / 2);
-  wrapper.style.position = 'absolute';
-  wrapper.style.top = `${Math.max(0, top)}px`;
-  wrapper.style.left = `${Math.max(0, left)}px`;
+  wrapper.style.position = '';
+  wrapper.style.top = '';
+  wrapper.style.left = '';
+  wrapper.style.width = '';
+  wrapper.style.height = '';
+  if (game && game.scale) {
+    game.scale.refresh();
+  }
 }
 
 window.addEventListener('resize', alignGameWrapper);

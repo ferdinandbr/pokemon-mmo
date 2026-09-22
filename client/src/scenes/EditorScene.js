@@ -82,6 +82,8 @@ export default class EditorScene extends Phaser.Scene {
     this.onSignSelected = null;
     this.onMapLoaded = null;
     this.onToast = null;
+    this.onZoomUpdate = null;
+    this.onObjectDeleted = null;
   }
 
   preload() {
@@ -102,6 +104,32 @@ export default class EditorScene extends Phaser.Scene {
     const initialJson = this.cache.json.get('pallet_town_raw_json');
     if (initialJson) {
       this.initMapData('pallet_town', initialJson);
+    }
+
+    // Prevent native contextmenu on canvas so right-click drag pans smoothly
+    if (this.sys.game.canvas) {
+      this.sys.game.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    }
+
+    // Auto-resize viewport for full editor canvas
+    if (this.scale) {
+      this.scale.scaleMode = Phaser.Scale.RESIZE;
+      this.scale.autoCenter = Phaser.Scale.NO_CENTER;
+      this.scale.resize(window.innerWidth, window.innerHeight);
+      if (this.cameras && this.cameras.main) {
+        this.cameras.main.setSize(window.innerWidth, window.innerHeight);
+        this.cameras.main.setBackgroundColor('#090a10');
+      }
+      this._onResize = () => {
+        if (document.body.classList.contains('editor-mode')) {
+          this.scale.resize(window.innerWidth, window.innerHeight);
+          if (this.cameras && this.cameras.main) {
+            this.cameras.main.setSize(window.innerWidth, window.innerHeight);
+          }
+        }
+      };
+      window.removeEventListener('resize', this._onResize);
+      window.addEventListener('resize', this._onResize);
     }
 
     // Input Listeners
@@ -130,6 +158,10 @@ export default class EditorScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-G', () => { if (!isTyping()) this.toggleGrid(); });
     this.input.keyboard.on('keydown-C', () => { if (!isTyping()) this.toggleCollisions(); });
     this.input.keyboard.on('keydown-ESC', () => { if (!isTyping()) this.cancelPortalMarking(); });
+    this.input.keyboard.on('keydown-PLUS', () => { if (!isTyping()) this.zoomIn(); });
+    this.input.keyboard.on('keydown-MINUS', () => { if (!isTyping()) this.zoomOut(); });
+    this.input.keyboard.on('keydown-ZERO', () => { if (!isTyping()) this.resetZoom(); });
+    this.input.keyboard.on('keydown-HOME', () => { if (!isTyping()) this.centerMap(); });
   }
 
   // ─── Dynamic Map Loading ──────────────────────────────────────────────────
@@ -137,9 +169,22 @@ export default class EditorScene extends Phaser.Scene {
   async loadMapByName(mapName) {
     if (this.onToast) this.onToast(`Carregando mapa: ${mapName}...`, 'info');
     try {
-      const res = await fetch(`/api/admin/map?map=${encodeURIComponent(mapName)}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}: Mapa não encontrado`);
-      const mapJson = await res.json();
+      let mapJson = null;
+      try {
+        const res = await fetch(`/api/admin/map?map=${encodeURIComponent(mapName)}`);
+        if (res.ok) {
+          mapJson = await res.json();
+        }
+      } catch (apiErr) {
+        console.warn(`[EditorScene] API /api/admin/map falhou, buscando via asset estático:`, apiErr);
+      }
+
+      if (!mapJson) {
+        const staticRes = await fetch(`/assets/maps/${encodeURIComponent(mapName)}.json?t=${Date.now()}`);
+        if (!staticRes.ok) throw new Error(`HTTP ${staticRes.status}: Mapa '${mapName}' não encontrado`);
+        mapJson = await staticRes.json();
+      }
+
       this.initMapData(mapName, mapJson);
       if (this.onToast) this.onToast(`✅ Mapa '${mapName}' carregado com sucesso!`, 'success');
     } catch (err) {
@@ -191,6 +236,47 @@ export default class EditorScene extends Phaser.Scene {
     const width = this.map.width;
     const height = this.map.height;
 
+    // Check if layers have saved depths; if not, initial sort based on legacy LAYER_DEPTHS
+    const hasSavedDepths = this.mapJsonData.layers.some(l => {
+      const p = this._readProps(l.properties);
+      return p.depth !== undefined;
+    });
+
+    if (!hasSavedDepths) {
+      const visualLayers = this.mapJsonData.layers.filter(l => l.type === 'tilelayer' && l.name !== 'Collision');
+      visualLayers.sort((a, b) => (LAYER_DEPTHS[a.name] || 50) - (LAYER_DEPTHS[b.name] || 50));
+      const otherLayers = this.mapJsonData.layers.filter(l => l.type !== 'tilelayer' || l.name === 'Collision');
+      this.mapJsonData.layers = [...visualLayers, ...otherLayers];
+    }
+
+    // Ensure Overhead layer is always present in every map (even if empty/unused)
+    let overheadLayer = this.mapJsonData.layers.find(l => l.name === 'Overhead' && l.type === 'tilelayer');
+    if (!overheadLayer) {
+      const maxId = this.mapJsonData.layers.reduce((max, l) => Math.max(max, l.id || 0), 0);
+      overheadLayer = {
+        id: maxId + 1,
+        name: 'Overhead',
+        type: 'tilelayer',
+        width: width,
+        height: height,
+        x: 0,
+        y: 0,
+        visible: true,
+        opacity: 1,
+        data: new Array(width * height).fill(0),
+        properties: [
+          { name: 'isOverhead', type: 'bool', value: true },
+          { name: 'depth', type: 'int', value: 1000 }
+        ]
+      };
+      const colOrObjIndex = this.mapJsonData.layers.findIndex(l => l.name === 'Collision' || l.type === 'objectgroup');
+      if (colOrObjIndex !== -1) {
+        this.mapJsonData.layers.splice(colOrObjIndex, 0, overheadLayer);
+      } else {
+        this.mapJsonData.layers.push(overheadLayer);
+      }
+    }
+
     const tileLayers = this.mapJsonData.layers.filter(l => l.type === 'tilelayer');
     for (const l of tileLayers) {
       this.allTileLayerNames.push(l.name);
@@ -208,13 +294,15 @@ export default class EditorScene extends Phaser.Scene {
         : this.map.createBlankLayer(l.name, phaserTilesets, 0, 0);
 
       if (pLayer) {
-        pLayer.setDepth(LAYER_DEPTHS[l.name] || 50);
         if (l.name === 'Collision') {
           pLayer.setVisible(false);
         }
         this.phaserLayers[l.name] = pLayer;
       }
     }
+
+    // Dynamic depth calculation and assignment to all layers
+    this.updateLayerDepths();
 
     // Ensure Collision layer exists in memory for painting
     if (!this.tileLayerData['Collision']) {
@@ -233,17 +321,19 @@ export default class EditorScene extends Phaser.Scene {
     // Sincronizar Portais com ROOMS_CONFIG caso o mapa não possua camada de portais
     this._syncPortalsFromRoomConfig(mapName);
 
-    // Setup Camera
-    this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+    // Setup Camera - Full unconstrained pan & zoom
+    this.cameras.main.removeBounds();
     this.cameras.main.setZoom(1.5);
+    this.cameras.main.setBackgroundColor('#090a10');
 
-    // Center camera on default spawn or map center
+    // Center camera on default spawn or map center (accounting for UI overlay panels)
     const roomDef = ROOMS_CONFIG[mapName];
     if (roomDef && roomDef.defaultSpawn) {
-      this.cameras.main.centerOn(roomDef.defaultSpawn.x, roomDef.defaultSpawn.y);
+      this.centerOnWorldPoint(roomDef.defaultSpawn.x, roomDef.defaultSpawn.y);
     } else {
-      this.cameras.main.centerOn(this.map.widthInPixels / 2, this.map.heightInPixels / 2);
+      this.centerOnWorldPoint(this.map.widthInPixels / 2, this.map.heightInPixels / 2);
     }
+    this._notifyZoom();
 
     // Redraw Overlays
     this.drawGrid();
@@ -357,6 +447,16 @@ export default class EditorScene extends Phaser.Scene {
     const tileW = this.map.tileWidth;
     const tileH = this.map.tileHeight;
 
+    const colData = this.tileLayerData['Collision'];
+    const walkableOverrides = new Set();
+    if (colData) {
+      for (let i = 0; i < width * height; i++) {
+        if (colData[i] === COLLISION_TYPES.WALKABLE_OVERRIDE) {
+          walkableOverrides.add(i);
+        }
+      }
+    }
+
     for (const layerName of COLLISION_LAYERS) {
       const layerData = this.tileLayerData[layerName];
       if (!layerData) continue;
@@ -365,8 +465,14 @@ export default class EditorScene extends Phaser.Scene {
 
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
-          const gid = layerData[y * width + x];
+          const idx = y * width + x;
+          const gid = layerData[idx];
           if (gid <= 0) continue;
+
+          // If this tile has an explicit walkable override, ignore automatic layer collision!
+          if (!isExplicitCollisionLayer && walkableOverrides.has(idx)) {
+            continue;
+          }
 
           const px = x * tileW;
           const py = y * tileH;
@@ -380,8 +486,12 @@ export default class EditorScene extends Phaser.Scene {
             this.collisionGraphics.fillRect(px, py, tileW, tileH);
             this.collisionGraphics.strokeRect(px, py, tileW, tileH);
 
-            // Draw directional indicators for ledges
-            if (gid === COLLISION_TYPES.LEDGE_DOWN) {
+            if (gid === COLLISION_TYPES.WALKABLE_OVERRIDE) {
+              // Draw gentle green check / X indicator showing collision was erased
+              this.collisionGraphics.lineStyle(2, 0x00e676, 0.95);
+              this.collisionGraphics.lineBetween(px + 6, cy, cx - 1, py + tileH - 7);
+              this.collisionGraphics.lineBetween(cx - 1, py + tileH - 7, px + tileW - 6, py + 7);
+            } else if (gid === COLLISION_TYPES.LEDGE_DOWN) {
               // Top barrier line
               this.collisionGraphics.lineStyle(3, 0xffeb3b, 1);
               this.collisionGraphics.lineBetween(px + 2, py + 2, px + tileW - 2, py + 2);
@@ -693,14 +803,27 @@ export default class EditorScene extends Phaser.Scene {
       this.cursorGraphics.lineStyle(2, 0x00ff00, 0.9);
       this.cursorGraphics.fillStyle(0x00ff00, 0.25);
     } else if (this.activeTool === 'eraser') {
-      this.cursorGraphics.lineStyle(2, 0xff0000, 0.9);
-      this.cursorGraphics.fillStyle(0xff0000, 0.25);
+      this.cursorGraphics.lineStyle(2, 0xff1744, 0.95);
+      this.cursorGraphics.fillStyle(0xff1744, 0.25);
+      this.cursorGraphics.fillRect(snapX, snapY, tileW, tileH);
+      this.cursorGraphics.strokeRect(snapX, snapY, tileW, tileH);
+      // Draw crisp "X" for eraser
+      this.cursorGraphics.lineStyle(2, 0xffffff, 0.9);
+      this.cursorGraphics.lineBetween(snapX + 6, snapY + 6, snapX + tileW - 6, snapY + tileH - 6);
+      this.cursorGraphics.lineBetween(snapX + tileW - 6, snapY + 6, snapX + 6, snapY + tileH - 6);
+      return;
     } else if (this.activeTool === 'bucket') {
       this.cursorGraphics.lineStyle(2, 0xffff00, 0.9);
       this.cursorGraphics.fillStyle(0xffff00, 0.25);
     } else if (this.activeTool === 'picker') {
-      this.cursorGraphics.lineStyle(2, 0x00e5ff, 0.9);
+      this.cursorGraphics.lineStyle(2, 0x00e5ff, 1);
       this.cursorGraphics.fillStyle(0x00e5ff, 0.25);
+      this.cursorGraphics.fillRect(snapX, snapY, tileW, tileH);
+      this.cursorGraphics.strokeRect(snapX, snapY, tileW, tileH);
+      // Eyedropper target circle
+      this.cursorGraphics.lineStyle(2, 0xffffff, 0.95);
+      this.cursorGraphics.strokeCircle(snapX + tileW / 2, snapY + tileH / 2, tileW / 4);
+      return;
     } else if (this.activeTool === 'sign') {
       // 1 grid indicator for Sign (Amber/Gold)
       this.cursorGraphics.lineStyle(2, 0xffd54f, 1);
@@ -729,6 +852,7 @@ export default class EditorScene extends Phaser.Scene {
   onPointerDown(pointer) {
     if (!this.map) return;
 
+    // Pan with Middle Click, Right Click, or Space + Click
     const isSpaceDown = (this.spaceKey && this.spaceKey.isDown);
     if (pointer.middleButtonDown() || pointer.rightButtonDown() || isSpaceDown) {
       this.isDraggingMap = true;
@@ -747,32 +871,51 @@ export default class EditorScene extends Phaser.Scene {
       const tileX = Math.floor(worldPoint.x / tileW);
       const tileY = Math.floor(worldPoint.y / tileH);
 
-      // Check if clicking on an existing sign on the map (when using sign tool, hand tool, or picker)
-      const existingSign = this.findSignAt(worldPoint.x, worldPoint.y);
-      if (existingSign && (this.activeTool === 'sign' || this.activeTool === 'hand' || this.activeTool === 'picker')) {
-        this.selectedObject = existingSign;
-        this.drawObjects();
-        if (this.onSignSelected) this.onSignSelected(this.selectedObject);
+      // Alt + Click: Quick Eyedropper on current active layer
+      if (pointer.event && pointer.event.altKey) {
+        this.pickTileAt(tileX, tileY);
         return;
       }
 
-      // Check if clicking on an existing portal on the map (when using hand tool)
+      // Hand tool: Drag map freely
       if (this.activeTool === 'hand') {
-        const existingPortal = this.findPortalAt(worldPoint.x, worldPoint.y);
-        if (existingPortal) {
-          this.selectedObject = existingPortal;
-          this.drawObjects();
-          if (this.onPortalSelected) this.onPortalSelected(this.selectedObject);
-          return;
-        }
-
-        // Hand tool with no object clicked: drag the map
         this.isDraggingMap = true;
         this.dragStartX = pointer.x;
         this.dragStartY = pointer.y;
         this.camStartX = this.cameras.main.scrollX;
         this.camStartY = this.cameras.main.scrollY;
         if (this.sys.game.canvas) this.sys.game.canvas.style.cursor = 'grabbing';
+        return;
+      }
+
+      // Picker tool: Pick tile from current layer
+      if (this.activeTool === 'picker') {
+        this.pickTileAt(tileX, tileY);
+        return;
+      }
+
+      // Eraser tool: check if clicking on existing sign or portal to delete
+      if (this.activeTool === 'eraser') {
+        const existingSign = this.findSignAt(worldPoint.x, worldPoint.y);
+        if (existingSign) {
+          this.deleteObject(existingSign);
+          if (this.onToast) this.onToast(`🗑️ Placa "${existingSign.name || 'Placa'}" apagada!`, 'info');
+          return;
+        }
+        const existingPortal = this.findPortalAt(worldPoint.x, worldPoint.y);
+        if (existingPortal) {
+          this.deleteObject(existingPortal);
+          if (this.onToast) this.onToast(`🗑️ Portal "${existingPortal.name || 'Portal'}" apagado!`, 'info');
+          return;
+        }
+      }
+
+      // Check if clicking on an existing sign on the map (when using sign or object tool)
+      const existingSign = this.findSignAt(worldPoint.x, worldPoint.y);
+      if (existingSign && (this.activeTool === 'sign' || this.activeTool === 'object')) {
+        this.selectedObject = existingSign;
+        this.drawObjects();
+        if (this.onSignSelected) this.onSignSelected(this.selectedObject);
         return;
       }
 
@@ -888,13 +1031,17 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   onWheel(pointer, gameObjects, deltaX, deltaY, deltaZ) {
-    let zoom = this.cameras.main.zoom;
-    if (deltaY > 0) {
-      zoom = Math.max(0.4, zoom - 0.15);
-    } else if (deltaY < 0) {
-      zoom = Math.min(4.0, zoom + 0.15);
+    const oldZoom = this.cameras.main.zoom;
+    const factor = deltaY < 0 ? 1.15 : 0.87;
+    const newZoom = Phaser.Math.Clamp(oldZoom * factor, 0.2, 5.0);
+
+    if (Math.abs(newZoom - oldZoom) > 0.001) {
+      const worldPoint = pointer.positionToCamera(this.cameras.main);
+      this.cameras.main.setZoom(newZoom);
+      this.cameras.main.scrollX = worldPoint.x - (pointer.x / newZoom);
+      this.cameras.main.scrollY = worldPoint.y - (pointer.y / newZoom);
+      this._notifyZoom();
     }
-    this.cameras.main.setZoom(zoom);
   }
 
   // ─── Tools & Editing Operations ──────────────────────────────────────────
@@ -916,13 +1063,19 @@ export default class EditorScene extends Phaser.Scene {
         const fillGid = (this.selectedCollisionType || COLLISION_TYPES.SOLID);
         this.floodFill(tileX, tileY, fillGid, 'Collision');
       } else if (this.activeTool === 'eraser') {
-        this.setTile(tileX, tileY, 0, 'Collision');
-      } else if (this.activeTool === 'picker') {
-        const currentGid = this.getTile(tileX, tileY, 'Collision');
-        if (currentGid in COLLISION_META) {
-          this.selectedCollisionType = currentGid;
-          if (this.onCollisionTypePicked) this.onCollisionTypePicked(currentGid);
+        const idx = tileY * this.map.width + tileX;
+        const curGid = this.tileLayerData['Collision'] ? this.tileLayerData['Collision'][idx] : 0;
+        const hasCollidableBase = COLLISION_LAYERS.filter(l => l !== 'Collision').some(lName => {
+          return this.tileLayerData[lName] && this.tileLayerData[lName][idx] > 0;
+        });
+
+        if (hasCollidableBase && curGid !== COLLISION_TYPES.WALKABLE_OVERRIDE) {
+          this.setTile(tileX, tileY, COLLISION_TYPES.WALKABLE_OVERRIDE, 'Collision');
+        } else {
+          this.setTile(tileX, tileY, 0, 'Collision');
         }
+      } else if (this.activeTool === 'picker') {
+        this.pickTileAt(tileX, tileY);
       } else {
         const gidToPaint = (this.selectedCollisionType || COLLISION_TYPES.SOLID);
         this.setTile(tileX, tileY, gidToPaint, 'Collision');
@@ -937,13 +1090,55 @@ export default class EditorScene extends Phaser.Scene {
     } else if (this.activeTool === 'bucket') {
       this.floodFill(tileX, tileY, this.selectedTileGid, layerName);
     } else if (this.activeTool === 'picker') {
-      const currentGid = this.getTile(tileX, tileY, layerName);
-      if (currentGid > 0) {
-        this.selectedTileGid = currentGid;
-        if (this.onTilePicked) this.onTilePicked(currentGid);
-      }
+      this.pickTileAt(tileX, tileY);
     } else if (this.activeTool === 'object') {
       this.selectObjectAt(worldX, worldY);
+    }
+  }
+
+  pickTileAt(tileX, tileY) {
+    if (!this.map || tileX < 0 || tileX >= this.map.width || tileY < 0 || tileY >= this.map.height) {
+      return;
+    }
+
+    const layerName = this.activeLayerName;
+    if (layerName === 'Collision') {
+      const colGid = this.getTile(tileX, tileY, 'Collision');
+      if (colGid in COLLISION_META) {
+        this.selectedCollisionType = colGid;
+        if (this.onCollisionTypePicked) this.onCollisionTypePicked(colGid);
+        if (this.onToast) this.onToast(`🎯 Colisão: ${COLLISION_META[colGid].name}`, 'info');
+      } else {
+        if (this.onToast) this.onToast('Sem colisão marcada neste tile (Livre)', 'info');
+      }
+      return;
+    }
+
+    let foundGid = this.getTile(tileX, tileY, layerName);
+    let targetLayer = layerName;
+
+    if (!foundGid || foundGid <= 0) {
+      // Search visible layers from top to bottom (Overhead down to Ground)
+      const visualLayers = [...this.allTileLayerNames]
+        .filter(name => name !== 'Collision' && (!this.phaserLayers[name] || this.phaserLayers[name].visible))
+        .reverse();
+
+      for (const lName of visualLayers) {
+        const g = this.getTile(tileX, tileY, lName);
+        if (g && g > 0) {
+          foundGid = g;
+          targetLayer = lName;
+          this.activeLayerName = lName;
+          break;
+        }
+      }
+    }
+
+    if (foundGid && foundGid > 0) {
+      this.selectedTileGid = foundGid;
+      if (this.onTilePicked) this.onTilePicked(foundGid, targetLayer);
+    } else {
+      if (this.onToast) this.onToast(`Nenhum tile encontrado nesta posição (GID 0)`, 'info');
     }
   }
 
@@ -965,13 +1160,42 @@ export default class EditorScene extends Phaser.Scene {
     }
 
     const index = y * this.map.width + x;
-    if (data[index] === gid) return;
-    data[index] = gid;
 
     if (layerName === 'Collision') {
+      if (gid === 0) {
+        // Erasing on Collision layer:
+        // Check if there is an underlying collision from tileset layers (Mountain, Trees, Buildings, Water, Shore)
+        let hasUnderlyingCollision = false;
+        for (const lName of COLLISION_LAYERS) {
+          if (lName === 'Collision') continue;
+          const lData = this.tileLayerData[lName];
+          if (lData && lData[index] > 0) {
+            hasUnderlyingCollision = true;
+            break;
+          }
+        }
+
+        if (hasUnderlyingCollision) {
+          // If already WALKABLE_OVERRIDE, toggle back to 0 (restore default layer collision)
+          // Otherwise, set to WALKABLE_OVERRIDE to erase the tileset collision!
+          if (data[index] === COLLISION_TYPES.WALKABLE_OVERRIDE) {
+            data[index] = 0;
+          } else {
+            data[index] = COLLISION_TYPES.WALKABLE_OVERRIDE;
+          }
+        } else {
+          data[index] = 0;
+        }
+      } else {
+        data[index] = gid;
+      }
+
       if (!skipOverlay) this.drawCollisionOverlay();
       return;
     }
+
+    if (data[index] === gid) return;
+    data[index] = gid;
 
     const phaserLayer = this.phaserLayers[layerName];
     if (phaserLayer) {
@@ -1144,6 +1368,164 @@ export default class EditorScene extends Phaser.Scene {
     this.activeLayerName = layerName;
   }
 
+  // ─── Layer Ordering & Dynamic Depth Management ───────────────────────────
+
+  _setLayerProperty(layerObj, propName, propValue, propType = 'int') {
+    if (!layerObj) return;
+    if (!layerObj.properties) {
+      layerObj.properties = [];
+    }
+    if (Array.isArray(layerObj.properties)) {
+      const existing = layerObj.properties.find(p => p.name === propName);
+      if (existing) {
+        existing.value = propValue;
+        if (propType) existing.type = propType;
+      } else {
+        layerObj.properties.push({ name: propName, type: propType, value: propValue });
+      }
+    } else if (typeof layerObj.properties === 'object') {
+      layerObj.properties[propName] = propValue;
+    }
+  }
+
+  updateLayerDepths() {
+    if (!this.mapJsonData || !this.mapJsonData.layers) return;
+
+    const visualTileLayers = this.mapJsonData.layers.filter(
+      l => l.type === 'tilelayer' && l.name !== 'Collision'
+    );
+
+    visualTileLayers.forEach((l, idx) => {
+      const props = this._readProps(l.properties);
+      const isOverhead = props.isOverhead === true || props.depth >= 1000 || (/overhead|arch/i.test(l.name) && props.isOverhead !== false);
+      const depth = isOverhead ? (1000 + idx * 10) : (10 + idx * 10);
+
+      this._setLayerProperty(l, 'isOverhead', isOverhead, 'bool');
+      this._setLayerProperty(l, 'depth', depth, 'int');
+
+      const pLayer = this.phaserLayers[l.name];
+      if (pLayer) {
+        pLayer.setDepth(depth);
+        if (this.children && this.children.bringToTop) {
+          this.children.bringToTop(pLayer);
+        }
+      }
+    });
+
+    // Collision layer
+    const colLayer = this.mapJsonData.layers.find(l => l.name === 'Collision' && l.type === 'tilelayer');
+    if (colLayer) {
+      this._setLayerProperty(colLayer, 'depth', 89999, 'int');
+      if (this.phaserLayers['Collision']) {
+        this.phaserLayers['Collision'].setDepth(89999);
+        if (this.children && this.children.bringToTop) {
+          this.children.bringToTop(this.phaserLayers['Collision']);
+        }
+      }
+    }
+
+    if (this.collisionGraphics) {
+      this.collisionGraphics.setDepth(89999);
+      if (this.children && this.children.bringToTop) this.children.bringToTop(this.collisionGraphics);
+    }
+    if (this.objectGraphics) {
+      this.objectGraphics.setDepth(99999);
+      if (this.children && this.children.bringToTop) this.children.bringToTop(this.objectGraphics);
+    }
+    if (this.gridGraphics) {
+      this.gridGraphics.setDepth(100000);
+      if (this.children && this.children.bringToTop) this.children.bringToTop(this.gridGraphics);
+    }
+    if (this.cursorGraphics) {
+      this.cursorGraphics.setDepth(100001);
+      if (this.children && this.children.bringToTop) this.children.bringToTop(this.cursorGraphics);
+    }
+
+    if (this.sys && this.sys.displayList) {
+      this.sys.displayList.queueDepthSort();
+    }
+  }
+
+  moveLayer(layerName, direction) {
+    if (!this.mapJsonData || !this.mapJsonData.layers) return false;
+    if (layerName === 'Collision') return false;
+
+    const visualLayers = this.mapJsonData.layers.filter(
+      l => l.type === 'tilelayer' && l.name !== 'Collision'
+    );
+    const currentIndex = visualLayers.findIndex(l => l.name === layerName);
+    if (currentIndex === -1) return false;
+
+    const targetIndex = currentIndex + direction;
+    if (targetIndex < 0 || targetIndex >= visualLayers.length) return false;
+
+    const currentLayer = visualLayers[currentIndex];
+    const targetLayer = visualLayers[targetIndex];
+
+    const rawCurrentIdx = this.mapJsonData.layers.indexOf(currentLayer);
+    const rawTargetIdx = this.mapJsonData.layers.indexOf(targetLayer);
+
+    if (rawCurrentIdx !== -1 && rawTargetIdx !== -1) {
+      this.mapJsonData.layers[rawCurrentIdx] = targetLayer;
+      this.mapJsonData.layers[rawTargetIdx] = currentLayer;
+    }
+
+    this.allTileLayerNames = this.mapJsonData.layers
+      .filter(l => l.type === 'tilelayer')
+      .map(l => l.name);
+
+    this.updateLayerDepths();
+    return true;
+  }
+
+  toggleLayerOverhead(layerName) {
+    if (!this.mapJsonData || !this.mapJsonData.layers) return false;
+    const visualLayers = this.mapJsonData.layers.filter(
+      l => l.type === 'tilelayer' && l.name !== 'Collision'
+    );
+    const targetLayer = visualLayers.find(l => l.name === layerName);
+    if (!targetLayer) return false;
+
+    const props = this._readProps(targetLayer.properties);
+    const currentIsOverhead = props.isOverhead === true || props.depth >= 1000;
+    const newIsOverhead = !currentIsOverhead;
+
+    this._setLayerProperty(targetLayer, 'isOverhead', newIsOverhead, 'bool');
+    this._setLayerProperty(targetLayer, 'depth', newIsOverhead ? 1000 : 50, 'int');
+
+    // If promoted to overhead, move to overhead section; if demoted, move to ground section
+    const rawIdx = this.mapJsonData.layers.indexOf(targetLayer);
+    if (rawIdx !== -1) {
+      this.mapJsonData.layers.splice(rawIdx, 1);
+      if (newIsOverhead) {
+        const firstColOrObj = this.mapJsonData.layers.findIndex(l => l.name === 'Collision' || l.type === 'objectgroup');
+        if (firstColOrObj !== -1) {
+          this.mapJsonData.layers.splice(firstColOrObj, 0, targetLayer);
+        } else {
+          this.mapJsonData.layers.push(targetLayer);
+        }
+      } else {
+        const firstOverhead = this.mapJsonData.layers.findIndex(l => {
+          if (l.type !== 'tilelayer' || l.name === 'Collision') return true;
+          const p = this._readProps(l.properties);
+          return p.isOverhead === true || p.depth >= 1000 || (/overhead|arch/i.test(l.name) && p.isOverhead !== false);
+        });
+        if (firstOverhead !== -1) {
+          this.mapJsonData.layers.splice(firstOverhead, 0, targetLayer);
+        } else {
+          this.mapJsonData.layers.unshift(targetLayer);
+        }
+      }
+    }
+
+    this.allTileLayerNames = this.mapJsonData.layers
+      .filter(l => l.type === 'tilelayer')
+      .map(l => l.name);
+
+    this.updateLayerDepths();
+    return true;
+  }
+
   setLayerVisible(layerName, visible) {
     if (layerName === 'Collision') {
       this.showCollisions = visible;
@@ -1182,14 +1564,115 @@ export default class EditorScene extends Phaser.Scene {
     this.drawObjects();
   }
 
+  onEditorOpen() {
+    if (this.scale) {
+      this.scale.scaleMode = Phaser.Scale.RESIZE;
+      this.scale.autoCenter = Phaser.Scale.NO_CENTER;
+      this.scale.resize(window.innerWidth, window.innerHeight);
+    }
+    if (this.cameras && this.cameras.main) {
+      this.cameras.main.setSize(window.innerWidth, window.innerHeight);
+      this.cameras.main.setBackgroundColor('#090a10');
+    }
+    if (this.sys.game.canvas) {
+      this.sys.game.canvas.style.margin = '0px';
+      this.sys.game.canvas.style.padding = '0px';
+      this.sys.game.canvas.style.width = '100%';
+      this.sys.game.canvas.style.height = '100%';
+    }
+    this.centerMap();
+  }
+
+  centerMap() {
+    if (!this.map) return;
+    this.centerOnWorldPoint(this.map.widthInPixels / 2, this.map.heightInPixels / 2);
+    if (this.onToast) this.onToast('🎯 Mapa centralizado', 'info');
+  }
+
+  centerOnWorldPoint(worldX, worldY) {
+    if (!this.cameras || !this.cameras.main) return;
+    const zoom = this.cameras.main.zoom || 1;
+
+    // Available screen viewport boundaries accounting for UI overlays:
+    // Left Toolbar width ~52px + 14px margin = ~70px
+    // Right Sidebar width ~340px + 14px margin = ~354px
+    // Top Bar height ~56px + 12px margin = ~68px
+    // Bottom Hints height ~30px + 14px margin = ~44px
+    const leftBoundary = 70;
+    const rightBoundary = (window.innerWidth || this.cameras.main.width) - 354;
+    const topBoundary = 68;
+    const bottomBoundary = (window.innerHeight || this.cameras.main.height) - 44;
+
+    const screenCenterX = leftBoundary + Math.max(0, (rightBoundary - leftBoundary) / 2);
+    const screenCenterY = topBoundary + Math.max(0, (bottomBoundary - topBoundary) / 2);
+
+    this.cameras.main.scrollX = worldX - (screenCenterX / zoom);
+    this.cameras.main.scrollY = worldY - (screenCenterY / zoom);
+  }
+
+  resetZoom() {
+    this.cameras.main.setZoom(1.0);
+    this._notifyZoom();
+    this.centerMap();
+  }
+
   zoomIn() {
-    const newZoom = Math.min(4.0, this.cameras.main.zoom + 0.25);
+    const curZoom = this.cameras.main.zoom;
+    const newZoom = Phaser.Math.Clamp(curZoom + 0.25, 0.2, 5.0);
     this.cameras.main.setZoom(newZoom);
+    this._notifyZoom();
   }
 
   zoomOut() {
-    const newZoom = Math.max(0.4, this.cameras.main.zoom - 0.25);
+    const curZoom = this.cameras.main.zoom;
+    const newZoom = Phaser.Math.Clamp(curZoom - 0.25, 0.2, 5.0);
     this.cameras.main.setZoom(newZoom);
+    this._notifyZoom();
+  }
+
+  setZoom(zoomVal) {
+    const newZoom = Phaser.Math.Clamp(zoomVal, 0.2, 5.0);
+    this.cameras.main.setZoom(newZoom);
+    this._notifyZoom();
+  }
+
+  _notifyZoom() {
+    if (this.onZoomUpdate) {
+      this.onZoomUpdate(this.cameras.main.zoom);
+    }
+  }
+
+  deleteObject(obj) {
+    if (!this.mapJsonData || !obj) return;
+    for (const layer of this.mapJsonData.layers) {
+      if (layer.type === 'objectgroup' && layer.objects) {
+        layer.objects = layer.objects.filter(o => o.id !== obj.id && !(o.x === obj.x && o.y === obj.y));
+      }
+    }
+    if (this.selectedObject && (this.selectedObject.id === obj.id || (this.selectedObject.x === obj.x && this.selectedObject.y === obj.y))) {
+      this.selectedObject = null;
+    }
+    this.drawObjects();
+    if (this.onObjectDeleted) this.onObjectDeleted(obj);
+  }
+
+  clearActiveLayer() {
+    const layerName = this.activeLayerName;
+    if (!this.map || !layerName) return;
+
+    const width = this.map.width;
+    const height = this.map.height;
+    this.tileLayerData[layerName] = new Uint32Array(width * height);
+
+    if (layerName === 'Collision') {
+      this.drawCollisionOverlay();
+    } else {
+      const phaserLayer = this.phaserLayers[layerName];
+      if (phaserLayer) {
+        phaserLayer.removeAllTiles();
+      }
+    }
+    if (this.onToast) this.onToast(`🧹 Camada "${layerName}" limpa com sucesso.`, 'info');
   }
 
   // ─── Export JSON ─────────────────────────────────────────────────────────

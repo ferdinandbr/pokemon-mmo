@@ -1,4 +1,5 @@
 const roomManager = require('../rooms/roomManager');
+const worldService = require('../services/worldService');
 
 function setupChatHandlers(io, socket) {
   socket.on('chat:send', (payload) => {
@@ -10,6 +11,45 @@ function setupChatHandlers(io, socket) {
 
     message = message.trim();
     if (message.length === 0 || message.length > 200) return;
+
+    // Server-Authoritative Weather & Environmental commands
+    if (message.startsWith('/')) {
+      const lower = message.toLowerCase();
+      const weatherMap = {
+        '/chuva': 'rain', '/rain': 'rain',
+        '/tempestade': 'storm', '/storm': 'storm',
+        '/neve': 'snow', '/snow': 'snow',
+        '/nevoa': 'fog', '/fog': 'fog',
+        '/sol': 'sunny', '/sunny': 'sunny',
+        '/areia': 'sandstorm', '/sandstorm': 'sandstorm',
+        '/limpo': 'clear', '/clear': 'clear'
+      };
+
+      if (weatherMap[lower]) {
+        const type = weatherMap[lower];
+        worldService.setWeather(type);
+        io.emit('chat:message', {
+          channel: 'system',
+          sender: 'Servidor',
+          text: `🌦️ [Clima Global] ${player.name} alterou o clima do servidor para ${type.toUpperCase()}!`,
+          timestamp: new Date().toISOString()
+        });
+        return;
+      }
+
+      if (lower.startsWith('/clima ') || lower.startsWith('/weather ')) {
+        const type = lower.split(' ')[1];
+        if (worldService.setWeather(type)) {
+          io.emit('chat:message', {
+            channel: 'system',
+            sender: 'Servidor',
+            text: `🌦️ [Clima Global] ${player.name} alterou o clima do servidor para ${type.toUpperCase()}!`,
+            timestamp: new Date().toISOString()
+          });
+        }
+        return;
+      }
+    }
 
     // Check if message begins with /w or /whisper
     if (message.startsWith('/w ') || message.startsWith('/whisper ')) {

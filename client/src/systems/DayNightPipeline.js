@@ -63,11 +63,11 @@ export default class DayNightPipeline extends Phaser.Renderer.WebGL.Pipelines.Po
 
     this.lightX = 0.5;
     this.lightY = 0.5;
-    this.lightRadius = 0.32;
+    this.lightRadius = 0.36;
     this.aspect = 16.0 / 9.0;
     this.nightDark = 0.0;
-    this.ambientColor = [0.02, 0.035, 0.095];
-    this.lightTint = [0.95, 1.08, 1.35]; // Iluminação prata/azul (luar celestial)
+    this.ambientColor = [0.32, 0.38, 0.65];
+    this.lightTint = [1.15, 1.08, 0.95]; // Iluminação tocha acolhedora
     this.flicker = 0.0;
   }
 

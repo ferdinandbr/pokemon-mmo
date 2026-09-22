@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import DayNightPipeline from './DayNightPipeline';
 
 export const DAY_NIGHT_CONFIG = {
-  TEST_MODE: true, // true = 3 min dia / 3 min noite; false = 1 hora dia / 1 hora noite
+  TEST_MODE: false, // false = 1 hora dia / 1 hora noite (produção); true = teste rápido
   
   // Duração no modo de teste (ms)
   TEST_DAY_DURATION: 3 * 60 * 1000,   // 3 minutos
@@ -12,14 +12,14 @@ export const DAY_NIGHT_CONFIG = {
   // Duração no modo de produção (ms)
   PROD_DAY_DURATION: 60 * 60 * 1000,   // 1 hora
   PROD_NIGHT_DURATION: 60 * 60 * 1000, // 1 hora
-  PROD_TRANSITION: 5 * 60 * 1000,      // 5 minutos de transição
+  PROD_TRANSITION: 8 * 60 * 1000,      // 8 minutos de transição suave e gradual
 
   // Cores de fallback (usadas se WebGL shader não estiver disponível)
-  NIGHT_COLOR: 0x050818, // Preto-azul meia-noite profundo
-  DUSK_COLOR: 0xe65100,  // Entardecer laranja vibrante
-  DAWN_COLOR: 0xd86a24,  // Amanhecer alvorada dourada
+  NIGHT_COLOR: 0x0c152e, // Azul safira escuro e profundo noturno
+  DUSK_COLOR: 0xcc5520,  // Entardecer dourado/alaranjado
+  DAWN_COLOR: 0xc86030,  // Amanhecer suave
   MAX_NIGHT_ALPHA: 0.72,
-  MAX_DUSK_ALPHA: 0.46
+  MAX_DUSK_ALPHA: 0.45
 };
 
 export default class DayNightManager {
@@ -174,6 +174,17 @@ export default class DayNightManager {
   }
 
   /**
+   * Sincroniza o ciclo local com o tempo autoritativo do servidor
+   * @param {object} serverTimeData
+   */
+  syncWithServer(serverTimeData) {
+    if (!serverTimeData) return;
+    if (typeof serverTimeData.serverTime === 'number') {
+      this.timeOffset = serverTimeData.serverTime - Date.now();
+    }
+  }
+
+  /**
    * Retorna os dados calculados do horário atual
    */
   calculateState() {
@@ -203,21 +214,12 @@ export default class DayNightManager {
       icon = '☀️';
       label = 'Dia';
     } else if (t < dayDuration) {
-      // 2. ENTARDECER (Pôr do sol laranja vibrante -> Noite preto-azul)
+      // 2. ENTARDECER (Dia -> Pôr do sol dourado -> Noite)
       phase = 'dusk';
       const progress = (t - (dayDuration - transition)) / transition; // 0.0 -> 1.0
-      const maxDuskAlpha = DAY_NIGHT_CONFIG.MAX_DUSK_ALPHA;
-
-      if (progress < 0.45) {
-        const subP = progress / 0.45;
-        alpha = Phaser.Math.Linear(0, maxDuskAlpha, subP);
-        color = DAY_NIGHT_CONFIG.DUSK_COLOR;
-      } else {
-        const subP = (progress - 0.45) / 0.55;
-        alpha = Phaser.Math.Linear(maxDuskAlpha, maxAlpha, subP);
-        color = this._lerpColor(DAY_NIGHT_CONFIG.DUSK_COLOR, DAY_NIGHT_CONFIG.NIGHT_COLOR, subP);
-      }
-
+      const s = progress * progress * (3 - 2 * progress);
+      alpha = Phaser.Math.Linear(0, maxAlpha, s);
+      color = this._lerpColor(DAY_NIGHT_CONFIG.DUSK_COLOR, DAY_NIGHT_CONFIG.NIGHT_COLOR, s);
       remainingMs = dayDuration - t;
       icon = '🌅';
       label = 'Entardecer';
@@ -230,25 +232,23 @@ export default class DayNightManager {
       icon = '🌙';
       label = 'Noite';
     } else {
-      // 4. AMANHECER (Noite -> Alvorada dourada -> Dia)
+      // 4. AMANHECER (Noite -> Alvorada suave -> Dia claro)
       phase = 'dawn';
       const progress = (t - (totalCycle - transition)) / transition; // 0.0 -> 1.0
-      const maxDawnAlpha = 0.38;
-
-      if (progress < 0.55) {
-        const subP = progress / 0.55;
-        alpha = Phaser.Math.Linear(maxAlpha, maxDawnAlpha, subP);
-        color = this._lerpColor(DAY_NIGHT_CONFIG.NIGHT_COLOR, DAY_NIGHT_CONFIG.DAWN_COLOR, subP);
-      } else {
-        const subP = (progress - 0.55) / 0.45;
-        alpha = Phaser.Math.Linear(maxDawnAlpha, 0, subP);
-        color = DAY_NIGHT_CONFIG.DAWN_COLOR;
-      }
-
+      const s = progress * progress * (3 - 2 * progress);
+      alpha = Phaser.Math.Linear(maxAlpha, 0, s);
+      color = this._lerpColor(DAY_NIGHT_CONFIG.NIGHT_COLOR, DAY_NIGHT_CONFIG.DAWN_COLOR, Math.sin(progress * Math.PI));
       remainingMs = totalCycle - t;
-      icon = '🌄';
+      icon = '🌅';
       label = 'Amanhecer';
     }
+
+    // Relógio virtual de 24h proporcional ao ciclo (ciclo começa às 08:00 manhã)
+    const cycleFrac = t / totalCycle;
+    const virtualTotalMins = (Math.floor(cycleFrac * 24 * 60) + 8 * 60) % (24 * 60);
+    const vHours = String(Math.floor(virtualTotalMins / 60)).padStart(2, '0');
+    const vMins = String(virtualTotalMins % 60).padStart(2, '0');
+    const clockTime = `${vHours}:${vMins}`;
 
     return {
       phase,
@@ -257,6 +257,7 @@ export default class DayNightManager {
       remainingMs,
       icon,
       label,
+      clockTime,
       isNight: phase === 'night' || phase === 'dusk' || phase === 'dawn',
       isTestMode: this.isTestMode
     };
@@ -292,7 +293,7 @@ export default class DayNightManager {
       this.pipelineInstance.lightX = normX;
       this.pipelineInstance.lightY = normY;
       this.pipelineInstance.aspect = camera.width / camera.height;
-      this.pipelineInstance.lightRadius = 0.36; // Raio equilibrado e agradável aos olhos
+      this.pipelineInstance.lightRadius = 0.24; // Raio de iluminação acolhedor e focado da tocha/lanterna
       this.pipelineInstance.flicker = Math.sin(time * 0.007) * 0.02 + Math.sin(time * 0.019) * 0.012;
 
       this._updatePipelinePhase(state);
@@ -328,51 +329,70 @@ export default class DayNightManager {
     const now = Date.now() + this.timeOffset;
     const t = now % totalCycle;
 
-    if (state.phase === 'day') {
-      // Dia pleno: shader não escurece nada, 100% cores originais
+    if (state.phase === 'day' || !this.scene?.localPlayer) {
+      // Dia pleno ou antes do spawn do jogador: 100% iluminação neutra e cores limpas
       this.pipelineInstance.nightDark = 0.0;
+      this.pipelineInstance.ambientColor = [1.0, 1.0, 1.0];
+      this.pipelineInstance.lightTint = [1.0, 1.0, 1.0];
     } else if (state.phase === 'dusk') {
-      // Entardecer: transição para pôr do sol alaranjado
+      // Entardecer: transição suave e gradual para pôr do sol alaranjado -> noite
       const progress = (t - (dayDuration - transition)) / transition; // 0.0 -> 1.0
-      
-      if (progress < 0.5) {
-        // Primeira metade: mundo banhado em luz de pôr do sol dourado/laranja
-        const subP = progress / 0.5;
-        this.pipelineInstance.nightDark = Phaser.Math.Linear(0.0, 0.55, subP);
-        this.pipelineInstance.ambientColor = [1.20, 0.48, 0.12]; // Laranja pôr do sol
-        this.pipelineInstance.lightTint = [1.15, 0.95, 0.75];
+      const s = progress * progress * (3 - 2 * progress);
+
+      this.pipelineInstance.nightDark = Phaser.Math.Linear(0.0, 0.86, s);
+
+      // Ambient color: Luz diurna [1.0, 1.0, 1.0] -> Pôr do sol [1.15, 0.65, 0.35] -> Noite azul safira [0.18, 0.22, 0.46]
+      let ambR, ambG, ambB;
+      if (s < 0.5) {
+        const sub = s / 0.5;
+        ambR = Phaser.Math.Linear(1.0, 1.15, sub);
+        ambG = Phaser.Math.Linear(1.0, 0.65, sub);
+        ambB = Phaser.Math.Linear(1.0, 0.35, sub);
       } else {
-        // Segunda metade: entardecer laranja escurece suavemente para a noite preto-azul
-        const subP = (progress - 0.5) / 0.5;
-        this.pipelineInstance.nightDark = Phaser.Math.Linear(0.55, 0.94, subP);
-        const ambR = Phaser.Math.Linear(1.20, 0.025, subP);
-        const ambG = Phaser.Math.Linear(0.48, 0.035, subP);
-        const ambB = Phaser.Math.Linear(0.12, 0.085, subP);
-        this.pipelineInstance.ambientColor = [ambR, ambG, ambB];
-        this.pipelineInstance.lightTint = [0.95, 1.08, 1.35]; // Transição para luar prata/azul
+        const sub = (s - 0.5) / 0.5;
+        ambR = Phaser.Math.Linear(1.15, 0.18, sub);
+        ambG = Phaser.Math.Linear(0.65, 0.22, sub);
+        ambB = Phaser.Math.Linear(0.35, 0.46, sub);
       }
+      this.pipelineInstance.ambientColor = [ambR, ambG, ambB];
+      this.pipelineInstance.lightTint = [
+        Phaser.Math.Linear(1.0, 1.22, s),
+        Phaser.Math.Linear(1.0, 1.10, s),
+        Phaser.Math.Linear(1.0, 0.88, s)
+      ];
     } else if (state.phase === 'night') {
-      // Noite plena: escuridão profunda preto-azul com iluminação prata/azul luar
-      this.pipelineInstance.nightDark = 0.94;
-      this.pipelineInstance.ambientColor = [0.02, 0.035, 0.095]; // Preto-azul meia-noite
-      this.pipelineInstance.lightTint = [0.95, 1.08, 1.35];      // Iluminação prata/azul (luar celestial)
+      // Noite plena: atmosfera noturna azul-safira profunda e escura, com iluminação de tocha aconchegante
+      this.pipelineInstance.nightDark = 0.86;
+      this.pipelineInstance.ambientColor = [0.18, 0.22, 0.46];
+      this.pipelineInstance.lightTint = [1.22, 1.10, 0.88];
     } else if (state.phase === 'dawn') {
-      // Amanhecer: Noite escura -> Alvorada suave -> Dia claro
+      // Amanhecer: Noite azul [0.18, 0.22, 0.46] -> Alvorada suave [1.08, 0.72, 0.52] -> Dia claro [1.0, 1.0, 1.0]
       const progress = (t - (totalCycle - transition)) / transition; // 0.0 -> 1.0
-      
-      if (progress < 0.5) {
-        const subP = progress / 0.5;
-        this.pipelineInstance.nightDark = Phaser.Math.Linear(0.94, 0.45, subP);
-        const ambR = Phaser.Math.Linear(0.025, 0.85, subP);
-        const ambG = Phaser.Math.Linear(0.035, 0.45, subP);
-        const ambB = Phaser.Math.Linear(0.085, 0.25, subP);
-        this.pipelineInstance.ambientColor = [ambR, ambG, ambB];
+      const s = progress * progress * (3 - 2 * progress);
+
+      // Escuridão reduz suavemente de 0.86 até 0.0
+      this.pipelineInstance.nightDark = Phaser.Math.Linear(0.86, 0.0, s);
+
+      let ambR, ambG, ambB;
+      if (s < 0.5) {
+        const sub = s / 0.5;
+        ambR = Phaser.Math.Linear(0.18, 1.08, sub);
+        ambG = Phaser.Math.Linear(0.22, 0.72, sub);
+        ambB = Phaser.Math.Linear(0.46, 0.52, sub);
       } else {
-        const subP = (progress - 0.5) / 0.5;
-        this.pipelineInstance.nightDark = Phaser.Math.Linear(0.45, 0.0, subP);
-        this.pipelineInstance.ambientColor = [0.85, 0.45, 0.25];
+        const sub = (s - 0.5) / 0.5;
+        ambR = Phaser.Math.Linear(1.08, 1.0, sub);
+        ambG = Phaser.Math.Linear(0.72, 1.0, sub);
+        ambB = Phaser.Math.Linear(0.52, 1.0, sub);
       }
-      this.pipelineInstance.lightTint = [1.12, 0.96, 0.78];
+      this.pipelineInstance.ambientColor = [ambR, ambG, ambB];
+
+      // Light tint: Tocha suave -> Luz solar neutra [1.0, 1.0, 1.0]
+      this.pipelineInstance.lightTint = [
+        Phaser.Math.Linear(1.22, 1.0, s),
+        Phaser.Math.Linear(1.10, 1.0, s),
+        Phaser.Math.Linear(0.88, 1.0, s)
+      ];
     }
   }
 
@@ -386,15 +406,26 @@ export default class DayNightManager {
     const totalSeconds = Math.max(0, Math.floor(state.remainingMs / 1000));
     const mins = Math.floor(totalSeconds / 60);
     const secs = totalSeconds % 60;
-    const formattedTime = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    const formattedRemaining = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 
     if (iconSpan) iconSpan.innerText = state.icon;
     if (labelSpan) {
-      labelSpan.innerText = `${state.label} (${formattedTime})`;
+      labelSpan.innerText = state.clockTime || formattedRemaining;
     }
 
-    // Classe CSS para estilização dinâmica por fase
-    badge.className = `hud-badge time-${state.phase}`;
+    badge.title = `${state.label} — Próxima fase em ${formattedRemaining}`;
+    badge.className = `hud-time-group time-${state.phase}`;
+
+    if (this._lastReportedPhase !== state.phase) {
+      this._lastReportedPhase = state.phase;
+      if (this.scene.weatherManager) {
+        if ((state.phase === 'night' || state.phase === 'dusk') && this.scene.weatherManager.currentWeather === 'sunny') {
+          this.scene.weatherManager.setWeather('clear');
+        } else {
+          this.scene.weatherManager._updateHUDBadge();
+        }
+      }
+    }
   }
 
   // ─── Interpolação de Cores ─────────────────────────────────────────────────

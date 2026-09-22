@@ -45,7 +45,9 @@ class SocketClient {
       'room:changed',
       'chat:message',
       'server:stats',
-      'error:msg'
+      'error:msg',
+      'world:weather',
+      'world:time'
     ];
 
     for (const event of forwardEvents) {

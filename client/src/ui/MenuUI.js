@@ -34,6 +34,31 @@ export default class MenuUI {
     this.btnBag.addEventListener('click', () => this.renderBagView());
     this.btnCard.addEventListener('click', () => this.renderCardView());
 
+    // Direct HUD Action Bar buttons
+    document.getElementById('hud-btn-pokemon')?.addEventListener('click', () => {
+      this.show();
+      this.renderPokemonView();
+    });
+    document.getElementById('hud-btn-bag')?.addEventListener('click', () => {
+      this.show();
+      this.renderBagView();
+    });
+    document.getElementById('hud-btn-quests')?.addEventListener('click', () => {
+      this.show();
+      this.renderPokedexView();
+    });
+    document.getElementById('hud-btn-battle')?.addEventListener('click', () => {
+      this.show();
+      this.renderCardView();
+    });
+    document.getElementById('hud-btn-chat')?.addEventListener('click', () => {
+      const input = document.getElementById('chat-input');
+      if (input) {
+        input.focus();
+        input.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         const hud = document.getElementById('hud');

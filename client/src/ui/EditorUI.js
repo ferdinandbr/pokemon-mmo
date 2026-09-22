@@ -1,6 +1,7 @@
 import DialogueBox from './DialogueBox';
 import { ROOMS_CONFIG } from '../maps/roomData';
 import { COLLISION_TYPES, COLLISION_META } from '../maps/collisionConfig';
+import NodeGraphUI from './NodeGraphUI';
 
 /**
  * EditorUI – Modern HTML/CSS overlay and control system for the Phaser Map Editor.
@@ -24,12 +25,32 @@ export default class EditorUI {
     this.tileSize = 32;
     this.totalTiles = 4544;
 
-    this.allMapsList = { cities: [], routes: [], root: [] };
+    this.allMapsList = this._getDefaultMapsList();
     this.activeSidebarTab = 'layers'; // 'layers', 'portals', 'signs'
 
     this.initHTML();
+    this.populateMapSelect();
+    this.populatePortalTargetSelect();
+    this.nodeGraphUI = new NodeGraphUI(this, this.editorScene);
     this.bindEvents();
     this.fetchMapsList();
+  }
+
+  _getDefaultMapsList() {
+    const CITIES_LIST = [
+      'pallet_town', 'viridian_city', 'pewter_city', 'cerulean_city',
+      'vermilion_city', 'lavender_town', 'celadon_city', 'saffron_city',
+      'fuchsia_city', 'cinnabar_island', 'indigo_plateau'
+    ];
+    const allKeys = Object.keys(ROOMS_CONFIG);
+    const cities = allKeys.filter(k => CITIES_LIST.includes(k) || k.endsWith('_city') || k.endsWith('_town'));
+    const routes = allKeys.filter(k => k.startsWith('route_')).sort((a, b) => {
+      const na = parseInt(a.replace('route_', ''), 10) || 0;
+      const nb = parseInt(b.replace('route_', ''), 10) || 0;
+      return na - nb;
+    });
+    const root = allKeys.filter(k => !cities.includes(k) && !routes.includes(k));
+    return { cities, routes, root };
   }
 
   show() {
@@ -61,12 +82,15 @@ export default class EditorUI {
       <div class="editor-top-bar">
         <div class="editor-brand">
           <div class="editor-logo-group">
-            <svg class="editor-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
-              <line x1="8" y1="2" x2="8" y2="18"></line>
-              <line x1="16" y1="6" x2="16" y2="22"></line>
+            <svg class="editor-icon-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
             </svg>
-            <span class="editor-logo-text">POKéMMO EDITOR</span>
+            <div class="brand-text-wrapper">
+              <span class="editor-logo-text">POKéMMO</span>
+              <span class="editor-sublogo">MAP STUDIO</span>
+            </div>
           </div>
 
           <!-- Map Selector Dropdown -->
@@ -82,13 +106,26 @@ export default class EditorUI {
           <span id="editor-layer-indicator" class="editor-status-item highlight">Camada: Ground</span>
           <span id="editor-tool-indicator" class="editor-status-item">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-            <span>Pincel</span>
+            <span>Pincel (B)</span>
           </span>
           <span id="editor-coords" class="editor-status-item">Tile: [0, 0] | Px: [0, 0]</span>
           <span id="editor-gid-indicator" class="editor-status-item">GID: 1</span>
+          <span id="editor-zoom-indicator" class="editor-status-item zoom-badge" title="Nível de Zoom da Câmera">150%</span>
         </div>
 
         <div class="editor-actions">
+          <button id="btn-mode-nodes" class="editor-btn gold" title="Visualizador de Conexões de Mapas (Node Graph)">
+            🕸️ <span>REDE DE MAPAS</span>
+          </button>
+
+          <button id="btn-center-map" class="editor-btn" title="Centralizar Mapa na Tela (Home)">
+            🎯 <span>CENTRALIZAR</span>
+          </button>
+
+          <button id="btn-toggle-grid" class="editor-btn active" title="Alternar Grade (G)">
+            ⊞ <span>GRADE</span>
+          </button>
+
           <button id="btn-toggle-collision" class="editor-btn active" title="Alternar Overlay de Colisões (C)">
             🛡️ <span>COLISÕES</span>
           </button>
@@ -99,7 +136,7 @@ export default class EditorUI {
               <polyline points="17 21 17 13 7 13 7 21"></polyline>
               <polyline points="7 3 7 8 15 8"></polyline>
             </svg>
-            <span>SALVAR MAPA</span>
+            <span>SALVAR</span>
           </button>
 
           <button id="btn-editor-reload" class="editor-btn secondary">
@@ -121,9 +158,9 @@ export default class EditorUI {
         </div>
       </div>
 
-      <!-- Left Tool Bar -->
+      <!-- Left Tool Bar (Floating Dock) -->
       <div class="editor-toolbar">
-        <button id="tool-hand" class="editor-tool-btn" data-tooltip="Mover / Pan (H)">
+        <button id="tool-hand" class="editor-tool-btn" data-tooltip="Mover / Pan (H ou Espaço + Arraste)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="5 9 2 12 5 15"></polyline>
             <polyline points="9 5 12 2 15 5"></polyline>
@@ -156,7 +193,7 @@ export default class EditorUI {
           </svg>
         </button>
 
-        <button id="tool-picker" class="editor-tool-btn" data-tooltip="Conta-gotas (I)">
+        <button id="tool-picker" class="editor-tool-btn" data-tooltip="Conta-gotas da Camada (I ou Alt+Clique)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="m14 2 6 6"></path>
             <path d="m4 20 5-1 9-9-4-4-9 9-1 5Z"></path>
@@ -164,11 +201,11 @@ export default class EditorUI {
           </svg>
         </button>
 
-        <button id="tool-sign" class="editor-tool-btn" data-tooltip="Marcar Placa no Mapa (1 grid)">
+        <button id="tool-sign" class="editor-tool-btn" data-tooltip="Marcar Placa FireRed no Mapa (1 grid)">
           <span style="font-size: 16px;">🪧</span>
         </button>
 
-        <button id="tool-link" class="editor-tool-btn" data-tooltip="Marcar Teleporte no Mapa (1 ou mais grids)">
+        <button id="tool-link" class="editor-tool-btn" data-tooltip="Marcar Teleporte no Mapa (Grids)">
           <span style="font-size: 16px;">🚪</span>
         </button>
 
@@ -182,7 +219,7 @@ export default class EditorUI {
 
         <div class="tool-divider"></div>
 
-        <button id="tool-zoomin" class="editor-tool-btn" data-tooltip="Zoom In (+)">
+        <button id="tool-zoomin" class="editor-tool-btn" data-tooltip="Aproximar Zoom (+)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -191,12 +228,20 @@ export default class EditorUI {
           </svg>
         </button>
 
-        <button id="tool-zoomout" class="editor-tool-btn" data-tooltip="Zoom Out (-)">
+        <button id="tool-zoomout" class="editor-tool-btn" data-tooltip="Afastar Zoom (-)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             <line x1="8" y1="11" x2="14" y2="11"></line>
           </svg>
+        </button>
+
+        <button id="tool-zoomreset" class="editor-tool-btn" data-tooltip="Zoom 100% (1:1 / Tecla 0)">
+          <span style="font-size: 11px; font-weight: 800; letter-spacing:-0.5px;">1:1</span>
+        </button>
+
+        <button id="tool-centermap" class="editor-tool-btn" data-tooltip="Centralizar Mapa (Home)">
+          <span style="font-size: 15px;">🎯</span>
         </button>
 
         <button id="tool-grid" class="editor-tool-btn active" data-tooltip="Grade (G)">
@@ -208,6 +253,19 @@ export default class EditorUI {
             <line x1="15" y1="3" x2="15" y2="21"></line>
           </svg>
         </button>
+      </div>
+
+      <!-- Floating Bottom Navigation Helper -->
+      <div class="editor-nav-hints">
+        <span class="hint-item"><kbd>Espaço</kbd> ou <kbd>Botão Direito</kbd> Arrastar</span>
+        <span class="hint-dot">•</span>
+        <span class="hint-item"><kbd>Scroll</kbd> Zoom</span>
+        <span class="hint-dot">•</span>
+        <span class="hint-item"><kbd>Alt + Clique</kbd> Copiar Tile</span>
+        <span class="hint-dot">•</span>
+        <span class="hint-item"><kbd>E</kbd> Borracha</span>
+        <span class="hint-dot">•</span>
+        <span class="hint-item"><kbd>Home</kbd> Centralizar</span>
       </div>
 
       <!-- Right Sidebar with Tabs -->
@@ -222,9 +280,16 @@ export default class EditorUI {
         <!-- TAB 1: Layers & Tileset Palette -->
         <div id="tab-content-layers" class="tab-content">
           <div class="sidebar-section">
-            <div class="section-title-group">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
-              <h3>CAMADAS DO MAPA ATIVO</h3>
+            <div class="section-header">
+              <div class="section-title-group">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                <h3>CAMADAS DO MAPA ATIVO</h3>
+              </div>
+              <div style="display:flex; gap:4px; align-items:center;">
+                <button id="btn-move-layer-up" class="editor-btn small" style="height: 24px; padding: 2px 7px; font-size: 11px;" title="Subir camada ativa (renderizar por cima)">▲</button>
+                <button id="btn-move-layer-down" class="editor-btn small" style="height: 24px; padding: 2px 7px; font-size: 11px;" title="Descer camada ativa (renderizar por baixo)">▼</button>
+                <button id="btn-clear-layer" class="editor-btn small danger" style="height: 24px; padding: 2px 7px; font-size: 10px;" title="Limpar todos os tiles da camada selecionada">🧹 Limpar</button>
+              </div>
             </div>
             <div id="editor-layers-list" class="layer-list" style="max-height: 180px; overflow-y: auto;">
               <!-- Dynamically populated -->
@@ -277,6 +342,13 @@ export default class EditorUI {
                 <div class="col-details">
                   <strong>Barranco (Subir ⬆️)</strong>
                   <small>Pula para cima, bloqueia descida</small>
+                </div>
+              </button>
+              <button class="collision-type-btn" data-type="6" title="Apagar/remover colisão existente (Montanha, Árvores, Construções, etc.)">
+                <span class="col-icon">🟩</span>
+                <div class="col-details">
+                  <strong>Livre / Passável</strong>
+                  <small>Apaga colisão própria do tileset</small>
                 </div>
               </button>
             </div>
@@ -500,9 +572,46 @@ export default class EditorUI {
       if (coordsEl) coordsEl.textContent = `Tile: [${tileX}, ${tileY}] | Px: [${pxX}, ${pxY}]`;
     };
 
-    this.editorScene.onTilePicked = (gid) => {
-      this.setTileGid(gid);
-      this.showToast(`Tile GID ${gid} selecionado!`, 'info');
+    this.editorScene.onZoomUpdate = (zoom) => {
+      const zoomEl = document.getElementById('editor-zoom-indicator');
+      if (zoomEl) zoomEl.textContent = `${Math.round(zoom * 100)}%`;
+    };
+
+    this.editorScene.onTilePicked = (gid, layerName) => {
+      // 1. Switch to layers tab so the tileset viewer is visible
+      if (this.activeSidebarTab !== 'layers') {
+        this.switchSidebarTab('layers');
+      }
+
+      if (layerName && layerName !== this.editorScene.activeLayerName) {
+        this._selectLayer(layerName);
+      }
+
+      // 2. Locate tileset that contains this gid
+      const tilesets = this.editorScene.mapJsonData?.tilesets || [];
+      let foundTilesetIdx = -1;
+      for (let i = 0; i < tilesets.length; i++) {
+        const t = tilesets[i];
+        const endGid = (t.firstgid || 1) + (t.tilecount || 10000);
+        if (gid >= t.firstgid && gid < endGid) {
+          foundTilesetIdx = i;
+          break;
+        }
+      }
+
+      if (foundTilesetIdx >= 0) {
+        this.switchTileset(foundTilesetIdx, gid);
+      } else {
+        this.setTileGid(gid);
+        this.scrollToTileInPalette(gid);
+      }
+
+      this.showToast(`🎯 Tile GID ${gid} copiado da camada "${layerName || 'Ativa'}"!`, 'success');
+    };
+
+    this.editorScene.onObjectDeleted = (obj) => {
+      this.renderPortalsList();
+      this.renderSignsList();
     };
 
     this.editorScene.onObjectSelected = (obj) => {
@@ -538,6 +647,9 @@ export default class EditorUI {
       if (select && select.value !== mapName) {
         select.value = mapName;
       }
+      if (this.editorScene.cameras?.main) {
+        this.editorScene._notifyZoom();
+      }
     };
 
     this.editorScene.onToast = (msg, type) => {
@@ -553,10 +665,63 @@ export default class EditorUI {
       });
     }
 
+    // Modo Rede de Mapas (Node Graph)
+    document.getElementById('btn-mode-nodes')?.addEventListener('click', () => {
+      if (this.nodeGraphUI) this.nodeGraphUI.show();
+    });
+
+    // Centralizar Mapa Buttons (Top Bar e Toolbar)
+    document.getElementById('btn-center-map')?.addEventListener('click', () => this.editorScene.centerMap());
+    document.getElementById('tool-centermap')?.addEventListener('click', () => this.editorScene.centerMap());
+
+    // Reset Zoom Button
+    document.getElementById('tool-zoomreset')?.addEventListener('click', () => this.editorScene.resetZoom());
+
+    // Toggle Grid Buttons
+    const onToggleGrid = (btn) => {
+      this.editorScene.toggleGrid();
+      const isActive = this.editorScene.showGrid;
+      document.getElementById('btn-toggle-grid')?.classList.toggle('active', isActive);
+      document.getElementById('tool-grid')?.classList.toggle('active', isActive);
+    };
+    document.getElementById('btn-toggle-grid')?.addEventListener('click', (e) => onToggleGrid(e.currentTarget));
+    document.getElementById('tool-grid')?.addEventListener('click', (e) => onToggleGrid(e.currentTarget));
+
     // Toggle Collisions Button
     document.getElementById('btn-toggle-collision')?.addEventListener('click', (e) => {
       this.editorScene.toggleCollisions();
       e.currentTarget.classList.toggle('active', this.editorScene.showCollisions);
+    });
+
+    // Move Active Layer Up / Down Buttons
+    document.getElementById('btn-move-layer-up')?.addEventListener('click', async () => {
+      const active = this.editorScene.activeLayerName;
+      if (!active || active === 'Collision') return;
+      const moved = this.editorScene.moveLayer(active, 1);
+      if (moved) {
+        this.renderLayersList(this.editorScene.allTileLayerNames);
+        await this.saveMap();
+        this.showToast(`▲ Camada "${active}" subiu para cima e foi salva!`, 'success');
+      }
+    });
+
+    document.getElementById('btn-move-layer-down')?.addEventListener('click', async () => {
+      const active = this.editorScene.activeLayerName;
+      if (!active || active === 'Collision') return;
+      const moved = this.editorScene.moveLayer(active, -1);
+      if (moved) {
+        this.renderLayersList(this.editorScene.allTileLayerNames);
+        await this.saveMap();
+        this.showToast(`▼ Camada "${active}" desceu para baixo e foi salva!`, 'success');
+      }
+    });
+
+    // Clear Active Layer Button
+    document.getElementById('btn-clear-layer')?.addEventListener('click', () => {
+      const layerName = this.editorScene.activeLayerName;
+      if (confirm(`Tem certeza que deseja apagar todos os dados da camada "${layerName}"?`)) {
+        this.editorScene.clearActiveLayer();
+      }
     });
 
     // Collision Type Palette Buttons
@@ -584,10 +749,6 @@ export default class EditorUI {
 
     document.getElementById('tool-zoomin')?.addEventListener('click', () => this.editorScene.zoomIn());
     document.getElementById('tool-zoomout')?.addEventListener('click', () => this.editorScene.zoomOut());
-    document.getElementById('tool-grid')?.addEventListener('click', (e) => {
-      this.editorScene.toggleGrid();
-      e.currentTarget.classList.toggle('active', this.editorScene.showGrid);
-    });
 
     // Sidebar Tabs
     ['layers', 'portals', 'signs'].forEach(tab => {
@@ -628,15 +789,29 @@ export default class EditorUI {
     });
     document.getElementById('btn-editor-exit')?.addEventListener('click', () => this.hide());
 
-    // Tileset Canvas Click
+    // Tileset Canvas Click: PRESERVE ACTIVE TOOL
     this.tilesetCanvas.addEventListener('click', (e) => {
       const rect = this.tilesetCanvas.getBoundingClientRect();
-      const col = Math.floor((e.clientX - rect.left) / this.tileSize);
-      const row = Math.floor((e.clientY - rect.top) / this.tileSize);
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+
+      const margin = this.activeTileset?.margin || 0;
+      const spacing = this.activeTileset?.spacing || 0;
+      const tileW = this.activeTileset?.tilewidth || this.tileSize || 32;
+      const tileH = this.activeTileset?.tileheight || this.tileSize || 32;
+
+      const col = Math.floor((clickX - margin) / (tileW + spacing));
+      const row = Math.floor((clickY - margin) / (tileH + spacing));
+
+      if (col < 0 || col >= this.columns || row < 0) return;
+
       const firstGid = this.activeTileset ? this.activeTileset.firstgid : 1;
       const gid = firstGid + (row * this.columns) + col;
       this.setTileGid(gid);
-      this.selectTool('pencil');
+      // Only switch to pencil if currently using sign, link or object
+      if (['sign', 'link', 'object'].includes(this.editorScene.activeTool)) {
+        this.selectTool('pencil');
+      }
     });
 
     // Portal Modal Buttons
@@ -707,13 +882,17 @@ export default class EditorUI {
   async fetchMapsList() {
     try {
       const res = await fetch('/api/admin/map/list');
-      if (!res.ok) return;
-      this.allMapsList = await res.json();
-      this.populateMapSelect();
-      this.populatePortalTargetSelect();
+      if (res.ok) {
+        const data = await res.json();
+        if (data && (data.cities?.length || data.routes?.length)) {
+          this.allMapsList = data;
+        }
+      }
     } catch (err) {
-      console.error('[EditorUI fetchMapsList Error]:', err);
+      console.warn('[EditorUI fetchMapsList Warning]:', err);
     }
+    this.populateMapSelect();
+    this.populatePortalTargetSelect();
   }
 
   populateMapSelect() {
@@ -785,80 +964,172 @@ export default class EditorUI {
 
   renderLayersList(layerNames) {
     const container = document.getElementById('editor-layers-list');
-    if (!container) return;
+    if (!container || !this.editorScene.mapJsonData) return;
 
     container.innerHTML = '';
 
-    // Add Collision layer first or top
-    const allLayers = [...layerNames];
-    if (!allLayers.includes('Collision')) allLayers.push('Collision');
+    const allMapLayers = this.editorScene.mapJsonData.layers || [];
+    const visualTileLayers = allMapLayers.filter(l => l.type === 'tilelayer' && l.name !== 'Collision');
+    const hasCollision = allMapLayers.some(l => l.name === 'Collision') || (this.editorScene.tileLayerData && this.editorScene.tileLayerData['Collision']);
 
-    allLayers.forEach(name => {
+    // 1. Collision layer item (pinned at top of list as special editor tool layer)
+    if (hasCollision) {
+      const colItem = document.createElement('div');
+      colItem.className = `layer-item ${this.editorScene.activeLayerName === 'Collision' ? 'active' : ''}`;
+      colItem.dataset.layer = 'Collision';
+      colItem.innerHTML = `
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button class="layer-visibility-btn" title="Alternar Visibilidade da Colisão">${this.editorScene.showCollisions ? '👁️' : '🕶️'}</button>
+          <span class="layer-name">Collision</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="layer-type tag-red" title="Camada de máscara de colisões">Colisão</span>
+        </div>
+      `;
+
+      colItem.addEventListener('click', (e) => {
+        if (e.target.closest('.layer-visibility-btn')) return;
+        this._selectLayer('Collision');
+      });
+
+      const visBtn = colItem.querySelector('.layer-visibility-btn');
+      visBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.editorScene.toggleCollisions();
+        visBtn.textContent = this.editorScene.showCollisions ? '👁️' : '🕶️';
+      });
+
+      container.appendChild(colItem);
+    }
+
+    // 2. Visual tile layers rendered in reverse order (Topmost visual layer first, bottommost visual layer last)
+    // In this.editorScene.mapJsonData.layers, index 0 is bottom, index N-1 is top.
+    const numVisual = visualTileLayers.length;
+    for (let i = numVisual - 1; i >= 0; i--) {
+      const layerObj = visualTileLayers[i];
+      const name = layerObj.name;
+      const isTop = (i === numVisual - 1);
+      const isBottom = (i === 0);
+
+      const props = this.editorScene._readProps(layerObj.properties);
+      const isOverhead = props.isOverhead === true || props.depth >= 1000 || (/overhead|arch/i.test(name) && props.isOverhead !== false);
+
       const item = document.createElement('div');
       item.className = `layer-item ${this.editorScene.activeLayerName === name ? 'active' : ''}`;
       item.dataset.layer = name;
 
-      let tagClass = 'tag-cyan';
-      let tagText = 'Tile';
-      if (name === 'Collision') {
-        tagClass = 'tag-red';
-        tagText = 'Colisão';
-      } else if (name === 'Overhead' || name === 'Arch') {
-        tagClass = 'tag-gold';
-        tagText = 'Topo';
-      }
+      const tagClass = isOverhead ? 'tag-gold' : 'tag-cyan';
+      const tagText = isOverhead ? 'Topo' : 'Chão';
+      const tagTooltip = isOverhead
+        ? 'Renderiza acima do personagem (z >= 1000). Clique para alternar para Chão.'
+        : 'Renderiza abaixo do personagem (z < 100). Clique para alternar para Topo.';
+
+      const pLayer = this.editorScene.phaserLayers[name];
+      const isVisible = pLayer ? pLayer.visible : true;
 
       item.innerHTML = `
-        <div style="display:flex; align-items:center; gap:8px;">
-          <button class="layer-visibility-btn" title="Alternar Visibilidade">👁️</button>
-          <span class="layer-name">${name}</span>
+        <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
+          <button class="layer-visibility-btn" title="Alternar Visibilidade">${isVisible ? '👁️' : '🕶️'}</button>
+          <span class="layer-name" title="${name}">${name}</span>
         </div>
-        <span class="layer-type ${tagClass}">${tagText}</span>
+        <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+          <button class="layer-type-toggle ${tagClass}" title="${tagTooltip}">${tagText}</button>
+          <div class="layer-order-group">
+            <button class="layer-order-btn btn-layer-up" title="Subir camada (renderizar por cima)" ${isTop ? 'disabled' : ''}>▲</button>
+            <button class="layer-order-btn btn-layer-down" title="Descer camada (renderizar por baixo)" ${isBottom ? 'disabled' : ''}>▼</button>
+          </div>
+        </div>
       `;
 
       // Select active layer
       item.addEventListener('click', (e) => {
-        if (e.target.closest('.layer-visibility-btn')) return;
-        document.querySelectorAll('.layer-item').forEach(el => el.classList.remove('active'));
-        item.classList.add('active');
-
-        this.editorScene.setActiveLayer(name);
-        const indicator = document.getElementById('editor-layer-indicator');
-        if (indicator) indicator.textContent = `Camada: ${name}`;
-        this.showToast(`Camada ativa: ${name}`, 'info');
-
-        if (name === 'Collision') {
-          this.selectTool('pencil');
-          document.getElementById('editor-collision-palette')?.classList.remove('hidden');
-          document.querySelector('.tileset-section')?.classList.add('hidden');
-          this.selectCollisionType(this.editorScene.selectedCollisionType || COLLISION_TYPES.SOLID);
-        } else {
-          document.getElementById('editor-collision-palette')?.classList.add('hidden');
-          document.querySelector('.tileset-section')?.classList.remove('hidden');
-          const indicator = document.getElementById('editor-gid-indicator');
-          if (indicator) indicator.textContent = `GID: ${this.activeGid}`;
-        }
+        if (e.target.closest('.layer-visibility-btn') || e.target.closest('.layer-order-btn') || e.target.closest('.layer-type-toggle')) return;
+        this._selectLayer(name);
       });
 
       // Visibility toggle
       const visBtn = item.querySelector('.layer-visibility-btn');
-      let visible = true;
-      visBtn.addEventListener('click', () => {
-        visible = !visible;
-        this.editorScene.setLayerVisible(name, visible);
-        visBtn.classList.toggle('hidden-layer', !visible);
-        visBtn.textContent = visible ? '👁️' : '🕶️';
+      visBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const pL = this.editorScene.phaserLayers[name];
+        const newVis = pL ? !pL.visible : false;
+        this.editorScene.setLayerVisible(name, newVis);
+        visBtn.textContent = newVis ? '👁️' : '🕶️';
+      });
+
+      // Type toggle (Topo / Chão)
+      const typeToggle = item.querySelector('.layer-type-toggle');
+      typeToggle.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        this.editorScene.toggleLayerOverhead(name);
+        this.renderLayersList(this.editorScene.allTileLayerNames);
+        await this.saveMap();
+        this.showToast(`Camada "${name}" configurada como ${isOverhead ? 'Chão (abaixo do jogador)' : 'Topo (acima do jogador)'}!`, 'info');
+      });
+
+      // Move Up (towards top, higher index, render on top)
+      const upBtn = item.querySelector('.btn-layer-up');
+      upBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        this._selectLayer(name);
+        const moved = this.editorScene.moveLayer(name, 1);
+        if (moved) {
+          this.renderLayersList(this.editorScene.allTileLayerNames);
+          await this.saveMap();
+          this.showToast(`▲ Camada "${name}" subiu e foi salva!`, 'success');
+        }
+      });
+
+      // Move Down (towards bottom, lower index, render below)
+      const downBtn = item.querySelector('.btn-layer-down');
+      downBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        this._selectLayer(name);
+        const moved = this.editorScene.moveLayer(name, -1);
+        if (moved) {
+          this.renderLayersList(this.editorScene.allTileLayerNames);
+          await this.saveMap();
+          this.showToast(`▼ Camada "${name}" desceu e foi salva!`, 'success');
+        }
       });
 
       container.appendChild(item);
+    }
+
+    // Update palette visibility according to current active layer
+    this._updateActiveLayerState();
+  }
+
+  _selectLayer(name) {
+    document.querySelectorAll('.layer-item').forEach(el => {
+      el.classList.toggle('active', el.dataset.layer === name);
     });
 
-    // Initial state check for Collision layer vs normal layers
-    const isCol = this.editorScene.activeLayerName === 'Collision';
+    this.editorScene.setActiveLayer(name);
+    const indicator = document.getElementById('editor-layer-indicator');
+    if (indicator) indicator.textContent = `Camada: ${name}`;
+
+    this._updateActiveLayerState();
+  }
+
+  _updateActiveLayerState() {
+    const name = this.editorScene.activeLayerName;
+    const isCol = name === 'Collision';
+
     document.getElementById('editor-collision-palette')?.classList.toggle('hidden', !isCol);
     document.querySelector('.tileset-section')?.classList.toggle('hidden', isCol);
+
     if (isCol) {
+      if (['sign', 'link', 'object'].includes(this.editorScene.activeTool)) {
+        this.selectTool('pencil');
+      }
       this.selectCollisionType(this.editorScene.selectedCollisionType || COLLISION_TYPES.SOLID);
+    } else {
+      if (['sign', 'link', 'object'].includes(this.editorScene.activeTool)) {
+        this.selectTool('pencil');
+      }
+      const indicator = document.getElementById('editor-gid-indicator');
+      if (indicator) indicator.textContent = `GID: ${this.activeGid}`;
     }
   }
 
@@ -1309,23 +1580,38 @@ export default class EditorUI {
     }
   }
 
-  switchTileset(idx) {
-    const tilesets = this.editorScene.mapJsonData.tilesets;
+  switchTileset(idx, targetGid = null) {
+    const tilesets = this.editorScene.mapJsonData?.tilesets;
     if (!tilesets || !tilesets[idx]) return;
 
     this.activeTileset = tilesets[idx];
     const filename = this.activeTileset.image.split('/').pop();
 
     this.columns = this.activeTileset.columns || 16;
-    this.tileSize = this.activeTileset.tilewidth || 16;
+    this.tileSize = this.activeTileset.tilewidth || 32;
     this.totalTiles = this.activeTileset.tilecount || 1000;
 
-    this.tilesetImage = new Image();
-    this.tilesetImage.src = '/assets/tilesets/' + filename;
-    this.tilesetImage.onload = () => {
+    const selectEl = document.getElementById('editor-tileset-select');
+    if (selectEl && parseInt(selectEl.value, 10) !== idx) {
+      selectEl.value = idx;
+    }
+
+    const onReady = () => {
       this.drawTilesetPalette();
-      this.updateTilePreview(this.activeTileset.firstgid);
+      const gidToFocus = targetGid !== null ? targetGid : (this.activeGid || this.activeTileset.firstgid);
+      this.setTileGid(gidToFocus);
+      this.scrollToTileInPalette(gidToFocus);
     };
+
+    if (this.tilesetImage && this.tilesetImage.src.endsWith(filename) && this.tilesetImage.complete) {
+      onReady();
+    } else {
+      this.tilesetImage = new Image();
+      this.tilesetImage.src = '/assets/tilesets/' + filename;
+      this.tilesetImage.onload = () => {
+        onReady();
+      };
+    }
   }
 
   handleUploadTilesetPNG(file) {
@@ -1403,16 +1689,25 @@ export default class EditorUI {
     const localId = gid - firstGid;
     if (localId < 0) return;
 
+    const margin = this.activeTileset?.margin || 0;
+    const spacing = this.activeTileset?.spacing || 0;
+    const tileW = this.activeTileset?.tilewidth || this.tileSize || 32;
+    const tileH = this.activeTileset?.tileheight || this.tileSize || 32;
+
     const col = localId % this.columns;
     const row = Math.floor(localId / this.columns);
-    const x = col * this.tileSize;
-    const y = row * this.tileSize;
+    const x = margin + col * (tileW + spacing);
+    const y = margin + row * (tileH + spacing);
 
-    this.tilesetCtx.strokeStyle = '#00ff00';
-    this.tilesetCtx.lineWidth = 2;
-    this.tilesetCtx.strokeRect(x, y, this.tileSize, this.tileSize);
-    this.tilesetCtx.fillStyle = 'rgba(0, 255, 0, 0.35)';
-    this.tilesetCtx.fillRect(x, y, this.tileSize, this.tileSize);
+    // Glowing vibrant cyan and gold box
+    this.tilesetCtx.strokeStyle = '#ffd700';
+    this.tilesetCtx.lineWidth = 3;
+    this.tilesetCtx.strokeRect(x - 1, y - 1, tileW + 2, tileH + 2);
+    this.tilesetCtx.strokeStyle = '#00e5ff';
+    this.tilesetCtx.lineWidth = 1.5;
+    this.tilesetCtx.strokeRect(x, y, tileW, tileH);
+    this.tilesetCtx.fillStyle = 'rgba(0, 229, 255, 0.35)';
+    this.tilesetCtx.fillRect(x, y, tileW, tileH);
   }
 
   updateTilePreview(gid) {
@@ -1428,15 +1723,56 @@ export default class EditorUI {
     const localId = gid - firstGid;
     if (localId < 0) return;
 
+    const margin = this.activeTileset?.margin || 0;
+    const spacing = this.activeTileset?.spacing || 0;
+    const tileW = this.activeTileset?.tilewidth || this.tileSize || 32;
+    const tileH = this.activeTileset?.tileheight || this.tileSize || 32;
+
     const col = localId % this.columns;
     const row = Math.floor(localId / this.columns);
-    const srcX = col * this.tileSize;
-    const srcY = row * this.tileSize;
+    const srcX = margin + col * (tileW + spacing);
+    const srcY = margin + row * (tileH + spacing);
 
-    ctx.drawImage(this.tilesetImage, srcX, srcY, this.tileSize, this.tileSize, 0, 0, 36, 36);
+    ctx.drawImage(this.tilesetImage, srcX, srcY, tileW, tileH, 0, 0, 36, 36);
     document.getElementById('selected-tile-preview-badge').textContent = `GID: ${gid}`;
     document.getElementById('info-gid').textContent = gid;
     document.getElementById('info-gid-coords').textContent = `Col ${col}, Linha ${row}`;
+  }
+
+  scrollToTileInPalette(gid) {
+    if (this.activeSidebarTab !== 'layers') {
+      this.switchSidebarTab('layers');
+    }
+
+    const wrapper = document.querySelector('.tileset-canvas-wrapper');
+    if (!wrapper || !this.activeTileset) return;
+
+    const firstGid = this.activeTileset.firstgid || 1;
+    const localId = gid - firstGid;
+    if (localId < 0) return;
+
+    const margin = this.activeTileset.margin || 0;
+    const spacing = this.activeTileset.spacing || 0;
+    const tileW = this.activeTileset.tilewidth || this.tileSize || 32;
+    const tileH = this.activeTileset.tileheight || this.tileSize || 32;
+
+    const col = localId % this.columns;
+    const row = Math.floor(localId / this.columns);
+
+    const targetX = margin + col * (tileW + spacing);
+    const targetY = margin + row * (tileH + spacing);
+
+    // Scroll both X and Y so the selected tile is centered in the viewer
+    const scrollLeft = Math.max(0, targetX - (wrapper.clientWidth / 2) + (tileW / 2));
+    const scrollTop = Math.max(0, targetY - (wrapper.clientHeight / 2) + (tileH / 2));
+
+    wrapper.scrollTo({
+      left: Math.round(scrollLeft),
+      top: Math.round(scrollTop),
+      behavior: 'smooth'
+    });
+
+    this.highlightTilesetGid(gid);
   }
 
   // ─── Save Map ─────────────────────────────────────────────────────────────
@@ -1489,9 +1825,21 @@ export default class EditorUI {
 
   show() {
     document.body.classList.add('editor-mode');
+    const wrapper = document.getElementById('game-wrapper');
+    if (wrapper) {
+      wrapper.style.position = '';
+      wrapper.style.top = '';
+      wrapper.style.left = '';
+      wrapper.style.width = '';
+      wrapper.style.height = '';
+    }
     this.container.classList.remove('hidden');
     this.populateTilesetSelect();
     this.fetchMapsList();
+
+    if (this.editorScene && this.editorScene.onEditorOpen) {
+      this.editorScene.onEditorOpen();
+    }
   }
 
   hide() {

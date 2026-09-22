@@ -22,6 +22,11 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('tall_grass_overlay', `/assets/tilesets/tall_grass_overlay.png?t=${timestamp}`);
     this.load.image('grass_leaf', `/assets/tilesets/grass_leaf.png?t=${timestamp}`);
 
+    // ── Flower animation frames (authentic FireRed / Gen 3 sway) ──
+    for (let f = 0; f <= 4; f++) {
+      this.load.image(`anim_flower_${f}`, `/assets/tilesets/anim/flower/frame_${f}.png?t=${timestamp}`);
+    }
+
     const kantoMaps = [
       'pallet_town', 'viridian_city', 'pewter_city', 'cerulean_city',
       'vermilion_city', 'lavender_town', 'celadon_city', 'saffron_city',

@@ -32,13 +32,12 @@ export default class ChatUI {
       this.sendMessage();
     });
 
-    // Enter key handling for smooth gameplay
+    // Enter & Escape key handling for smooth gameplay
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         if (document.activeElement === this.chatInput) {
           if (!this.chatInput.value.trim()) {
             this.chatInput.blur();
-            if (this.worldScene) this.worldScene.isChatting = false;
           }
         } else {
           // If modal is not open
@@ -56,22 +55,47 @@ export default class ChatUI {
 
           e.preventDefault();
           this.chatInput.focus();
-          if (this.worldScene) this.worldScene.isChatting = true;
         }
       } else if (e.key === 'Escape') {
         if (document.activeElement === this.chatInput) {
           this.chatInput.blur();
-          if (this.worldScene) this.worldScene.isChatting = false;
         }
       }
     });
 
+    // Isolate chat input completely from Phaser so WASD, arrows, spaces, etc. type freely
+    this.chatInput.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Escape') {
+        this.chatInput.blur();
+      }
+    });
+
+    this.chatInput.addEventListener('keyup', (e) => {
+      e.stopPropagation();
+    });
+
+    this.chatInput.addEventListener('keypress', (e) => {
+      e.stopPropagation();
+    });
+
     this.chatInput.addEventListener('focus', () => {
-      if (this.worldScene) this.worldScene.isChatting = true;
+      if (this.worldScene) {
+        this.worldScene.isChatting = true;
+        if (this.worldScene.input?.keyboard) {
+          this.worldScene.input.keyboard.enabled = false;
+        }
+      }
     });
 
     this.chatInput.addEventListener('blur', () => {
-      if (this.worldScene) this.worldScene.isChatting = false;
+      if (this.worldScene) {
+        this.worldScene.isChatting = false;
+        if (this.worldScene.input?.keyboard) {
+          this.worldScene.input.keyboard.enabled = true;
+          this.worldScene.input.keyboard.clearCaptures();
+        }
+      }
     });
   }
 
@@ -122,6 +146,37 @@ export default class ChatUI {
       if (lower === '/amanhecer' || lower === '/dawn') {
         window.setDayNightPhase?.('dawn');
         this.addMessage({ sender: 'Sistema', text: '🌄 Horário alterado para Amanhecer!', channel: 'room' });
+        this.chatInput.value = '';
+        this.chatInput.blur();
+        if (this.worldScene) this.worldScene.isChatting = false;
+        return;
+      }
+
+      // ─── Comandos de Clima ────────────────────────────────────────────────
+      const weatherMap = {
+        '/chuva': { type: 'rain', label: '🌧️ Chuva com respingos' },
+        '/rain': { type: 'rain', label: '🌧️ Chuva com respingos' },
+        '/tempestade': { type: 'storm', label: '⛈️ Tempestade com raios e relâmpagos' },
+        '/storm': { type: 'storm', label: '⛈️ Tempestade com raios e relâmpagos' },
+        '/neve': { type: 'snow', label: '❄️ Neve com flocos caindo' },
+        '/snow': { type: 'snow', label: '❄️ Neve com flocos caindo' },
+        '/nevoa': { type: 'fog', label: '🌫️ Névoa suave animada' },
+        '/fog': { type: 'fog', label: '🌫️ Névoa suave animada' },
+        '/sol': { type: 'sunny', label: '☀️ Luz Solar Intensa' },
+        '/sunny': { type: 'sunny', label: '☀️ Luz Solar Intensa' },
+        '/areia': { type: 'sandstorm', label: '🌪️ Tempestade de Areia' },
+        '/sandstorm': { type: 'sandstorm', label: '🌪️ Tempestade de Areia' },
+        '/limpo': { type: 'clear', label: '🌤️ Céu Limpo' },
+        '/clear': { type: 'clear', label: '🌤️ Céu Limpo' }
+      };
+
+      if (weatherMap[lower] || lower.startsWith('/clima ') || lower.startsWith('/weather ')) {
+        const targetType = weatherMap[lower]?.type || lower.split(' ')[1];
+        if (targetType && this.worldScene?.weatherManager) {
+          this.worldScene.weatherManager.setWeather(targetType);
+        }
+        // Send command to server so worldService broadcasts to all players
+        SocketClient.sendChat(text, this.currentChannel);
         this.chatInput.value = '';
         this.chatInput.blur();
         if (this.worldScene) this.worldScene.isChatting = false;

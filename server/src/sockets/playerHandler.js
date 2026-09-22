@@ -1,5 +1,6 @@
 const roomManager = require('../rooms/roomManager');
 const characterService = require('../services/characterService');
+const worldService = require('../services/worldService');
 
 function setupPlayerHandlers(io, socket) {
   socket.on('player:join', async (payload) => {
@@ -51,7 +52,8 @@ function setupPlayerHandlers(io, socket) {
         money: character.money,
         inventory: character.inventory,
         pokedex: character.pokedex,
-        pokemon: character.pokemon
+        pokemon: character.pokemon,
+        worldState: worldService.getFullWorldState()
       });
 
       // Notify others in room

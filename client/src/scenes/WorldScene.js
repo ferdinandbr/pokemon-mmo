@@ -8,6 +8,8 @@ import { ROOMS_CONFIG } from '../maps/roomData';
 import { COLLISION_TYPES } from '../maps/collisionConfig';
 import DayNightManager from '../systems/DayNightManager';
 import WaterAnimationManager from '../systems/WaterAnimationManager';
+import FlowerAnimationManager from '../systems/FlowerAnimationManager';
+import WeatherManager from '../systems/WeatherManager';
 
 const LAYER_DEPTHS = {
   Ground: 10,
@@ -79,7 +81,15 @@ export default class WorldScene extends Phaser.Scene {
     // Water wave tile animation system
     this.waterAnimationManager = new WaterAnimationManager(this);
 
+    // Flower swaying tile animation system (Gen 3 / FireRed authentic)
+    this.flowerAnimationManager = new FlowerAnimationManager(this);
+
+    // Dynamic Weather system (Rain, Storm, Snow, Fog, Sunny, Sandstorm)
+    this.weatherManager = new WeatherManager(this);
+    window.setWeather = (type) => this.weatherManager?.setWeather(type);
+
     this.events.on('shutdown', () => {
+      window.setWeather = null;
       if (this.dayNightManager) {
         this.dayNightManager.destroy();
         this.dayNightManager = null;
@@ -87,6 +97,14 @@ export default class WorldScene extends Phaser.Scene {
       if (this.waterAnimationManager) {
         this.waterAnimationManager.destroy();
         this.waterAnimationManager = null;
+      }
+      if (this.flowerAnimationManager) {
+        this.flowerAnimationManager.destroy();
+        this.flowerAnimationManager = null;
+      }
+      if (this.weatherManager) {
+        this.weatherManager.destroy();
+        this.weatherManager = null;
       }
     });
 
@@ -164,6 +182,8 @@ export default class WorldScene extends Phaser.Scene {
     SocketClient.on('player:left',   (d) => this.onPlayerLeft(d));
     SocketClient.on('room:changed',  (d) => this.onRoomChanged(d));
     SocketClient.on('chat:message',  (d) => this.onChatMessage(d));
+    SocketClient.on('world:weather', (d) => this.onWorldWeather(d));
+    SocketClient.on('world:time',    (d) => this.onWorldTime(d));
 
     // Snap player position to exact integer pixels after physics update to eliminate subpixel rendering jitter
     this.events.on('postupdate', () => {
@@ -172,6 +192,25 @@ export default class WorldScene extends Phaser.Scene {
         this.localPlayer.y = Math.round(this.localPlayer.y);
       }
     });
+
+    // Render initial avatar face on HUD
+    this._drawAvatarFace('boy_run');
+  }
+
+  onWorldWeather(data) {
+    if (!data) return;
+    this.serverWeather = data.weather;
+    const roomWeather = this.currentRoom?.weather || data.weather || 'clear';
+    if (this.weatherManager) {
+      this.weatherManager.setWeather(roomWeather);
+    }
+  }
+
+  onWorldTime(data) {
+    if (!data) return;
+    if (this.dayNightManager) {
+      this.dayNightManager.syncWithServer(data);
+    }
   }
 
   onPlayerInit(data) {
@@ -196,7 +235,15 @@ export default class WorldScene extends Phaser.Scene {
     this._clearRemotePlayers();
     for (const p of players) this._addRemotePlayer(p);
 
-    this._updateHUD(this.currentRoom.name || room.name, self.name, data.money);
+    this._updateHUD(this.currentRoom.name || room.name, self.name, data.money, self);
+
+    // Apply authoritative server world state (weather & day/night)
+    if (data.worldState) {
+      if (data.worldState.weather) this.onWorldWeather(data.worldState.weather);
+      if (data.worldState.time) this.onWorldTime(data.worldState.time);
+    } else if (this.weatherManager) {
+      this.weatherManager.setWeather(this.currentRoom.weather || 'clear');
+    }
   }
 
   onRoomChanged(data) {
@@ -229,6 +276,10 @@ export default class WorldScene extends Phaser.Scene {
     for (const p of players) this._addRemotePlayer(p);
 
     this._updateHUD(this.currentRoom.name || room.name);
+    const finalWeather = this.currentRoom.weather || this.serverWeather || 'clear';
+    if (this.weatherManager) {
+      this.weatherManager.setWeather(finalWeather);
+    }
     this.isTransitioning = false;
     this.portalCooldown = (this.time?.now ?? 0) + 1500;
   }
@@ -326,21 +377,59 @@ export default class WorldScene extends Phaser.Scene {
         const layer = map.createLayer(layerName, tilesetList, 0, 0);
         if (!layer) continue;
 
-        const depth = LAYER_DEPTHS[layerName] ?? 50;
+        let depth = null;
+        if (layerData.properties) {
+          if (Array.isArray(layerData.properties)) {
+            const p = layerData.properties.find(x => x.name === 'depth');
+            if (p) depth = Number(p.value);
+          } else if (typeof layerData.properties === 'object' && layerData.properties.depth !== undefined) {
+            depth = Number(layerData.properties.depth);
+          }
+        }
+        if (depth === null || isNaN(depth)) {
+          depth = LAYER_DEPTHS[layerName] ?? 50;
+        }
         layer.setDepth(depth);
 
         // Check if this layer has collision enabled
-        if (COLLISION_LAYERS.includes(layerName)) {
+        if (layerName === 'Collision') {
+          // Explicit collision mask: only solid walls and ledges collide; WALKABLE_OVERRIDE (6) is non-collidable
+          layer.setCollision([
+            COLLISION_TYPES.SOLID,
+            COLLISION_TYPES.LEDGE_DOWN,
+            COLLISION_TYPES.LEDGE_LEFT,
+            COLLISION_TYPES.LEDGE_RIGHT,
+            COLLISION_TYPES.LEDGE_UP
+          ]);
+          layer.setVisible(false);
+          this.collisionLayers.push(layer);
+        } else if (COLLISION_LAYERS.includes(layerName)) {
           layer.setCollisionByExclusion([-1, 0]);
           this.collisionLayers.push(layer);
         }
 
-        // Invisible collision masks should not render tiles on screen
-        if (layerName === 'Collision') {
-          layer.setVisible(false);
-        }
-
         this.mapLayers.set(layerName, layer);
+      }
+    }
+
+    // ── Apply Walkable Overrides from Collision Layer (doorways, erased tiles, paths) ──
+    const colLayer = this.mapLayers.get('Collision');
+    if (colLayer) {
+      const mapW = map.width;
+      const mapH = map.height;
+      for (let ty = 0; ty < mapH; ty++) {
+        for (let tx = 0; tx < mapW; tx++) {
+          const colTile = colLayer.getTileAt(tx, ty);
+          if (colTile && colTile.index === COLLISION_TYPES.WALKABLE_OVERRIDE) {
+            // Force walkable across all collidable layers at this coordinate
+            for (const cLayer of this.collisionLayers) {
+              const t = cLayer.getTileAt(tx, ty);
+              if (t) {
+                t.setCollision(false, false, false, false);
+              }
+            }
+          }
+        }
       }
     }
 
@@ -471,6 +560,10 @@ export default class WorldScene extends Phaser.Scene {
 
     // 1. Check Collision layer
     const colType = this.getCollisionAt(tileX, tileY);
+    if (colType === COLLISION_TYPES.WALKABLE_OVERRIDE) {
+      // Collision was explicitly erased / marked as passable on this tile: bypass layer collision!
+      return true;
+    }
     if (colType !== COLLISION_TYPES.NONE) {
       return false;
     }
@@ -522,7 +615,7 @@ export default class WorldScene extends Phaser.Scene {
 
   // ─── Update loop ───────────────────────────────────────────────────────────
 
-  update(time) {
+  update(time, delta) {
     // Day and Night cycle update (ambient overlay + player light aura + HUD badge)
     if (this.dayNightManager) {
       this.dayNightManager.update(time, this.localPlayer);
@@ -533,9 +626,32 @@ export default class WorldScene extends Phaser.Scene {
       this.waterAnimationManager.update(time);
     }
 
+    // Flower swaying tile animation update (Gen 3 authentic)
+    if (this.flowerAnimationManager) {
+      this.flowerAnimationManager.update(time);
+    }
+
+    // Dynamic weather update (rain, storm, snow, fog, sunny, sandstorm)
+    if (this.weatherManager) {
+      this.weatherManager.update(time, delta);
+    }
+
+    // Wind-induced tree swaying simulation
+    this._updateTreeSway(time);
+
     if (!this.localPlayer) return;
 
     this.localPlayer.update(time);
+
+    // Track coordinates in HUD in real-time
+    const tx = Math.floor(this.localPlayer.x / 32);
+    const ty = Math.floor(this.localPlayer.y / 32);
+    if (this._lastCoordX !== tx || this._lastCoordY !== ty) {
+      this._lastCoordX = tx;
+      this._lastCoordY = ty;
+      const coordsEl = document.getElementById('hud-coords');
+      if (coordsEl) coordsEl.innerText = `(${tx}, ${ty})`;
+    }
 
     // Dynamic depth sorting among players (around depth 100, below Overhead at 200)
     this.localPlayer.setDepth(100 + this.localPlayer.y / 10000);
@@ -608,9 +724,9 @@ export default class WorldScene extends Phaser.Scene {
 
   // ─── HUD ───────────────────────────────────────────────────────────────────
 
-  _updateHUD(roomName, playerName = null, money = null) {
+  _updateHUD(roomName, playerName = null, money = null, playerObj = null) {
     const roomBadge = document.getElementById('hud-room-name');
-    if (roomBadge) roomBadge.innerText = roomName;
+    if (roomBadge && roomName) roomBadge.innerText = roomName;
 
     if (playerName) {
       const pName = document.getElementById('hud-player-name');
@@ -620,6 +736,86 @@ export default class WorldScene extends Phaser.Scene {
     if (typeof money === 'number') {
       const moneyBadge = document.getElementById('hud-money');
       if (moneyBadge) moneyBadge.innerText = money.toLocaleString('pt-BR');
+    }
+
+    if (playerObj) {
+      this.cachedPlayerData = playerObj;
+      const lvlBadge = document.getElementById('hud-player-lvl');
+      if (lvlBadge) lvlBadge.innerText = `Lv. ${playerObj.level || 1}`;
+
+      const expBar = document.getElementById('hud-exp-bar-fill');
+      if (expBar) {
+        const expPct = Math.min(100, Math.max(0, (playerObj.exp || 25) % 100));
+        expBar.style.width = `${expPct}%`;
+      }
+
+      this._drawAvatarFace(playerObj.spriteKey || playerObj.sprite || 'boy_run');
+    } else if (this.cachedPlayerData) {
+      this._drawAvatarFace(this.cachedPlayerData.spriteKey || this.cachedPlayerData.sprite || 'boy_run');
+    }
+  }
+
+  _drawAvatarFace(spriteKey = 'boy_run') {
+    const canvas = document.getElementById('hud-avatar-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    let key = spriteKey || 'boy_run';
+    if (key === 'boy') key = 'boy_run';
+    if (key === 'girl') key = 'girl_run';
+
+    if (!this.textures.exists(key)) {
+      key = 'boy_run';
+    }
+
+    const texture = this.textures.get(key);
+    if (!texture) return;
+    const img = texture.getSourceImage();
+    if (!img) return;
+
+    const isGirl = String(key).toLowerCase().includes('girl');
+    // Frame 0 of boy_run/girl_run is 32x48 facing front.
+    // Boy: cap starts at y=7, chin/collar at y=31 (w=24, h=24).
+    // Girl: sunhat starts at y=4, chin/hair at y=28 (w=24, h=24).
+    const sx = 4;
+    const sy = isGirl ? 4 : 7;
+    const sw = 24;
+    const sh = 24;
+
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+  }
+
+  /**
+   * Simula o balanço suave das árvores conforme o vento do clima atual
+   * @param {number} time
+   */
+  _updateTreeSway(time) {
+    const treesLayer = this.mapLayers ? this.mapLayers.get('Trees') : null;
+    const overheadLayer = this.mapLayers ? this.mapLayers.get('Overhead') : null;
+    if (!treesLayer && !overheadLayer) return;
+
+    const wind = this.weatherManager ? this.weatherManager.getWindFactor() : 0;
+    if (wind <= 0.001) {
+      if (treesLayer && treesLayer.x !== 0) treesLayer.x = 0;
+      if (overheadLayer && overheadLayer.x !== 0) overheadLayer.x = 0;
+      return;
+    }
+
+    // Onda harmônica de balanço simulando vento e rajadas suaves
+    // Período principal ~2.0s + segunda harmônica ~0.8s
+    const t = time * 0.003;
+    const sway = (Math.sin(t) * 1.4 + Math.sin(t * 2.3) * 0.45) * wind;
+    const roundedSway = Math.round(sway * 10) / 10;
+
+    if (treesLayer) {
+      treesLayer.x = roundedSway;
+    }
+    if (overheadLayer) {
+      overheadLayer.x = roundedSway;
     }
   }
 }
