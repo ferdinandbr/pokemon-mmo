@@ -50,6 +50,7 @@ function setupPlayerHandlers(io, socket) {
         players: playersInRoom.filter(p => p.socketId !== socket.id),
         allRooms: roomManager.getAllRooms(),
         money: character.money,
+        bagCapacity: character.bagCapacity || 24,
         inventory: character.inventory,
         pokedex: character.pokedex,
         pokemon: character.pokemon,

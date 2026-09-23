@@ -10,6 +10,7 @@ const charRoutes = require('./src/routes/charRoutes');
 const { verifySocketToken } = require('./src/middleware/auth');
 const setupPlayerHandlers = require('./src/sockets/playerHandler');
 const setupChatHandlers = require('./src/sockets/chatHandler');
+const setupInventoryHandlers = require('./src/sockets/inventoryHandler');
 
 const mapRoutes = require('./src/routes/mapRoutes');
 
@@ -67,6 +68,7 @@ io.on('connection', (socket) => {
 
   setupPlayerHandlers(io, socket);
   setupChatHandlers(io, socket);
+  setupInventoryHandlers(io, socket);
 
   socket.on('error', (err) => {
     console.error(`[Socket Error] ${socket.id}:`, err);

@@ -11,6 +11,7 @@ async function main() {
     { name: 'Potion', category: 'medicine', description: 'Restores the HP of a Pokémon by 20 points.', price: 300 },
     { name: 'Super Potion', category: 'medicine', description: 'Restores the HP of a Pokémon by 50 points.', price: 700 },
     { name: 'Antidote', category: 'medicine', description: 'Cures a Pokémon that has been poisoned.', price: 100 },
+    { name: 'Rare Candy', category: 'medicine', description: 'A candy that is packed with energy. It raises the level of a Pokémon by one.', price: 4800 },
     { name: 'Town Map', category: 'key_item', description: 'A convenient map showing current location in Kanto.', price: 0 },
     { name: 'Running Shoes', category: 'key_item', description: 'Enables high-speed sprinting anywhere outside.', price: 0 }
   ];

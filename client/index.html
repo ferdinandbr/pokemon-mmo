@@ -15,157 +15,131 @@
 
     <!-- Fullscreen In-Game HUD Overlay -->
     <div id="hud" class="hidden">
-      <!-- Top HUD Bar -->
+      <!-- Top HUD Bar: 3 Slanted Panels Matching Sketch -->
       <header class="hud-top-bar">
-
-        <!-- 1. Sci-Fi Player Status Card (Inspired by Image 1) -->
-        <div class="hud-player-card">
-          <!-- Avatar Unit with Cyan Neon Tab and Level Badge -->
-          <div class="hud-avatar-unit">
-            <div class="hud-neon-tab" aria-hidden="true"></div>
-            <div class="hud-avatar-frame">
-              <span class="hud-slash-decor">//</span>
-              <canvas id="hud-avatar-canvas" width="48" height="48" class="hud-avatar-canvas"></canvas>
+        <!-- Panel 1: Player Status -->
+        <div class="hud-panel hud-panel-player">
+          <div class="hud-panel-content">
+            <div class="hud-avatar-ring" title="Treinador">
+              <canvas id="hud-avatar-canvas" width="44" height="44" class="hud-avatar-canvas"></canvas>
             </div>
-            <!-- Circular Level Badge with Cyan Glowing Arc -->
-            <div class="hud-level-badge" title="Nível do Treinador">
-              <span id="hud-player-lvl" class="hud-level-number">1</span>
-              <div class="hud-level-arc" aria-hidden="true"></div>
-            </div>
-          </div>
-
-          <!-- Angled Stats Wing with Cyan Shelf -->
-          <div class="hud-stats-wing">
-            <div class="hud-wing-shelf" aria-hidden="true"></div>
-            <div class="hud-wing-body">
-              <div class="hud-wing-top">
+            <div class="hud-player-info">
+              <div class="hud-player-top-row">
                 <span id="hud-player-name" class="hud-player-name">TREINADOR</span>
-                <div class="hud-hp-label-group">
-                  <span class="hud-hp-badge">HP</span>
-                  <div class="hud-status-dots">
-                    <span class="hud-dot active"></span>
-                    <span class="hud-dot active"></span>
-                    <span class="hud-dot"></span>
-                  </div>
+                <span class="hud-lvl-pill">
+                  <span class="hud-lvl-text">Lv.</span>
+                  <span id="hud-player-lvl" class="hud-lvl-val">1</span>
+                </span>
+              </div>
+              <div class="hud-player-bottom-row">
+                <span class="hud-xp-label">XP</span>
+                <div class="hud-bar-track" title="Experiência do Treinador">
+                  <div id="hud-exp-bar-fill" class="hud-bar-fill" style="width: 85%;"></div>
                 </div>
               </div>
-              <!-- Neon Green HP / Exp Bar -->
-              <div class="hud-bar-track" title="Vida & Experiência">
-                <div id="hud-exp-bar-fill" class="hud-bar-fill" style="width: 85%;"></div>
-              </div>
             </div>
           </div>
         </div>
 
-        <!-- 2. Location Sci-Fi Panel -->
-        <div class="hud-scifi-panel hud-location-panel">
-          <div class="hud-panel-shelf"></div>
-          <div class="hud-panel-body">
-            <span class="hud-panel-decor-tag">LOC</span>
+        <!-- Panel 2: Location, Time & Money -->
+        <div class="hud-panel hud-panel-info">
+          <div class="hud-panel-content">
             <div class="hud-location-group">
-              <span class="hud-pin-icon">📍</span>
+              <svg class="hud-pin-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" stroke-width="2.2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                <circle cx="12" cy="10" r="3" fill="#00e5ff"/>
+              </svg>
               <span id="hud-room-name" class="hud-location-name">Pallet Town</span>
+              <span id="hud-coords" class="hud-coords-badge">(15, 26)</span>
             </div>
-            <span id="hud-coords" class="hud-coords-badge">(15, 26)</span>
-          </div>
-        </div>
 
-        <!-- 3. Time, Weather & Money Sci-Fi Panel -->
-        <div class="hud-scifi-panel hud-stats-panel">
-          <div class="hud-panel-shelf"></div>
-          <div class="hud-panel-body">
-            <div id="hud-time-badge" class="hud-chip hud-time-chip" title="Horário & Clima">
-              <span id="hud-time-icon">☀️</span>
-              <span id="hud-time-label">10:04</span>
+            <div class="hud-panel-sep"></div>
+
+            <div id="hud-time-badge" class="hud-chip hud-time-chip" title="Horário do Jogo">
+              <span id="hud-time-icon">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" stroke-width="2">
+                  <circle cx="12" cy="12" r="5"/>
+                  <line x1="12" y1="1" x2="12" y2="3"/>
+                  <line x1="12" y1="21" x2="12" y2="23"/>
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                  <line x1="1" y1="12" x2="3" y2="12"/>
+                  <line x1="21" y1="12" x2="23" y2="12"/>
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+              </span>
+              <span id="hud-time-label">10:42</span>
             </div>
+
             <div id="hud-weather-badge" class="hud-chip hud-weather-chip hidden" title="Clima">
-              <span id="hud-weather-icon">☀️</span>
+              <span id="hud-weather-icon">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2">
+                  <circle cx="12" cy="12" r="4"/>
+                  <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+                </svg>
+              </span>
               <span id="hud-weather-label" style="display: none;">Limpo</span>
             </div>
-            <div class="hud-chip hud-money-chip" title="Dinheiro">
-              <span class="hud-coin-icon">🟡</span>
+
+            <div class="hud-panel-sep"></div>
+
+            <div class="hud-money-display" title="Dinheiro">
               <span class="hud-currency">¥</span>
               <span id="hud-money">3.000</span>
             </div>
-            <div class="hud-chip hud-online-chip" title="Jogadores Online">
-              <span class="hud-online-dot"></span>
-              <span id="hud-online-count">1 Online</span>
-            </div>
           </div>
         </div>
 
-        <!-- 4. Action Buttons Sci-Fi Panel -->
-        <div class="hud-scifi-panel hud-action-panel">
-          <div class="hud-panel-shelf"></div>
-          <nav class="hud-panel-body hud-action-body" aria-label="Menu Rápido">
-            <button id="hud-btn-quests" class="hud-action-btn" title="Missões & Quests (Q)">
-              <svg class="hud-btn-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <rect x="4" y="3" width="14" height="18" rx="2" fill="#181e2e" stroke="#00e5ff" stroke-width="1.8"/>
-                <line x1="7" y1="7" x2="13" y2="7" stroke="#ef4444" stroke-width="1.8" stroke-linecap="round"/>
-                <line x1="7" y1="11" x2="14" y2="11" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/>
-                <line x1="7" y1="15" x2="12" y2="15" stroke="#22c55e" stroke-width="1.8" stroke-linecap="round"/>
-              </svg>
-            </button>
-            <button id="hud-btn-pokemon" class="hud-action-btn" title="Equipe Pokémon (P)">
-              <img src="/assets/ui/hud_pokeball.png" alt="Equipe" class="hud-btn-icon-img" />
-              <span class="hud-btn-badge-dot"></span>
-            </button>
-            <button id="hud-btn-bag" class="hud-action-btn" title="Mochila / Itens (B)">
-              <svg class="hud-btn-svg" width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <rect x="3" y="7" width="18" height="12" rx="4" fill="#181e2e" stroke="#00e5ff" stroke-width="1.8"/>
-                <circle cx="12" cy="13" r="3" fill="#00e5ff" opacity="0.9"/>
-              </svg>
-            </button>
-            <button id="hud-btn-battle" class="hud-action-btn" title="Batalha & Duelo PvP">
-              <svg class="hud-btn-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14.5 17.5L3 6V3h3l11.5 11.5" stroke="#ef4444"/>
-                <path d="M13 19l6-6" stroke="#38bdf8"/>
-                <path d="M16 16l4 4" stroke="#facc15"/>
-                <path d="M19 21l2-2" stroke="#facc15"/>
-              </svg>
-            </button>
-            <button id="hud-menu-btn" class="hud-action-btn hud-menu-action-btn" title="Menu Principal (ESC)">
-              <div class="hud-hamburger-icon">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-            </button>
-            <button id="hud-fullscreen-btn" class="hud-action-btn hud-fs-btn" title="Tela Cheia (F11)">
-              ⛶
-            </button>
-          </nav>
+        <!-- Panel 3: Action Buttons -->
+        <div class="hud-panel hud-panel-actions">
+          <div class="hud-panel-content">
+            <nav class="hud-action-nav" aria-label="Menu Rápido">
+              <button id="hud-btn-pokemon" class="hud-action-btn" title="Equipe Pokémon (P)">
+                <img src="/assets/ui/hud_pokeball.png" alt="Equipe" class="hud-btn-icon-img" />
+                <span class="hud-btn-badge-dot"></span>
+              </button>
+
+              <button id="hud-btn-bag" class="hud-action-btn" title="Mochila / Itens (B)">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                  <rect x="3" y="7" width="18" height="12" rx="4" fill="#181e2e" stroke="#00e5ff" stroke-width="1.8"/>
+                  <circle cx="12" cy="13" r="3" fill="#00e5ff" opacity="0.9"/>
+                </svg>
+              </button>
+
+              <button id="hud-btn-battle" class="hud-action-btn" title="Batalha & Duelo PvP">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14.5 17.5L3 6V3h3l11.5 11.5" stroke="#ef4444"/>
+                  <path d="M13 19l6-6" stroke="#38bdf8"/>
+                  <path d="M16 16l4 4" stroke="#facc15"/>
+                  <path d="M19 21l2-2" stroke="#facc15"/>
+                </svg>
+              </button>
+
+              <button id="hud-btn-quests" class="hud-action-btn" title="Missões & Quests (Q)">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <rect x="4" y="3" width="14" height="18" rx="2" fill="#181e2e" stroke="#00e5ff" stroke-width="1.8"/>
+                  <line x1="7" y1="7" x2="13" y2="7" stroke="#ef4444" stroke-width="1.8" stroke-linecap="round"/>
+                  <line x1="7" y1="11" x2="14" y2="11" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/>
+                  <line x1="7" y1="15" x2="12" y2="15" stroke="#22c55e" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+              </button>
+
+              <button id="hud-menu-btn" class="hud-action-btn hud-menu-action-btn" title="Menu Principal (ESC)">
+                <div class="hud-hamburger-icon">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </button>
+
+              <button id="hud-fullscreen-btn" class="hud-action-btn hud-fs-btn" title="Tela Cheia (F11)">
+                ⛶
+              </button>
+            </nav>
+          </div>
         </div>
       </header>
-
-      <!-- Quick Items Hotbar (Image 2: Visual only, 5 numbered slots) -->
-      <div class="hud-quick-bar" aria-label="Itens Rápidos">
-        <div class="quick-slot" data-slot="1" title="Slot 1: Poké Ball">
-          <span class="quick-slot-key">1</span>
-          <img src="/assets/ui/items/pokeball.svg" alt="Poké Ball" class="quick-slot-icon" />
-          <span class="quick-slot-qty">31</span>
-        </div>
-        <div class="quick-slot" data-slot="2" title="Slot 2: Great Ball">
-          <span class="quick-slot-key">2</span>
-          <img src="/assets/ui/items/greatball.svg" alt="Great Ball" class="quick-slot-icon" />
-          <span class="quick-slot-qty">2</span>
-        </div>
-        <div class="quick-slot" data-slot="3" title="Slot 3: Ultra Ball">
-          <span class="quick-slot-key">3</span>
-          <img src="/assets/ui/items/ultraball.svg" alt="Ultra Ball" class="quick-slot-icon" />
-          <span class="quick-slot-qty">0</span>
-        </div>
-        <div class="quick-slot" data-slot="4" title="Slot 4: Potion">
-          <span class="quick-slot-key">4</span>
-          <img src="/assets/ui/items/potion.svg" alt="Potion" class="quick-slot-icon" />
-          <span class="quick-slot-qty">1</span>
-        </div>
-        <div class="quick-slot" data-slot="5" title="Slot 5: Rare Candy">
-          <span class="quick-slot-key">5</span>
-          <img src="/assets/ui/items/rarecandy.svg" alt="Rare Candy" class="quick-slot-icon" />
-          <span class="quick-slot-qty">3</span>
-        </div>
-      </div>
 
       <!-- Right-Docked Vertical Chat Box (Image 3) -->
       <aside class="chat-container" aria-label="Chat do Jogo">
@@ -199,6 +173,40 @@
           </button>
         </form>
       </aside>
+    </div>
+
+    <!-- Quick Items Hotbar (Moved out of HUD to bypass z-index restriction) -->
+    <div id="hud-quick-bar" class="hud-quick-bar hidden" aria-label="Itens Rápidos">
+      <div class="quick-slot empty" data-slot="1" draggable="true" title="Slot 1: Vazio">
+        <span class="quick-slot-key">1</span>
+        <img src="" alt="" class="quick-slot-icon" style="display:none;" />
+        <span class="quick-slot-qty"></span>
+        <button class="quick-slot-remove-btn" title="Remover item do atalho">&times;</button>
+      </div>
+      <div class="quick-slot empty" data-slot="2" draggable="true" title="Slot 2: Vazio">
+        <span class="quick-slot-key">2</span>
+        <img src="" alt="" class="quick-slot-icon" style="display:none;" />
+        <span class="quick-slot-qty"></span>
+        <button class="quick-slot-remove-btn" title="Remover item do atalho">&times;</button>
+      </div>
+      <div class="quick-slot empty" data-slot="3" draggable="true" title="Slot 3: Vazio">
+        <span class="quick-slot-key">3</span>
+        <img src="" alt="" class="quick-slot-icon" style="display:none;" />
+        <span class="quick-slot-qty"></span>
+        <button class="quick-slot-remove-btn" title="Remover item do atalho">&times;</button>
+      </div>
+      <div class="quick-slot empty" data-slot="4" draggable="true" title="Slot 4: Vazio">
+        <span class="quick-slot-key">4</span>
+        <img src="" alt="" class="quick-slot-icon" style="display:none;" />
+        <span class="quick-slot-qty"></span>
+        <button class="quick-slot-remove-btn" title="Remover item do atalho">&times;</button>
+      </div>
+      <div class="quick-slot empty" data-slot="5" draggable="true" title="Slot 5: Vazio">
+        <span class="quick-slot-key">5</span>
+        <img src="" alt="" class="quick-slot-icon" style="display:none;" />
+        <span class="quick-slot-qty"></span>
+        <button class="quick-slot-remove-btn" title="Remover item do atalho">&times;</button>
+      </div>
     </div>
 
     <!-- Screen 1: Auth (Login & Register) -->
@@ -247,7 +255,13 @@
         </form>
 
         <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--fr-border-light); text-align: center;">
-          <a href="#editor" id="btn-open-editor" class="fr-btn secondary" style="display: block; text-decoration: none; padding: 10px;">🗺️ Abrir Editor de Mapa</a>
+          <a href="#editor" id="btn-open-editor" class="fr-btn secondary" style="display: block; text-decoration: none; padding: 10px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+            Abrir Editor de Mapa
+          </a>
         </div>
       </div>
     </div>
@@ -318,22 +332,22 @@
 
         <div class="menu-options-grid">
           <div class="menu-item-btn" id="menu-btn-pokemon">
-            <span class="icon">⚡</span>
+            <img src="/assets/ui/hud_pokeball.png" class="menu-icon-img" alt="Pokémon" style="width:24px;height:24px;image-rendering:pixelated;" />
             <span>POKéMON</span>
             <small style="color: var(--fr-text-muted);" id="menu-pokemon-count">1 no Time</small>
           </div>
           <div class="menu-item-btn" id="menu-btn-pokedex">
-            <span class="icon">📖</span>
+            <img src="/assets/ui/icon_mail.png" class="menu-icon-img" alt="Pokédex" style="width:24px;height:24px;image-rendering:pixelated;" />
             <span>POKéDEX</span>
             <small style="color: var(--fr-text-muted);" id="menu-pokedex-count">1 Visto</small>
           </div>
           <div class="menu-item-btn" id="menu-btn-bag">
-            <span class="icon">🎒</span>
+            <img src="/assets/ui/bag_items.png" class="menu-icon-img" alt="Mochila" style="width:24px;height:24px;image-rendering:pixelated;" />
             <span>MOCHILA</span>
             <small style="color: var(--fr-text-muted);" id="menu-bag-count">4 Itens</small>
           </div>
           <div class="menu-item-btn" id="menu-btn-card">
-            <span class="icon">🪪</span>
+            <img src="/assets/ui/icon_badges.png" class="menu-icon-img" alt="Cartão" style="width:24px;height:24px;image-rendering:pixelated;" />
             <span>CARTÃO</span>
             <small style="color: var(--fr-text-muted);">Dados</small>
           </div>

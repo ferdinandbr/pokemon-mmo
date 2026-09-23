@@ -28,6 +28,7 @@ model Character {
   y         Float    @default(320)
   direction String   @default("down") // "down", "left", "right", "up"
   money     Int      @default(3000)
+  bagCapacity Int    @default(24)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -42,6 +43,7 @@ model Item {
   category    String          // "pokeball", "medicine", "battle", "key_item"
   description String
   price       Int             @default(100)
+  sprite      String?
   slots       InventorySlot[]
 }
 

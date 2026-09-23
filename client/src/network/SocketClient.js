@@ -47,7 +47,10 @@ class SocketClient {
       'server:stats',
       'error:msg',
       'world:weather',
-      'world:time'
+      'world:time',
+      'inventory:update',
+      'inventory:used_result',
+      'character:update'
     ];
 
     for (const event of forwardEvents) {
@@ -75,6 +78,16 @@ class SocketClient {
   sendChat(message, channel = 'room', target = null) {
     if (!this.socket) return;
     this.socket.emit('chat:send', { message, channel, target });
+  }
+
+  useItem(slotIndex, itemId = null) {
+    if (!this.socket) return;
+    this.socket.emit('inventory:use', { slotIndex, itemId });
+  }
+
+  swapInventorySlots(fromSlot, toSlot) {
+    if (!this.socket) return;
+    this.socket.emit('inventory:swap', { fromSlot, toSlot });
   }
 
   on(event, callback) {

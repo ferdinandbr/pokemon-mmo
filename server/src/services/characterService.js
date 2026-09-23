@@ -43,13 +43,11 @@ async function createCharacter({ userId, name, gender, sprite }) {
   const pokeBallItem = await prisma.item.findUnique({ where: { name: 'Poké Ball' } });
   const potionItem = await prisma.item.findUnique({ where: { name: 'Potion' } });
   const mapItem = await prisma.item.findUnique({ where: { name: 'Town Map' } });
-  const shoesItem = await prisma.item.findUnique({ where: { name: 'Running Shoes' } });
 
   const initialItems = [
     { item: pokeBallItem, qty: 5, slot: 0 },
     { item: potionItem, qty: 3, slot: 1 },
-    { item: mapItem, qty: 1, slot: 2 },
-    { item: shoesItem, qty: 1, slot: 3 }
+    { item: mapItem, qty: 1, slot: 2 }
   ];
 
   for (const entry of initialItems) {
@@ -106,6 +104,7 @@ async function getUserCharacters(userId) {
       y: true,
       direction: true,
       money: true,
+      bagCapacity: true,
       createdAt: true
     },
     orderBy: { createdAt: 'desc' }

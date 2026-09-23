@@ -8,6 +8,7 @@ import CharacterUI from './ui/CharacterUI';
 import ChatUI from './ui/ChatUI';
 import MenuUI from './ui/MenuUI';
 import EditorUI from './ui/EditorUI';
+import BagUI from './ui/BagUI';
 
 // Phaser Game Configuration
 const config = {
@@ -63,7 +64,7 @@ game.events.once('ready', () => {
 });
 
 // Initialize UI Controllers
-let authUI, charUI, chatUI, menuUI;
+let authUI, charUI, chatUI, menuUI, bagUI;
 
 function checkRoute() {
   const isEditorRoute = window.location.hash.startsWith('#editor') || window.location.pathname.startsWith('/editor');
@@ -86,6 +87,7 @@ function checkRoute() {
     document.getElementById('auth-screen')?.classList.add('hidden');
     document.getElementById('character-screen')?.classList.add('hidden');
     document.getElementById('hud')?.classList.add('hidden');
+    document.getElementById('hud-quick-bar')?.classList.add('hidden');
 
     // Pause world scene and start editor scene
     game.scene.stop('WorldScene');
@@ -113,12 +115,33 @@ function checkRoute() {
 function initApp() {
   menuUI = new MenuUI(() => {
     // Switch character callback
-    document.getElementById('hud').classList.add('hidden');
+    document.getElementById('hud')?.classList.add('hidden');
+    document.getElementById('hud-quick-bar')?.classList.add('hidden');
     SocketClient.disconnect();
     charUI.loadCharacters(currentUser, currentToken);
   });
 
   chatUI = new ChatUI(worldSceneInstance);
+  bagUI = new BagUI(worldSceneInstance);
+
+  // Hook hud-btn-bag directly to BagUI toggle
+  const hudBagBtn = document.getElementById('hud-btn-bag');
+  if (hudBagBtn) {
+    hudBagBtn.onclick = (e) => {
+      e.stopPropagation();
+      bagUI.toggle();
+    };
+  }
+
+  // Hook menu-btn-bag to open BagUI and close menu
+  const menuBagBtn = document.getElementById('menu-btn-bag');
+  if (menuBagBtn) {
+    menuBagBtn.onclick = (e) => {
+      e.stopPropagation();
+      menuUI.hide();
+      bagUI.open();
+    };
+  }
 
   charUI = new CharacterUI(
     async (character, token) => {
@@ -136,13 +159,16 @@ function initApp() {
         });
         const fullData = await res.json();
         menuUI.setData(fullData);
+        bagUI.setData(fullData);
       } catch (e) {
         menuUI.setData(character);
+        bagUI.setData(character);
       }
 
       // Show HUD only if not in editor mode
       if (!document.body.classList.contains('editor-mode')) {
-        document.getElementById('hud').classList.remove('hidden');
+        document.getElementById('hud')?.classList.remove('hidden');
+        document.getElementById('hud-quick-bar')?.classList.remove('hidden');
       }
 
       // Connect Socket
@@ -156,7 +182,8 @@ function initApp() {
       currentUser = null;
       currentToken = null;
       currentCharacter = null;
-      document.getElementById('hud').classList.add('hidden');
+      document.getElementById('hud')?.classList.add('hidden');
+      document.getElementById('hud-quick-bar')?.classList.add('hidden');
       SocketClient.disconnect();
       authUI.logout();
     }

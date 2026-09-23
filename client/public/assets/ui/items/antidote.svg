@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Antidote Bottle -->
+  <rect x="11" y="2" width="10" height="4" rx="1.5" fill="#eab308" stroke="#713f12" stroke-width="1.5"/>
+  <rect x="13" y="6" width="6" height="3" fill="#cbd5e1" stroke="#475569" stroke-width="1"/>
+  <path d="M7 11C7 9.5 8.5 9 10 9H22C23.5 9 25 9.5 25 11V26C25 28.5 23 30 20.5 30H11.5C9 30 7 28.5 7 26V11Z" fill="#10b981" stroke="#047857" stroke-width="1.5"/>
+  <!-- Yellow band -->
+  <path d="M7 16H25V20H7V16Z" fill="#facc15" stroke="#ca8a04" stroke-width="1"/>
+  <circle cx="21" cy="4" r="1.5" fill="#f43f5e"/>
+  <path d="M9 12V25" stroke="#6ee7b7" stroke-width="1.5" stroke-linecap="round"/>
+</svg>
