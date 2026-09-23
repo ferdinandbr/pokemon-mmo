@@ -100,14 +100,21 @@ export default class ChatUI {
   }
 
   updateHintBar() {
+    if (!this.chatHintBar || !this.chatInput) return;
     if (this.currentChannel === 'room') {
-      this.chatHintBar.innerText = 'Canal: [SALA] - Visível apenas para quem está neste mapa';
-      this.chatInput.placeholder = 'Mensagem para a sala...';
+      this.chatHintBar.innerText = 'Canal: [LOCAL] - Visível apenas para quem está neste mapa';
+      this.chatInput.placeholder = 'Mensagem para o mapa atual...';
     } else if (this.currentChannel === 'global') {
-      this.chatHintBar.innerText = 'Canal: [GLOBAL] - Visível para todos os treinadores online';
-      this.chatInput.placeholder = 'Mensagem global...';
+      this.chatHintBar.innerText = 'Canal: [GLOBAL] - Visível para todos os treinadores';
+      this.chatInput.placeholder = 'Enter para falar no Global...';
+    } else if (this.currentChannel === 'trade') {
+      this.chatHintBar.innerText = 'Canal: [TRADE] - Negociações, compras e trocas';
+      this.chatInput.placeholder = 'Mensagem de troca / comércio...';
+    } else if (this.currentChannel === 'system') {
+      this.chatHintBar.innerText = 'Canal: [SISTEMA] - Mensagens oficiais do servidor';
+      this.chatInput.placeholder = 'Canal exclusivo para avisos do sistema...';
     } else if (this.currentChannel === 'whisper') {
-      this.chatHintBar.innerText = 'Canal: [SUSSURRO] - Envie /w <nome> <msg> para mensagem privada';
+      this.chatHintBar.innerText = 'Canal: [PRIVADO] - Envie /w <nome> <msg> para mensagem direta';
       this.chatInput.placeholder = '/w NomeDoTreinador Mensagem';
     }
   }
@@ -203,20 +210,34 @@ export default class ChatUI {
     });
   }
 
-  addMessage({ channel, sender, target, text, timestamp }) {
+  addMessage({ channel = 'room', sender = 'Treinador', target = null, text = '', timestamp = Date.now() }) {
     const msgDiv = document.createElement('div');
     msgDiv.className = `chat-msg ${channel}`;
+    msgDiv.dataset.channel = channel;
 
     const timeStr = timestamp ? new Date(timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+    const timeHtml = timeStr ? `<span class="chat-time">[${timeStr}]</span> ` : '';
 
-    if (channel === 'room') {
-      msgDiv.innerHTML = `<span style="color: #9aa5b8; font-size: 10px;">[${timeStr}]</span> <span class="sender">[Sala] ${sender}:</span> <span class="text">${escapeHtml(text)}</span>`;
-    } else if (channel === 'global') {
-      msgDiv.innerHTML = `<span style="color: #9aa5b8; font-size: 10px;">[${timeStr}]</span> <span class="sender">[Global] ${sender}:</span> <span class="text">${escapeHtml(text)}</span>`;
-    } else if (channel === 'whisper') {
-      msgDiv.innerHTML = `<span style="color: #9aa5b8; font-size: 10px;">[${timeStr}]</span> <span class="sender">[Sussurro de ${sender}]:</span> <span class="text">${escapeHtml(text)}</span>`;
+    let cleanSender = sender || 'Treinador';
+    let vipBadge = '';
+    if (cleanSender.toUpperCase().startsWith('[VIP]')) {
+      vipBadge = '<span class="chat-tag vip">[VIP]</span>';
+      cleanSender = cleanSender.substring(5).trim();
+    }
+
+    let channelBadge = '';
+    if (channel === 'trade') {
+      channelBadge = '<span class="chat-tag trade">[TRADE]</span>';
     } else if (channel === 'system') {
-      msgDiv.innerHTML = `<span class="sender">[Sistema]:</span> <span class="text">${escapeHtml(text)}</span>`;
+      channelBadge = '<span class="chat-tag system">[SISTEMA]</span>';
+    }
+
+    if (channel === 'whisper') {
+      msgDiv.innerHTML = `${timeHtml}<span class="chat-tag whisper">[PRIVADO]</span> <span class="sender whisper">${escapeHtml(cleanSender)}:</span> <span class="text">${escapeHtml(text)}</span>`;
+    } else if (channel === 'system') {
+      msgDiv.innerHTML = `${timeHtml}${channelBadge} <span class="text system">${escapeHtml(text)}</span>`;
+    } else {
+      msgDiv.innerHTML = `${timeHtml}${vipBadge}${channelBadge}<span class="sender ${channel}">${escapeHtml(cleanSender)}:</span> <span class="text">${escapeHtml(text)}</span>`;
     }
 
     this.chatMessages.appendChild(msgDiv);

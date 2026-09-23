@@ -391,6 +391,35 @@ export default class WorldScene extends Phaser.Scene {
         }
         layer.setDepth(depth);
 
+        if (layerName === 'Trees') {
+          // Separate tree tops / canopies into a dedicated swaying layer
+          // so only the tree tops sway in the wind while trunks stay 100% stationary.
+          // In the base 'Trees' layer, we keep the tiles but hide them (alpha = 0)
+          // so that physics collision remains 100% solid and stationary across all tree tiles!
+          const TREE_CANOPY_GIDS = new Set([
+            689, 690, 691, 692, 693, 694, 697, 698, 699, 700,
+            735, 751, 1631, 1632, 1633, 1634
+          ]);
+          const canopyLayer = map.createBlankLayer('Trees_Canopy', tilesetList, 0, 0);
+          if (canopyLayer) {
+            canopyLayer.setDepth(depth);
+            const w = map.width;
+            const h = map.height;
+            for (let ty = 0; ty < h; ty++) {
+              for (let tx = 0; tx < w; tx++) {
+                const tile = layer.getTileAt(tx, ty);
+                if (tile && TREE_CANOPY_GIDS.has(tile.index)) {
+                  canopyLayer.putTileAt(tile.index, tx, ty);
+                  // Hide tile in base layer so it isn't rendered twice, but keep it in layer for solid collision
+                  tile.alpha = 0;
+                  tile.setVisible(false);
+                }
+              }
+            }
+            this.mapLayers.set('Trees_Canopy', canopyLayer);
+          }
+        }
+
         // Check if this layer has collision enabled
         if (layerName === 'Collision') {
           // Explicit collision mask: only solid walls and ledges collide; WALKABLE_OVERRIDE (6) is non-collidable
@@ -741,7 +770,7 @@ export default class WorldScene extends Phaser.Scene {
     if (playerObj) {
       this.cachedPlayerData = playerObj;
       const lvlBadge = document.getElementById('hud-player-lvl');
-      if (lvlBadge) lvlBadge.innerText = `Lv. ${playerObj.level || 1}`;
+      if (lvlBadge) lvlBadge.innerText = `${playerObj.level || 1}`;
 
       const expBar = document.getElementById('hud-exp-bar-fill');
       if (expBar) {
@@ -790,32 +819,39 @@ export default class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * Simula o balanço suave das árvores conforme o vento do clima atual
+   * Simula o balanço suave das árvores conforme o vento do clima atual.
+   * Balança SOMENTE a copa das árvores (Trees_Canopy e Overhead), mantendo os troncos 100% fixos no chão.
    * @param {number} time
    */
   _updateTreeSway(time) {
-    const treesLayer = this.mapLayers ? this.mapLayers.get('Trees') : null;
+    const canopyLayer = this.mapLayers ? this.mapLayers.get('Trees_Canopy') : null;
     const overheadLayer = this.mapLayers ? this.mapLayers.get('Overhead') : null;
-    if (!treesLayer && !overheadLayer) return;
+    const treesLayer = this.mapLayers ? this.mapLayers.get('Trees') : null;
+
+    // Garante que o layer dos troncos nunca se mova
+    if (treesLayer && treesLayer.x !== 0) {
+      treesLayer.x = 0;
+    }
+
+    if (!canopyLayer && !overheadLayer) return;
 
     const wind = this.weatherManager ? this.weatherManager.getWindFactor() : 0;
     if (wind <= 0.001) {
-      if (treesLayer && treesLayer.x !== 0) treesLayer.x = 0;
+      if (canopyLayer && canopyLayer.x !== 0) canopyLayer.x = 0;
       if (overheadLayer && overheadLayer.x !== 0) overheadLayer.x = 0;
       return;
     }
 
-    // Onda harmônica de balanço simulando vento e rajadas suaves
-    // Período principal ~2.0s + segunda harmônica ~0.8s
-    const t = time * 0.003;
-    const sway = (Math.sin(t) * 1.4 + Math.sin(t * 2.3) * 0.45) * wind;
-    const roundedSway = Math.round(sway * 10) / 10;
+    // Onda harmônica de balanço simulando brisa suave e relaxante na copa
+    // Período lento e elegante (~4.2s) com amplitude sutil (máximo ~1.0px no pico da tempestade)
+    const t = time * 0.0015;
+    const sway = (Math.sin(t) * 0.75 + Math.sin(t * 1.6) * 0.25) * wind;
 
-    if (treesLayer) {
-      treesLayer.x = roundedSway;
+    if (canopyLayer) {
+      canopyLayer.x = sway;
     }
     if (overheadLayer) {
-      overheadLayer.x = roundedSway;
+      overheadLayer.x = sway;
     }
   }
 }

@@ -44,7 +44,10 @@ export default class BootScene extends Phaser.Scene {
   create() {
     this._generateVisualTextures();
     this._createAnimations();
-    this.scene.start('WorldScene');
+    const isEditorRoute = window.location.hash.startsWith('#editor') || window.location.pathname.startsWith('/editor');
+    if (!isEditorRoute) {
+      this.scene.start('WorldScene');
+    }
   }
 
   _generateVisualTextures() {

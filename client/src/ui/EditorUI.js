@@ -53,21 +53,6 @@ export default class EditorUI {
     return { cities, routes, root };
   }
 
-  show() {
-    if (this.container) {
-      this.container.classList.remove('hidden');
-    }
-  }
-
-  hide() {
-    if (this.container) {
-      this.container.classList.add('hidden');
-    }
-    document.body.classList.remove('editor-mode');
-    window.location.hash = '';
-    window.location.reload();
-  }
-
   initHTML() {
     let editorEl = document.getElementById('editor-screen');
     if (!editorEl) {

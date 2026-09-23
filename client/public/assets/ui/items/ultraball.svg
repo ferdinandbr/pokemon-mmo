@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <radialGradient id="ub-gloss" cx="35%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.8"/>
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ub-black" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="ub-yellow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fde047"/>
+      <stop offset="100%" stop-color="#eab308"/>
+    </linearGradient>
+    <linearGradient id="ub-white" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#cbd5e1"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="16" cy="28.5" rx="9" ry="2.5" fill="rgba(0,0,0,0.35)"/>
+  <circle cx="16" cy="16" r="13" fill="#090d16"/>
+  <!-- Top half (Black) -->
+  <path d="M 3 16 A 13 13 0 0 1 29 16 Z" fill="url(#ub-black)"/>
+  <!-- Yellow H pattern -->
+  <path d="M 8 14 L 11 5 L 14 5 L 12 14 Z" fill="url(#ub-yellow)"/>
+  <path d="M 24 14 L 21 5 L 18 5 L 20 14 Z" fill="url(#ub-yellow)"/>
+  <rect x="11" y="8" width="10" height="2.5" fill="url(#ub-yellow)"/>
+  <ellipse cx="16" cy="6.5" rx="3.5" ry="1.2" fill="url(#ub-gloss)"/>
+  <!-- Bottom half (White) -->
+  <path d="M 3 16 A 13 13 0 0 0 29 16 Z" fill="url(#ub-white)"/>
+  <!-- Middle band -->
+  <rect x="3" y="14.5" width="26" height="3" fill="#090d16"/>
+  <!-- Center button ring -->
+  <circle cx="16" cy="16" r="4.5" fill="#090d16"/>
+  <circle cx="16" cy="16" r="2.8" fill="#ffffff"/>
+  <circle cx="16" cy="16" r="1.5" fill="#e2e8f0"/>
+</svg>

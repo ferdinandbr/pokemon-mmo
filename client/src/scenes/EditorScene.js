@@ -106,7 +106,10 @@ export default class EditorScene extends Phaser.Scene {
       this.initMapData('pallet_town', initialJson);
     }
 
-    // Prevent native contextmenu on canvas so right-click drag pans smoothly
+    // Disable context menu on canvas so right-click pan works without browser menu
+    if (this.input && this.input.mouse) {
+      this.input.mouse.disableContextMenu();
+    }
     if (this.sys.game.canvas) {
       this.sys.game.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     }
@@ -138,6 +141,30 @@ export default class EditorScene extends Phaser.Scene {
     this.input.on('pointerup', this.onPointerUp, this);
     this.input.on('wheel', this.onWheel, this);
 
+    // Native mouse wheel zooming listener with precise pointer coordinates
+    this._canvasWheelHandler = (e) => {
+      if (!document.body.classList.contains('editor-mode')) return;
+      if (e.target && e.target.closest && e.target.closest('.editor-sidebar, .editor-top-bar, .editor-modal, .editor-palette, .nodegraph-overlay')) {
+        return;
+      }
+      e.preventDefault();
+      this.handleZoomDelta(e.deltaY, e.clientX, e.clientY);
+    };
+    window.addEventListener('wheel', this._canvasWheelHandler, { passive: false });
+
+    // Window pointerup listener to ensure dragging stops even when mouse released outside canvas
+    this._onWindowPointerUp = () => {
+      if (this.isDraggingMap) {
+        this.isDraggingMap = false;
+        if (this.sys.game.canvas) {
+          this.sys.game.canvas.style.cursor = (this.activeTool === 'hand') ? 'grab' : 'crosshair';
+        }
+      }
+      this.isPainting = false;
+    };
+    window.addEventListener('pointerup', this._onWindowPointerUp);
+    window.addEventListener('mouseup', this._onWindowPointerUp);
+
     // Ensure keyboard captures do not intercept space or other keys globally in browser inputs
     this.input.keyboard.clearCaptures();
     this.spaceKey = this.input.keyboard.addKey('SPACE', false);
@@ -159,9 +186,26 @@ export default class EditorScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-C', () => { if (!isTyping()) this.toggleCollisions(); });
     this.input.keyboard.on('keydown-ESC', () => { if (!isTyping()) this.cancelPortalMarking(); });
     this.input.keyboard.on('keydown-PLUS', () => { if (!isTyping()) this.zoomIn(); });
+    this.input.keyboard.on('keydown-NUMPAD_ADD', () => { if (!isTyping()) this.zoomIn(); });
     this.input.keyboard.on('keydown-MINUS', () => { if (!isTyping()) this.zoomOut(); });
+    this.input.keyboard.on('keydown-NUMPAD_SUBTRACT', () => { if (!isTyping()) this.zoomOut(); });
     this.input.keyboard.on('keydown-ZERO', () => { if (!isTyping()) this.resetZoom(); });
+    this.input.keyboard.on('keydown-NUMPAD_ZERO', () => { if (!isTyping()) this.resetZoom(); });
     this.input.keyboard.on('keydown-HOME', () => { if (!isTyping()) this.centerMap(); });
+
+    // Scene shutdown cleanup
+    this.events.on('shutdown', () => {
+      if (this._canvasWheelHandler) {
+        window.removeEventListener('wheel', this._canvasWheelHandler);
+      }
+      if (this._onResize) {
+        window.removeEventListener('resize', this._onResize);
+      }
+      if (this._onWindowPointerUp) {
+        window.removeEventListener('pointerup', this._onWindowPointerUp);
+        window.removeEventListener('mouseup', this._onWindowPointerUp);
+      }
+    });
   }
 
   // ─── Dynamic Map Loading ──────────────────────────────────────────────────
@@ -852,14 +896,18 @@ export default class EditorScene extends Phaser.Scene {
   onPointerDown(pointer) {
     if (!this.map) return;
 
-    // Pan with Middle Click, Right Click, or Space + Click
-    const isSpaceDown = (this.spaceKey && this.spaceKey.isDown);
-    if (pointer.middleButtonDown() || pointer.rightButtonDown() || isSpaceDown) {
+    // Pan with Middle Click, Right Click, Space + Click, or Hand tool
+    const isRightClick = pointer.rightButtonDown() || pointer.button === 2 || (pointer.event && (pointer.event.button === 2 || pointer.event.buttons === 2));
+    const isMiddleClick = pointer.middleButtonDown() || pointer.button === 1 || (pointer.event && (pointer.event.button === 1 || pointer.event.buttons === 4));
+    const isSpaceDown = (this.spaceKey && this.spaceKey.isDown) || (pointer.event && (pointer.event.code === 'Space' || pointer.event.spaceKey));
+    const isHandTool = (this.activeTool === 'hand');
+
+    if (isRightClick || isMiddleClick || isSpaceDown || isHandTool) {
       this.isDraggingMap = true;
       this.dragStartX = pointer.x;
       this.dragStartY = pointer.y;
-      this.camStartX = this.cameras.main.scrollX;
-      this.camStartY = this.cameras.main.scrollY;
+      this.camStartX = Number.isFinite(this.cameras.main.scrollX) ? this.cameras.main.scrollX : 0;
+      this.camStartY = Number.isFinite(this.cameras.main.scrollY) ? this.cameras.main.scrollY : 0;
       if (this.sys.game.canvas) this.sys.game.canvas.style.cursor = 'grabbing';
       return;
     }
@@ -874,17 +922,6 @@ export default class EditorScene extends Phaser.Scene {
       // Alt + Click: Quick Eyedropper on current active layer
       if (pointer.event && pointer.event.altKey) {
         this.pickTileAt(tileX, tileY);
-        return;
-      }
-
-      // Hand tool: Drag map freely
-      if (this.activeTool === 'hand') {
-        this.isDraggingMap = true;
-        this.dragStartX = pointer.x;
-        this.dragStartY = pointer.y;
-        this.camStartX = this.cameras.main.scrollX;
-        this.camStartY = this.cameras.main.scrollY;
-        if (this.sys.game.canvas) this.sys.game.canvas.style.cursor = 'grabbing';
         return;
       }
 
@@ -948,6 +985,14 @@ export default class EditorScene extends Phaser.Scene {
   onPointerMove(pointer) {
     if (!this.map) return;
 
+    if (this.isDraggingMap) {
+      const zoom = this.cameras.main.zoom || 1;
+      this.cameras.main.scrollX = this.camStartX - (pointer.x - this.dragStartX) / zoom;
+      this.cameras.main.scrollY = this.camStartY - (pointer.y - this.dragStartY) / zoom;
+      if (this.cursorGraphics) this.cursorGraphics.clear();
+      return;
+    }
+
     const worldPoint = pointer.positionToCamera(this.cameras.main);
     const tileW = this.map.tileWidth || 32;
     const tileH = this.map.tileHeight || 32;
@@ -961,13 +1006,6 @@ export default class EditorScene extends Phaser.Scene {
 
     if (this.onCoordsUpdate) {
       this.onCoordsUpdate(tileX, tileY, Math.floor(worldPoint.x), Math.floor(worldPoint.y));
-    }
-
-    if (this.isDraggingMap) {
-      const zoom = this.cameras.main.zoom;
-      this.cameras.main.scrollX = this.camStartX - (pointer.x - this.dragStartX) / zoom;
-      this.cameras.main.scrollY = this.camStartY - (pointer.y - this.dragStartY) / zoom;
-      return;
     }
 
     if (this.isPainting && pointer.leftButtonDown()) {
@@ -1031,17 +1069,7 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   onWheel(pointer, gameObjects, deltaX, deltaY, deltaZ) {
-    const oldZoom = this.cameras.main.zoom;
-    const factor = deltaY < 0 ? 1.15 : 0.87;
-    const newZoom = Phaser.Math.Clamp(oldZoom * factor, 0.2, 5.0);
-
-    if (Math.abs(newZoom - oldZoom) > 0.001) {
-      const worldPoint = pointer.positionToCamera(this.cameras.main);
-      this.cameras.main.setZoom(newZoom);
-      this.cameras.main.scrollX = worldPoint.x - (pointer.x / newZoom);
-      this.cameras.main.scrollY = worldPoint.y - (pointer.y / newZoom);
-      this._notifyZoom();
-    }
+    this.handleZoomDelta(deltaY, pointer.x, pointer.y);
   }
 
   // ─── Tools & Editing Operations ──────────────────────────────────────────
@@ -1591,7 +1619,8 @@ export default class EditorScene extends Phaser.Scene {
 
   centerOnWorldPoint(worldX, worldY) {
     if (!this.cameras || !this.cameras.main) return;
-    const zoom = this.cameras.main.zoom || 1;
+    const cam = this.cameras.main;
+    const zoom = cam.zoom || 1;
 
     // Available screen viewport boundaries accounting for UI overlays:
     // Left Toolbar width ~52px + 14px margin = ~70px
@@ -1599,45 +1628,85 @@ export default class EditorScene extends Phaser.Scene {
     // Top Bar height ~56px + 12px margin = ~68px
     // Bottom Hints height ~30px + 14px margin = ~44px
     const leftBoundary = 70;
-    const rightBoundary = (window.innerWidth || this.cameras.main.width) - 354;
+    const rightBoundary = (cam.width || window.innerWidth) - 354;
     const topBoundary = 68;
-    const bottomBoundary = (window.innerHeight || this.cameras.main.height) - 44;
+    const bottomBoundary = (cam.height || window.innerHeight) - 44;
 
     const screenCenterX = leftBoundary + Math.max(0, (rightBoundary - leftBoundary) / 2);
     const screenCenterY = topBoundary + Math.max(0, (bottomBoundary - topBoundary) / 2);
 
-    this.cameras.main.scrollX = worldX - (screenCenterX / zoom);
-    this.cameras.main.scrollY = worldY - (screenCenterY / zoom);
+    cam.scrollX = worldX - cam.width * 0.5 - (screenCenterX - cam.width * 0.5) / zoom;
+    cam.scrollY = worldY - cam.height * 0.5 - (screenCenterY - cam.height * 0.5) / zoom;
+  }
+
+  handleZoomDelta(deltaY, screenX, screenY) {
+    if (!this.cameras || !this.cameras.main) return;
+    const cam = this.cameras.main;
+    const oldZoom = cam.zoom || 1;
+    const factor = deltaY < 0 ? 1.15 : (1 / 1.15);
+    const newZoom = Phaser.Math.Clamp(oldZoom * factor, 0.2, 5.0);
+
+    if (Math.abs(newZoom - oldZoom) > 0.001) {
+      const sx = (screenX !== undefined) ? screenX : (cam.width * 0.5);
+      const sy = (screenY !== undefined) ? screenY : (cam.height * 0.5);
+
+      const worldPoint = cam.getWorldPoint(sx, sy);
+      cam.setZoom(newZoom);
+      cam.scrollX = worldPoint.x - cam.width * 0.5 - (sx - cam.width * 0.5) / newZoom;
+      cam.scrollY = worldPoint.y - cam.height * 0.5 - (sy - cam.height * 0.5) / newZoom;
+      this._notifyZoom();
+    }
+  }
+
+  _zoomToLevel(newZoom) {
+    if (!this.cameras || !this.cameras.main) return;
+    const cam = this.cameras.main;
+    const oldZoom = cam.zoom || 1;
+    if (Math.abs(newZoom - oldZoom) < 0.001) return;
+
+    const leftBoundary = 70;
+    const rightBoundary = (cam.width || window.innerWidth) - 354;
+    const topBoundary = 68;
+    const bottomBoundary = (cam.height || window.innerHeight) - 44;
+    const sx = leftBoundary + Math.max(0, (rightBoundary - leftBoundary) / 2);
+    const sy = topBoundary + Math.max(0, (bottomBoundary - topBoundary) / 2);
+
+    const worldPoint = cam.getWorldPoint(sx, sy);
+    cam.setZoom(newZoom);
+    cam.scrollX = worldPoint.x - cam.width * 0.5 - (sx - cam.width * 0.5) / newZoom;
+    cam.scrollY = worldPoint.y - cam.height * 0.5 - (sy - cam.height * 0.5) / newZoom;
+    this._notifyZoom();
   }
 
   resetZoom() {
+    if (!this.cameras || !this.cameras.main) return;
     this.cameras.main.setZoom(1.0);
     this._notifyZoom();
     this.centerMap();
   }
 
   zoomIn() {
-    const curZoom = this.cameras.main.zoom;
+    if (!this.cameras || !this.cameras.main) return;
+    const curZoom = this.cameras.main.zoom || 1;
     const newZoom = Phaser.Math.Clamp(curZoom + 0.25, 0.2, 5.0);
-    this.cameras.main.setZoom(newZoom);
-    this._notifyZoom();
+    this._zoomToLevel(newZoom);
   }
 
   zoomOut() {
-    const curZoom = this.cameras.main.zoom;
+    if (!this.cameras || !this.cameras.main) return;
+    const curZoom = this.cameras.main.zoom || 1;
     const newZoom = Phaser.Math.Clamp(curZoom - 0.25, 0.2, 5.0);
-    this.cameras.main.setZoom(newZoom);
-    this._notifyZoom();
+    this._zoomToLevel(newZoom);
   }
 
   setZoom(zoomVal) {
+    if (!this.cameras || !this.cameras.main) return;
     const newZoom = Phaser.Math.Clamp(zoomVal, 0.2, 5.0);
-    this.cameras.main.setZoom(newZoom);
-    this._notifyZoom();
+    this._zoomToLevel(newZoom);
   }
 
   _notifyZoom() {
-    if (this.onZoomUpdate) {
+    if (this.onZoomUpdate && this.cameras && this.cameras.main) {
       this.onZoomUpdate(this.cameras.main.zoom);
     }
   }
