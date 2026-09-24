@@ -25,22 +25,27 @@ async function register({ email, name, password }) {
 
   const passwordHash = await bcrypt.hash(password, 10);
 
+  const userCount = await prisma.user.count();
+  const role = userCount === 0 ? 'admin' : 'user';
+
   const user = await prisma.user.create({
     data: {
       email: normalizedEmail,
       name: trimmedName,
-      password: passwordHash
+      password: passwordHash,
+      role
     },
     select: {
       id: true,
       email: true,
       name: true,
+      role: true,
       createdAt: true
     }
   });
 
   const token = jwt.sign(
-    { userId: user.id, email: user.email, name: user.name },
+    { userId: user.id, email: user.email, name: user.name, role: user.role },
     JWT_SECRET,
     { expiresIn: '7d' }
   );
@@ -68,7 +73,8 @@ async function login({ email, password }) {
           x: true,
           y: true,
           direction: true,
-          money: true
+          money: true,
+          hasCompletedIntro: true
         }
       }
     }
@@ -83,8 +89,9 @@ async function login({ email, password }) {
     throw new Error('Email ou senha incorretos.');
   }
 
+  const userRole = user.role || 'user';
   const token = jwt.sign(
-    { userId: user.id, email: user.email, name: user.name },
+    { userId: user.id, email: user.email, name: user.name, role: userRole },
     JWT_SECRET,
     { expiresIn: '7d' }
   );
@@ -94,6 +101,7 @@ async function login({ email, password }) {
       id: user.id,
       email: user.email,
       name: user.name,
+      role: userRole,
       characters: user.characters
     },
     token
@@ -107,6 +115,7 @@ async function getProfile(userId) {
       id: true,
       email: true,
       name: true,
+      role: true,
       characters: true
     }
   });

@@ -44,7 +44,7 @@ const DEFAULT_INPUT = fs.existsSync('C:/Users/fer/Downloads/pokemons_1st.png')
   : 'C:/Users/fer/Downloads/pokemons_1st_guidelines.png';
 
 const INPUT = getArg('--input', DEFAULT_INPUT);
-const OUTPUT_DIR = getArg('--output', path.join(__dirname, '../client/public/assets/pokemon/overworld'));
+const OUTPUT_DIR = getArg('--output', path.join(__dirname, '../client/public/assets/pokemon/overworld/normal'));
 
 const H_LINES = [128, 257, 386, 515, 644, 773, 902, 1031, 1160, 1289];
 const POKEMON_PER_ROW = 15;

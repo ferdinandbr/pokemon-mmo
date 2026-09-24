@@ -21,6 +21,7 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
 
   static SPRITE_SCALE = 1.0;
   static GROUND_Y = 18;
+  static SPRITE_ORIGIN_Y = 60 / 64; // 0.9375 para alinhamento inteiro perfeito em frame 64x64
 
   // Distância base por direção para manter o mesmo espaço visual equilibrado em todos os lados
   static getOffset(direction) {
@@ -149,6 +150,7 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
 
     // 1. Se a posição padrão atrás do treinador estiver livre de colisão, usa-a
     if (this.isPositionWalkable(primaryPos.x, primaryPos.y)) {
+      this._lastFlankDir = primaryDir;
       return primaryPos;
     }
 
@@ -159,22 +161,28 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
       const pos = FollowerPokemon.behindPosition(ownerX, ownerY, candDir);
       if (this.isPositionWalkable(pos.x, pos.y)) {
         const distToCurrent = Math.hypot(pos.x - this.x, pos.y - this.y);
-        walkableCandidates.push({ pos, distToCurrent, priority: i });
+        walkableCandidates.push({ candDir, pos, distToCurrent, priority: i });
       }
     }
 
     if (walkableCandidates.length > 0) {
-      // Prioriza os flancos laterais mais próximos do Pokémon para uma transição suave
+      // Histerese: se o flanco ativo anterior ainda é válido, mantém para evitar trepidação entre candidatos
+      if (this._lastFlankDir) {
+        const active = walkableCandidates.find(c => c.candDir === this._lastFlankDir);
+        if (active) return active.pos;
+      }
+
       walkableCandidates.sort((a, b) => {
         if (a.priority <= 2 && b.priority <= 2) {
           return a.distToCurrent - b.distToCurrent;
         }
         return a.priority - b.priority;
       });
+      this._lastFlankDir = walkableCandidates[0].candDir;
       return walkableCandidates[0].pos;
     }
 
-    // 3. Se tudo estiver bloqueado, recua para a posição do jogador
+    this._lastFlankDir = null;
     return { x: ownerX, y: ownerY };
   }
 
@@ -207,8 +215,8 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
 
     super(
       scene,
-      Math.round(position.x),
-      Math.round(position.y)
+      position.x,
+      position.y
     );
 
     this.scene = scene;
@@ -256,7 +264,7 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
       FollowerPokemon.idleFrame(this.direction)
     );
 
-    this.sprite.setOrigin(0.5, 0.94);
+    this.sprite.setOrigin(0.5, FollowerPokemon.SPRITE_ORIGIN_Y);
     this.sprite.setScale(FollowerPokemon.SPRITE_SCALE);
 
     const frameH = this.sprite.frame ? this.sprite.frame.height : 32;
@@ -278,12 +286,7 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
     this.add(this.shadow);
     this.add(this.sprite);
 
-    /**
-     * Shiny
-     */
-    if (this.buddyData?.isShiny) {
-      this.createShinyParticles();
-    }
+    // Overworld shiny sparkles disabled per user request
   }
 
   createShinyParticles() {
@@ -323,9 +326,15 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
   }
 
   getTextureKey() {
-    return `pkmn_${String(
-      this.buddyData?.speciesId
-    ).padStart(3, '0')}`;
+    const isShiny = Boolean(this.buddyData?.isShiny);
+    const id = String(this.buddyData?.speciesId || 1).padStart(3, '0');
+    const shinyKey = `pkmn_${id}_shiny`;
+
+    if (isShiny && this.scene?.textures?.exists(shinyKey)) {
+      return shinyKey;
+    }
+
+    return `pkmn_${id}`;
   }
 
   /**
@@ -634,30 +643,10 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
     }
 
     /**
-     * Mudança de direção: suaviza visualmente com micro squash & stretch
+     * Mudança de direção: atualiza facing limpo sem squash deformador
      */
     if (direction !== this.direction) {
       this.direction = direction;
-
-      // Micro-tween elástico para amortecer a troca súbita de lado ("troca seca")
-      if (this.scene?.tweens && this.sprite) {
-        this.scene.tweens.killTweensOf(this.sprite);
-        this.sprite.setScale(
-          FollowerPokemon.SPRITE_SCALE * 0.85,
-          FollowerPokemon.SPRITE_SCALE * 1.15
-        );
-        this.scene.tweens.add({
-          targets: this.sprite,
-          scaleX: FollowerPokemon.SPRITE_SCALE,
-          scaleY: FollowerPokemon.SPRITE_SCALE,
-          duration: 120,
-          ease: 'Quad.easeOut'
-        });
-      }
-
-      this.stepToggle = false;
-      this.distanceAccumulator = 0;
-
       this.setPokemonFrame(
         FollowerPokemon.idleFrame(direction)
       );
@@ -669,22 +658,19 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
      * ---------------------------------------------------------
      */
 
-    const curOwnerX = Math.round(ownerX);
-    const curOwnerY = Math.round(ownerY);
-
     if (this.lastOwnerX === undefined) {
-      this.lastOwnerX = curOwnerX;
-      this.lastOwnerY = curOwnerY;
+      this.lastOwnerX = ownerX;
+      this.lastOwnerY = ownerY;
     }
 
-    const playerDx = curOwnerX - this.lastOwnerX;
-    const playerDy = curOwnerY - this.lastOwnerY;
-    this.lastOwnerX = curOwnerX;
-    this.lastOwnerY = curOwnerY;
+    const playerDx = ownerX - this.lastOwnerX;
+    const playerDy = ownerY - this.lastOwnerY;
+    this.lastOwnerX = ownerX;
+    this.lastOwnerY = ownerY;
 
     const target = this.getValidTarget(
-      curOwnerX,
-      curOwnerY,
+      ownerX,
+      ownerY,
       direction
     );
 
@@ -695,22 +681,22 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
       this.x = target.x;
       this.y = target.y;
     } else {
-      // 1. Move junto com o player na mesma velocidade (elimina 100% da diferença de distância andando vs parado)
+      // 1. Move junto com o player de forma contínua (elimina 100% da trepidação de arredondamento)
       this.x += playerDx;
       this.y += playerDy;
 
-      // 2. Interpola suavemente apenas o reposicionamento lateral (curva/virada de direção)
+      // 2. Interpola suavemente o reposicionamento lateral durante curvas
       const diffX = target.x - this.x;
       const diffY = target.y - this.y;
       const remainingDist = Math.hypot(diffX, diffY);
 
-      if (remainingDist <= 1.0) {
+      if (remainingDist <= 0.05) {
         this.x = target.x;
         this.y = target.y;
       } else {
-        const factor = Math.min(1, 1 - Math.exp(-12 * (delta / 1000)));
-        this.x = Math.round(this.x + diffX * factor);
-        this.y = Math.round(this.y + diffY * factor);
+        const factor = 1 - Math.exp(-14 * (delta / 1000));
+        this.x += diffX * factor;
+        this.y += diffY * factor;
       }
     }
 
@@ -725,7 +711,7 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
     this.lastY = this.y;
 
     // Está em movimento se o Pokémon ou o dono está se deslocando
-    const isMoving = moveDist > 0.1 || Boolean(ownerMoving);
+    const isMoving = moveDist > 0.05 || Boolean(ownerMoving);
     this.isMoving = isMoving;
 
     if (!isMoving) {
@@ -783,7 +769,7 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
         FollowerPokemon.idleFrame(this.direction)
       );
 
-      this.sprite.setOrigin(0.5, 0.94);
+      this.sprite.setOrigin(0.5, FollowerPokemon.SPRITE_ORIGIN_Y);
       this.sprite.y = FollowerPokemon.GROUND_Y;
 
       this.sprite.setScale(
@@ -801,18 +787,10 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
         FollowerPokemon.idleFrame(this.direction);
     }
 
-    /**
-     * Shiny
-     */
-    if (buddyData.isShiny) {
-      if (!this.particles) {
-        this.createShinyParticles();
-      }
-    } else {
-      if (this.particles) {
-        this.particles.destroy();
-        this.particles = null;
-      }
+    // Overworld shiny sparkles disabled per user request
+    if (this.particles) {
+      this.particles.destroy();
+      this.particles = null;
     }
 
     this.distanceAccumulator = 0;

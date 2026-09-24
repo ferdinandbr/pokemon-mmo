@@ -42,6 +42,7 @@ function setupPlayerHandlers(io, socket) {
 
       const player = roomManager.addPlayer(socket.id, {
         userId: socket.user.userId,
+        role: socket.user.role || 'user',
         characterId: character.id,
         name: character.name,
         gender: character.gender,
@@ -61,12 +62,14 @@ function setupPlayerHandlers(io, socket) {
       // Send initial data to joining player
       socket.emit('player:init', {
         self: player,
+        role: socket.user.role || 'user',
         room: roomDef,
         players: playersInRoom.filter(p => p.socketId !== socket.id),
         allRooms: roomManager.getAllRooms(),
         money: character.money,
         bagCapacity: character.bagCapacity || 24,
         equipment: character.equipment || '{}',
+        hasCompletedIntro: Boolean(character.hasCompletedIntro),
         inventory: character.inventory,
         pokedex: character.pokedex,
         pokemon: character.pokemon,
@@ -81,6 +84,17 @@ function setupPlayerHandlers(io, socket) {
     } catch (err) {
       console.error('Error on player:join:', err);
       socket.emit('error:msg', { message: 'Erro ao entrar no mundo.' });
+    }
+  });
+
+  socket.on('player:complete_intro', async () => {
+    try {
+      const player = roomManager.getPlayer(socket.id);
+      if (!player) return;
+      await characterService.completeIntro(player.characterId);
+      socket.emit('player:intro_completed', { success: true });
+    } catch (err) {
+      console.error('Error on player:complete_intro:', err);
     }
   });
 

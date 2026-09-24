@@ -83,8 +83,14 @@
 
             <div class="hud-money-display" title="Dinheiro / Gold">
               <img src="/assets/ui/hud_gold.png" alt="Gold" class="hud-money-icon" />
-              <span id="hud-money">3.000</span>
+              <span id="hud-money">5.000</span>
             </div>
+
+            <div class="hud-panel-sep"></div>
+
+            <button id="hud-btn-bgm" class="hud-chip hud-bgm-chip" title="Música do Jogo (BGM) - Ligar/Desligar">
+              <span id="hud-bgm-icon">🎵</span>
+            </button>
           </div>
         </div>
 
@@ -314,6 +320,29 @@
     </div>
 
 
+
+    <!-- Professor Oak Intro Scene Overlay -->
+    <div id="oak-intro-screen" class="hidden">
+      <div class="oak-intro-stage">
+        <div class="oak-intro-bg"></div>
+        <button id="oak-btn-skip" class="oak-skip-btn">Pular [ESC]</button>
+        
+        <div class="oak-character-container">
+          <div class="oak-pedestal"></div>
+          <img id="oak-sprite-prof" class="oak-sprite prof" src="/assets/intro/introOak.png" alt="Prof. Carvalho" />
+          <img id="oak-sprite-pkmn" class="oak-sprite pkmn hidden" src="/assets/intro/introMarill.png" alt="Pokémon" />
+          <img id="oak-sprite-trainer" class="oak-sprite trainer hidden" src="/assets/intro/introBoy.png" alt="Treinador" />
+        </div>
+
+        <div class="oak-dialog-container">
+          <div class="oak-dialog-speaker">PROF. CARVALHO</div>
+          <div class="oak-dialog-box" id="oak-dialog-box">
+            <p id="oak-dialog-text"></p>
+            <div id="oak-dialog-arrow" class="oak-dialog-arrow">▼</div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Fire Red Menu Modal -->
     <div id="menu-modal" class="modal-overlay hidden">

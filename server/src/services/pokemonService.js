@@ -287,13 +287,14 @@ class PokemonService {
 
     if (pokemonInstance) {
       const formattedId = String(pokemonInstance.speciesId).padStart(3, '0');
+      const variant = pokemonInstance.isShiny ? 'shiny' : 'normal';
       equip.buddy = {
         id: pokemonInstance.id,
         speciesId: pokemonInstance.speciesId,
         name: pokemonInstance.nickname || pokemonInstance.species.name,
         level: pokemonInstance.level,
         isShiny: pokemonInstance.isShiny,
-        icon: `/assets/pokemon/overworld/${formattedId}.png`,
+        icon: `/assets/pokemon/overworld/${variant}/${formattedId}.png`,
         sprite: `${formattedId}.png`
       };
     } else {

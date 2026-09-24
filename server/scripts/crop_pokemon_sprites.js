@@ -4,7 +4,7 @@ const path = require('path');
 
 async function cropPokemonSprites() {
   const sourceImage = 'C:/Users/fer/Downloads/pokemons_1st.png';
-  const outputDir = path.join(__dirname, '../../client/public/assets/pokemon/overworld');
+  const outputDir = path.join(__dirname, '../../client/public/assets/pokemon/overworld/normal');
 
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });

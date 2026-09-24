@@ -11,6 +11,7 @@ import WaterAnimationManager from '../systems/WaterAnimationManager';
 import FlowerAnimationManager from '../systems/FlowerAnimationManager';
 import WeatherManager from '../systems/WeatherManager';
 import FollowerPokemon from '../entities/FollowerPokemon';
+import bgmManager from '../audio/BGMManager';
 
 const LAYER_DEPTHS = {
   Ground: 10,
@@ -188,6 +189,7 @@ export default class WorldScene extends Phaser.Scene {
     SocketClient.on('chat:message', (d) => this.onChatMessage(d));
     SocketClient.on('world:weather', (d) => this.onWorldWeather(d));
     SocketClient.on('world:time', (d) => this.onWorldTime(d));
+    SocketClient.on('money:updated', (d) => this.onMoneyUpdated(d));
 
     // Snap player position to exact integer pixels after physics update to eliminate subpixel rendering jitter
     this.events.on('postupdate', () => {
@@ -215,6 +217,12 @@ export default class WorldScene extends Phaser.Scene {
     if (this.dayNightManager) {
       this.dayNightManager.syncWithServer(data);
     }
+  }
+
+  onMoneyUpdated(data) {
+    if (!data || typeof data.money !== 'number') return;
+    this.currentMoney = data.money;
+    this._updateHUD(null, null, data.money);
   }
 
   onPlayerInit(data) {
@@ -253,6 +261,11 @@ export default class WorldScene extends Phaser.Scene {
     } else if (this.weatherManager) {
       this.weatherManager.setWeather(this.currentRoom.weather || 'clear');
     }
+
+    // Play regional background music if intro already completed
+    if (data.hasCompletedIntro !== false) {
+      bgmManager.playForRoom(roomId);
+    }
   }
 
   onRoomChanged(data) {
@@ -261,6 +274,7 @@ export default class WorldScene extends Phaser.Scene {
     this.currentRoom = ROOMS_CONFIG[roomId] || room || ROOMS_CONFIG.pallet_town;
 
     this.buildMap();
+    bgmManager.playForRoom(roomId);
 
     if (this.localPlayer) {
       this.localPlayer.setPosition(x, y);

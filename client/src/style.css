@@ -4826,3 +4826,247 @@ body.is-dragging-item .bag-slot * {
 .type-chip.type-dragon,   .type-badge.type-dragon   { background: linear-gradient(180deg, #7038f8 50%, #c03028 50%); border-color: #3d1490; }
 .type-chip.type-dark,     .type-badge.type-dark     { background: linear-gradient(180deg, #705848 50%, #483830 50%); border-color: #2c1e16; }
 .type-chip.type-fairy,    .type-badge.type-fairy    { background: linear-gradient(180deg, #ee99ac 50%, #c86880 50%); border-color: #92364c; }
+
+/* ==============================================================================
+   PROFESSOR OAK INTRO SCENE (ESSENTIALS / FIRE RED AUTHENTIC RECREATION)
+   ============================================================================== */
+#oak-intro-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: radial-gradient(circle at center, #1b2838 0%, #080c14 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  font-family: var(--font-pixel, 'Press Start 2P', monospace);
+}
+
+#oak-intro-screen.hidden {
+  display: none !important;
+}
+
+#oak-intro-screen.white-flash {
+  animation: oakFlashTransition 0.6s ease-in-out forwards;
+}
+
+@keyframes oakFlashTransition {
+  0% { filter: brightness(1); opacity: 1; }
+  45% { filter: brightness(3.5); opacity: 1; background: #ffffff; }
+  100% { filter: brightness(4); opacity: 0; }
+}
+
+.oak-intro-stage {
+  position: relative;
+  width: min(92vw, 768px);
+  aspect-ratio: 4 / 3;
+  max-height: 90vh;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 0 2px rgba(255, 255, 255, 0.1);
+  background: #000;
+  cursor: pointer;
+}
+
+.oak-intro-bg {
+  position: absolute;
+  inset: 0;
+  background-image: url('/assets/intro/introbg.png');
+  background-size: cover;
+  background-position: center;
+  image-rendering: pixelated;
+  opacity: 0.95;
+}
+
+.oak-skip-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #f1f5f9;
+  font-family: var(--font-modern, system-ui, sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.5px;
+}
+
+.oak-skip-btn:hover {
+  background: rgba(239, 68, 68, 0.8);
+  border-color: #ef4444;
+  transform: translateY(-1px);
+}
+
+.oak-character-container {
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 320px;
+  height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.oak-pedestal {
+  width: 260px;
+  height: 64px;
+  background-image: url('/assets/intro/introbase.png');
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  margin-top: -15px;
+  filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.5));
+}
+
+.oak-sprite {
+  image-rendering: pixelated;
+  position: absolute;
+  bottom: 30px;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.6));
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.oak-sprite.prof {
+  height: 190px;
+  width: auto;
+}
+
+.oak-sprite.pkmn {
+  height: 110px;
+  width: auto;
+  left: 20%;
+  animation: oakPkmnBounce 1.2s infinite ease-in-out alternate;
+}
+
+@keyframes oakPkmnBounce {
+  0% { transform: translateY(0) scale(1); }
+  100% { transform: translateY(-10px) scale(1.05); }
+}
+
+.oak-sprite.trainer {
+  height: 180px;
+  width: auto;
+}
+
+.oak-sprite.fade-in {
+  animation: oakFadeIn 0.4s ease-out forwards;
+}
+
+@keyframes oakFadeIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.9); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.oak-sprite.bounce-in {
+  animation: oakBounceIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes oakBounceIn {
+  from { opacity: 0; transform: translateY(30px) scale(0.5); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.oak-sprite.prof.with-pkmn {
+  transform: translateX(40px);
+}
+
+.oak-sprite.shrink-down {
+  transition: transform 0.55s cubic-bezier(0.5, 0, 0.75, 0), opacity 0.55s ease;
+  transform: scale(0.08) translateY(50px) !important;
+  opacity: 0 !important;
+}
+
+.oak-sprite.hidden {
+  display: none !important;
+}
+
+/* Dialog Box */
+.oak-dialog-container {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  right: 14px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+}
+
+.oak-dialog-speaker {
+  align-self: flex-start;
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  color: #38bdf8;
+  border: 2px solid #38bdf8;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.oak-dialog-box {
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(8px);
+  border: 3px solid #cbd5e1;
+  border-radius: 0 8px 8px 8px;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.8), 0 8px 24px rgba(0, 0, 0, 0.7);
+  padding: 16px 20px;
+  min-height: 90px;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+}
+
+#oak-dialog-text {
+  margin: 0;
+  color: #f8fafc;
+  font-family: var(--font-pixel, monospace);
+  font-size: 13px;
+  line-height: 1.7;
+  letter-spacing: 0.3px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.oak-dialog-arrow {
+  position: absolute;
+  bottom: 10px;
+  right: 16px;
+  color: #ef4444;
+  font-size: 14px;
+  animation: oakArrowBlink 0.6s infinite alternate;
+}
+
+@keyframes oakArrowBlink {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(4px); opacity: 0.2; }
+}
+
+/* HUD BGM Chip */
+.hud-bgm-chip {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.hud-bgm-chip:hover {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+.hud-bgm-chip.muted {
+  opacity: 0.5;
+  filter: grayscale(1);
+}
+

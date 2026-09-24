@@ -1,6 +1,7 @@
 const roomManager = require('../rooms/roomManager');
 const worldService = require('../services/worldService');
 const pokemonService = require('../services/pokemonService');
+const characterService = require('../services/characterService');
 
 function setupChatHandlers(io, socket) {
   socket.on('chat:send', async (payload) => {
@@ -13,9 +14,87 @@ function setupChatHandlers(io, socket) {
     message = message.trim();
     if (message.length === 0 || message.length > 200) return;
 
-    // Server-Authoritative Weather & Environmental & Spawn commands
-    if (message.startsWith('/')) {
+    // Check if message begins with /w or /whisper (regular player whisper)
+    if (message.startsWith('/w ') || message.startsWith('/whisper ')) {
+      const parts = message.split(' ');
+      if (parts.length >= 3) {
+        channel = 'whisper';
+        target = parts[1];
+        message = parts.slice(2).join(' ');
+      } else {
+        return socket.emit('chat:message', {
+          channel: 'system',
+          sender: 'Sistema',
+          text: 'Uso correto do sussurro: /w <nome_do_jogador> <mensagem>',
+          timestamp: new Date().toISOString()
+        });
+      }
+    } else if (message.startsWith('/')) {
+      // Server-Authoritative Admin Commands
+      const isAdmin = (player.role === 'admin') || (socket.user?.role === 'admin');
+      if (!isAdmin) {
+        return socket.emit('chat:message', {
+          channel: 'system',
+          sender: 'Sistema',
+          text: '⛔ Acesso negado: apenas administradores podem executar comandos no servidor.',
+          timestamp: new Date().toISOString()
+        });
+      }
+
       const lower = message.toLowerCase();
+
+      // Command: /gold <quantia> [jogador] or /givemoney <quantia> [jogador]
+      if (lower.startsWith('/gold') || lower.startsWith('/givemoney') || lower.startsWith('/money')) {
+        const parts = message.split(' ').filter(p => p.trim().length > 0);
+        if (parts.length >= 2) {
+          const amount = parseInt(parts[1]);
+          if (!isNaN(amount)) {
+            let targetPlayer = player;
+            let targetSocket = socket;
+            if (parts[2]) {
+              const found = roomManager.getPlayerByCharacterName(parts[2]);
+              if (found) {
+                targetPlayer = found;
+                targetSocket = io.sockets.sockets.get(found.socketId) || socket;
+              }
+            }
+
+            try {
+              const updatedChar = await characterService.addCharacterMoney(targetPlayer.characterId, amount);
+              targetSocket.emit('money:updated', { money: updatedChar.money });
+              targetSocket.emit('chat:message', {
+                channel: 'system',
+                sender: 'Sistema',
+                text: `💰 [Admin] Saldo de dinheiro atualizado: ${updatedChar.money.toLocaleString('pt-BR')} Pokédólares (+${amount.toLocaleString('pt-BR')})`,
+                timestamp: new Date().toISOString()
+              });
+
+              if (targetPlayer !== player) {
+                socket.emit('chat:message', {
+                  channel: 'system',
+                  sender: 'Sistema',
+                  text: `💰 [Admin] Adicionado ${amount.toLocaleString('pt-BR')} Pokédólares para ${targetPlayer.name}. Novo saldo: ${updatedChar.money.toLocaleString('pt-BR')}`,
+                  timestamp: new Date().toISOString()
+                });
+              }
+            } catch (err) {
+              socket.emit('chat:message', {
+                channel: 'system',
+                sender: 'Sistema',
+                text: `❌ Erro ao atualizar dinheiro: ${err.message}`,
+                timestamp: new Date().toISOString()
+              });
+            }
+            return;
+          }
+        }
+        return socket.emit('chat:message', {
+          channel: 'system',
+          sender: 'Sistema',
+          text: 'Uso correto: /gold <quantia> [nome_jogador]',
+          timestamp: new Date().toISOString()
+        });
+      }
 
       // Command: /spawn <id_ou_nome> [level] [shiny] [box/party]
       if (lower.startsWith('/spawn')) {
@@ -140,23 +219,13 @@ function setupChatHandlers(io, socket) {
         }
         return;
       }
-    }
 
-    // Check if message begins with /w or /whisper
-    if (message.startsWith('/w ') || message.startsWith('/whisper ')) {
-      const parts = message.split(' ');
-      if (parts.length >= 3) {
-        channel = 'whisper';
-        target = parts[1];
-        message = parts.slice(2).join(' ');
-      } else {
-        return socket.emit('chat:message', {
-          channel: 'system',
-          sender: 'Sistema',
-          text: 'Uso correto do sussurro: /w <nome_do_jogador> <mensagem>',
-          timestamp: new Date().toISOString()
-        });
-      }
+      return socket.emit('chat:message', {
+        channel: 'system',
+        sender: 'Sistema',
+        text: `Comando desconhecido: "${message}". Digite /spawn, /clima ou /gold.`,
+        timestamp: new Date().toISOString()
+      });
     }
 
     const timestamp = new Date().toISOString();

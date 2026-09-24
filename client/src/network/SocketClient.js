@@ -53,7 +53,9 @@ class SocketClient {
       'world:time',
       'inventory:update',
       'inventory:used_result',
-      'character:update'
+      'character:update',
+      'money:updated',
+      'player:intro_completed'
     ];
 
     for (const event of forwardEvents) {

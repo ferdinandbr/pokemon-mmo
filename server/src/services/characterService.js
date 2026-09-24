@@ -35,18 +35,55 @@ async function createCharacter({ userId, name, gender, sprite }) {
       x: 560,
       y: 272,
       direction: 'down',
-      money: 3000
+      money: 5000,
+      hasCompletedIntro: false
     }
   });
 
-  // Give initial starter inventory
-  const pokeBallItem = await prisma.item.findUnique({ where: { name: 'Poké Ball' } });
-  const potionItem = await prisma.item.findUnique({ where: { name: 'Potion' } });
-  const mapItem = await prisma.item.findUnique({ where: { name: 'Town Map' } });
+  // Ensure starter items exist in database
+  let pokeBallItem = await prisma.item.findUnique({ where: { name: 'Poké Ball' } });
+  if (!pokeBallItem) {
+    pokeBallItem = await prisma.item.create({
+      data: {
+        name: 'Poké Ball',
+        category: 'pokeball',
+        description: 'Dispositivo em formato esférico para capturar Pokémon selvagens.',
+        price: 200,
+        sprite: '004.png'
+      }
+    });
+  }
 
+  let potionItem = await prisma.item.findUnique({ where: { name: 'Potion' } });
+  if (!potionItem) {
+    potionItem = await prisma.item.create({
+      data: {
+        name: 'Potion',
+        category: 'medicine',
+        description: 'Restaura até 20 pontos de HP de um Pokémon ferido.',
+        price: 300,
+        sprite: '017.png'
+      }
+    });
+  }
+
+  let mapItem = await prisma.item.findUnique({ where: { name: 'Town Map' } });
+  if (!mapItem) {
+    mapItem = await prisma.item.create({
+      data: {
+        name: 'Town Map',
+        category: 'key_item',
+        description: 'Um mapa muito útil que pode ser consultado a qualquer momento.',
+        price: 0,
+        sprite: 'item_map.png'
+      }
+    });
+  }
+
+  // Starter Kit: 10 Poké Balls, 5 Potions, 1 Town Map
   const initialItems = [
-    { item: pokeBallItem, qty: 5, slot: 0 },
-    { item: potionItem, qty: 3, slot: 1 },
+    { item: pokeBallItem, qty: 10, slot: 0 },
+    { item: potionItem, qty: 5, slot: 1 },
     { item: mapItem, qty: 1, slot: 2 }
   ];
 
@@ -100,6 +137,7 @@ async function getUserCharacters(userId) {
       money: true,
       bagCapacity: true,
       equipment: true,
+      hasCompletedIntro: true,
       createdAt: true
     },
     orderBy: { createdAt: 'desc' }
@@ -146,10 +184,42 @@ async function updateCharacterEquipment(characterId, equipmentData) {
   });
 }
 
+async function updateCharacterMoney(characterId, amount) {
+  const safeAmount = Math.max(0, parseInt(amount) || 0);
+  return prisma.character.update({
+    where: { id: characterId },
+    data: { money: safeAmount }
+  });
+}
+
+async function addCharacterMoney(characterId, delta) {
+  const char = await prisma.character.findUnique({
+    where: { id: characterId },
+    select: { money: true }
+  });
+  if (!char) throw new Error('Personagem não encontrado.');
+
+  const newTotal = Math.max(0, (char.money || 0) + parseInt(delta));
+  return prisma.character.update({
+    where: { id: characterId },
+    data: { money: newTotal }
+  });
+}
+
+async function completeIntro(characterId) {
+  return prisma.character.update({
+    where: { id: characterId },
+    data: { hasCompletedIntro: true }
+  });
+}
+
 module.exports = {
   createCharacter,
   getUserCharacters,
   getCharacterDetails,
   updateCharacterLocation,
-  updateCharacterEquipment
+  updateCharacterEquipment,
+  updateCharacterMoney,
+  addCharacterMoney,
+  completeIntro
 };

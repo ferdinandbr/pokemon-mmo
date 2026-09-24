@@ -251,7 +251,7 @@ export default class PokemonStorageUI {
         const buddyDot = isBuddy ? '<span class="pps-buddy-dot"></span>' : '';
         const shinyStar = pkmn.isShiny ? '<span class="pps-shiny-star">&#9733;</span>' : '';
         const t2 = type2 ? '<span class="type-chip type-' + type2.toLowerCase() + '">' + type2 + '</span>' : '';
-        const owSprite = '<div class="pkmn-ow-sprite pps-ow-sprite" style="background-image: url(\'' + getPokemonOverworldSprite(fmtId) + '\')"></div>';
+        const owSprite = '<div class="pkmn-ow-sprite pps-ow-sprite" style="background-image: url(\'' + getPokemonOverworldSprite(fmtId, { isShiny: Boolean(pkmn.isShiny) }) + '\')"></div>';
 
         card.className = 'pkmn-party-slot' + (isSelected ? ' selected' : '') + (isBuddy ? ' is-buddy' : '') + (pkmn.isShiny ? ' is-shiny' : '');
         card.innerHTML = '<div class="pps-icon-wrap">' + owSprite + buddyDot + shinyStar + '</div>'
@@ -283,7 +283,7 @@ export default class PokemonStorageUI {
         const isBuddy = pkmn.isBuddy || this.activeBuddy?.id === pkmn.id;
         const name = pkmn.nickname || pkmn.species?.name || 'Pokemon';
         const fmtId = String(pkmn.speciesId).padStart(3, '0');
-        const owSprite = '<div class="pkmn-ow-sprite pbc-ow-sprite" style="background-image: url(\'' + getPokemonOverworldSprite(fmtId) + '\')"></div>';
+        const owSprite = '<div class="pkmn-ow-sprite pbc-ow-sprite" style="background-image: url(\'' + getPokemonOverworldSprite(fmtId, { isShiny: Boolean(pkmn.isShiny) }) + '\')"></div>';
 
         cell.className = 'pkmn-box-cell' + (isSelected ? ' selected' : '') + (isBuddy ? ' is-buddy' : '') + (pkmn.isShiny ? ' is-shiny' : '');
         cell.title = name + ' Lv.' + pkmn.level;

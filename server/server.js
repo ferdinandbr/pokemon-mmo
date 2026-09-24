@@ -1,4 +1,6 @@
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 const http = require('http');
 const express = require('express');
 const cors = require('cors');
@@ -36,6 +38,21 @@ app.use('/api/admin/map', mapRoutes);
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
+
+// Serve frontend SPA build in production (Dokploy / Docker)
+const publicDir = path.resolve(__dirname, 'public');
+const clientDistDir = path.resolve(__dirname, '../client/dist');
+const staticDir = fs.existsSync(publicDir) ? publicDir : (fs.existsSync(clientDistDir) ? clientDistDir : null);
+
+if (staticDir) {
+  app.use(express.static(staticDir, { maxAge: '7d' }));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+      return next();
+    }
+    res.sendFile(path.join(staticDir, 'index.html'));
+  });
+}
 
 // Socket.IO setup
 const io = new Server(server, {
@@ -81,7 +98,7 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`===========================================`);
   console.log(` Pokémon Fire Red MMO Server rodando na porta ${PORT}`);
-  console.log(` SQLite + Prisma ORM conectado`);
+  console.log(` PostgreSQL + Prisma ORM conectado`);
   console.log(`===========================================`);
 
   // Start authoritative Day/Night and Weather service

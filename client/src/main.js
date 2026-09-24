@@ -10,6 +10,8 @@ import MenuUI from './ui/MenuUI';
 import EditorUI from './ui/EditorUI';
 import BagUI from './ui/BagUI';
 import PokemonStorageUI from './ui/PokemonStorageUI';
+import OakIntroUI from './ui/OakIntroUI';
+import bgmManager from './audio/BGMManager';
 
 // Phaser Game Configuration
 const config = {
@@ -65,7 +67,7 @@ game.events.once('ready', () => {
 });
 
 // Initialize UI Controllers
-let authUI, charUI, chatUI, menuUI, bagUI, pokemonStorageUI;
+let authUI, charUI, chatUI, menuUI, bagUI, pokemonStorageUI, oakIntroUI;
 
 function checkRoute() {
   const isEditorRoute = window.location.hash.startsWith('#editor') || window.location.pathname.startsWith('/editor');
@@ -126,6 +128,23 @@ function initApp() {
   bagUI = new BagUI(worldSceneInstance);
   pokemonStorageUI = new PokemonStorageUI(worldSceneInstance);
   bagUI.pokemonStorageUI = pokemonStorageUI;
+  oakIntroUI = new OakIntroUI();
+
+  // Hook BGM Mute/Toggle Button in HUD
+  const hudBgmBtn = document.getElementById('hud-btn-bgm');
+  if (hudBgmBtn) {
+    if (bgmManager.isMuted) {
+      hudBgmBtn.classList.add('muted');
+      const icon = document.getElementById('hud-bgm-icon');
+      if (icon) icon.innerText = '🔇';
+    }
+    hudBgmBtn.addEventListener('click', () => {
+      const isMuted = bgmManager.toggleMute();
+      hudBgmBtn.classList.toggle('muted', isMuted);
+      const icon = document.getElementById('hud-bgm-icon');
+      if (icon) icon.innerText = isMuted ? '🔇' : '🎵';
+    });
+  }
 
   // Hook hud-btn-pokemon directly to PokemonStorageUI toggle
   const hudPkmnBtn = document.getElementById('hud-btn-pokemon');
@@ -199,6 +218,13 @@ function initApp() {
         SocketClient.joinGame(character.id);
         SocketClient.emit('pokemon:get_data');
       });
+
+      // Trigger Dr. Oak intro if first login (not completed yet)
+      SocketClient.on('player:init', (data) => {
+        if (data && data.hasCompletedIntro === false) {
+          oakIntroUI.start(character);
+        }
+      });
     },
     () => {
       // Logout Callback
@@ -207,6 +233,7 @@ function initApp() {
       currentCharacter = null;
       document.getElementById('hud')?.classList.add('hidden');
       document.getElementById('hud-quick-bar')?.classList.add('hidden');
+      bgmManager.stop();
       SocketClient.disconnect();
       authUI.logout();
     }

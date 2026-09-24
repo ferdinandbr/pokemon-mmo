@@ -24,12 +24,15 @@ export function getPokemonAnimatedSprite(speciesId, { isShiny = false, isBack = 
 }
 
 /**
- * Returns the URL path for a static overworld Pokémon sprite.
+ * Returns the URL path for a static or spritesheet overworld Pokémon sprite.
  *
  * @param {number|string} speciesId - Pokedex species ID
- * @returns {string} - URL path e.g. /assets/pokemon/overworld/001.png
+ * @param {object} [options]
+ * @param {boolean} [options.isShiny=false] - Whether to load shiny variant
+ * @returns {string} - URL path e.g. /assets/pokemon/overworld/shiny/001.png
  */
-export function getPokemonOverworldSprite(speciesId) {
+export function getPokemonOverworldSprite(speciesId, { isShiny = false } = {}) {
   const fmtId = formatSpeciesId(speciesId);
-  return `/assets/pokemon/overworld/${fmtId}.png`;
+  const variant = isShiny ? 'shiny' : 'normal';
+  return `/assets/pokemon/overworld/${variant}/${fmtId}.png`;
 }

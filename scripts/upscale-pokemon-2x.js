@@ -2,11 +2,14 @@ const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
 
-const dir = path.join(__dirname, '../client/public/assets/pokemon/overworld');
+const baseDir = path.join(__dirname, '../client/public/assets/pokemon/overworld');
+const dirs = [path.join(baseDir, 'normal'), path.join(baseDir, 'shiny')];
 
 async function upscaleAll() {
-  const files = fs.readdirSync(dir).filter(f => /^\d{3}\.png$/.test(f));
-  console.log(`Encontrados ${files.length} arquivos de sprites.`);
+  for (const dir of dirs) {
+    if (!fs.existsSync(dir)) continue;
+    const files = fs.readdirSync(dir).filter(f => /^\d{3}\.png$/.test(f));
+    console.log(`[${path.basename(dir)}] Encontrados ${files.length} arquivos de sprites.`);
 
   let upscaled = 0;
   let skipped = 0;
@@ -33,7 +36,8 @@ async function upscaleAll() {
     upscaled++;
   }
 
-  console.log(`Concluído! ${upscaled} sprites ampliados para 2x (Nearest-Neighbor). ${skipped} já estavam em 2x.`);
+    console.log(`[${path.basename(dir)}] Concluído! ${upscaled} sprites ampliados para 2x (Nearest-Neighbor). ${skipped} já estavam em 2x.`);
+  }
 }
 
 upscaleAll().catch(err => {

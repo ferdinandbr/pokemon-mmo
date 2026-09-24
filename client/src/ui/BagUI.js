@@ -1,5 +1,6 @@
 import SocketClient from '../network/SocketClient';
 import PokemonStorageUI from './PokemonStorageUI';
+import { getPokemonOverworldSprite } from '../utils/pokemonAssets';
 
 export function getItemIcon(itemOrName = '', itemSprite = null) {
   let name = '';
@@ -656,7 +657,7 @@ export default class BagUI {
                 container.innerHTML = `<img src="${buddy.icon}" class="bag-equipped-icon" />`;
               }
             };
-            img.src = `/assets/pokemon/overworld/${formattedId}.png`;
+            img.src = getPokemonOverworldSprite(formattedId, { isShiny: Boolean(buddy.isShiny) });
           }
 
           container.appendChild(canvas);

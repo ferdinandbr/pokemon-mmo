@@ -39,10 +39,14 @@ export default class BootScene extends Phaser.Scene {
       this.load.tilemapTiledJSON(mapKey, `/assets/maps/${mapKey}.json?t=${timestamp}`);
     }
 
-    // ── Pokémon Overworld Spritesheets (151 Gen 1, 64×64 per frame) ──
+    // ── Pokémon Overworld Spritesheets (151 Gen 1, normal & shiny, 64×64 per frame) ──
     for (let id = 1; id <= 151; id++) {
       const formattedId = String(id).padStart(3, '0');
-      this.load.spritesheet(`pkmn_${formattedId}`, `/assets/pokemon/overworld/${formattedId}.png?t=${timestamp}`, {
+      this.load.spritesheet(`pkmn_${formattedId}`, `/assets/pokemon/overworld/normal/${formattedId}.png?t=${timestamp}`, {
+        frameWidth: 64,
+        frameHeight: 64
+      });
+      this.load.spritesheet(`pkmn_${formattedId}_shiny`, `/assets/pokemon/overworld/shiny/${formattedId}.png?t=${timestamp}`, {
         frameWidth: 64,
         frameHeight: 64
       });
