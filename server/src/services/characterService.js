@@ -73,19 +73,13 @@ async function createCharacter({ userId, name, gender, sprite }) {
     }
   });
 
-  // Starter Pokemon in party
-  await prisma.pokemon.create({
-    data: {
-      characterId: character.id,
-      speciesId: 25,
-      name: 'Pikachu',
-      level: 5,
-      currentHp: 20,
-      maxHp: 20,
-      moves: JSON.stringify(['Thundershock', 'Growl']),
-      isParty: true,
-      slot: 0
-    }
+  // Starter Pokemon in party (Pikachu Lv.5)
+  const pokemonService = require('./pokemonService');
+  await pokemonService.createPokemon({
+    characterId: character.id,
+    speciesIdOrName: 25,
+    level: 5,
+    forceBuddy: true
   });
 
   return getCharacterDetails(character.id);
@@ -105,6 +99,7 @@ async function getUserCharacters(userId) {
       direction: true,
       money: true,
       bagCapacity: true,
+      equipment: true,
       createdAt: true
     },
     orderBy: { createdAt: 'desc' }
@@ -123,7 +118,8 @@ async function getCharacterDetails(characterId) {
         orderBy: { pokemonNumber: 'asc' }
       },
       pokemon: {
-        orderBy: { slot: 'asc' }
+        include: { species: true },
+        orderBy: { partySlot: 'asc' }
       }
     }
   });
@@ -142,9 +138,18 @@ async function updateCharacterLocation(characterId, { roomId, x, y, direction })
   });
 }
 
+async function updateCharacterEquipment(characterId, equipmentData) {
+  const equipmentStr = typeof equipmentData === 'string' ? equipmentData : JSON.stringify(equipmentData);
+  return prisma.character.update({
+    where: { id: characterId },
+    data: { equipment: equipmentStr }
+  });
+}
+
 module.exports = {
   createCharacter,
   getUserCharacters,
   getCharacterDetails,
-  updateCharacterLocation
+  updateCharacterLocation,
+  updateCharacterEquipment
 };

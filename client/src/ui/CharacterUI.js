@@ -157,7 +157,7 @@ export default class CharacterUI {
         </div>
         <div class="char-card-info">
           <h3>${char.name} <span style="color: ${genderColor}; font-size: 14px;">${genderBadge}</span></h3>
-          <span>Mapa: ${char.roomId} | ₽ ${char.money.toLocaleString('pt-BR')}</span>
+          <span>Mapa: ${char.roomId} | <img src="/assets/ui/hud_gold.png" style="width:13px;height:13px;vertical-align:-1px;image-rendering:pixelated;" alt="Gold" /> ${char.money.toLocaleString('pt-BR')}</span>
         </div>
       `;
 

@@ -10,6 +10,7 @@ import DayNightManager from '../systems/DayNightManager';
 import WaterAnimationManager from '../systems/WaterAnimationManager';
 import FlowerAnimationManager from '../systems/FlowerAnimationManager';
 import WeatherManager from '../systems/WeatherManager';
+import FollowerPokemon from '../entities/FollowerPokemon';
 
 const LAYER_DEPTHS = {
   Ground: 10,
@@ -46,7 +47,9 @@ export default class WorldScene extends Phaser.Scene {
 
     this.currentRoom = ROOMS_CONFIG.pallet_town;
     this.localPlayer = null;
+    this.localFollower = null;
     this.remotePlayers = new Map(); // socketId -> RemotePlayer
+    this.remoteFollowers = new Map(); // socketId -> FollowerPokemon
 
     this.currentMap = null;
     this.mapLayers = new Map();
@@ -135,7 +138,7 @@ export default class WorldScene extends Phaser.Scene {
           const sh = sign.height || 32;
           // Click hit test on sign tile (with 6px margin for easy clicking)
           if (worldPoint.x >= sign.x - 6 && worldPoint.x <= sign.x + sw + 6 &&
-              worldPoint.y >= sign.y - 6 && worldPoint.y <= sign.y + sh + 6) {
+            worldPoint.y >= sign.y - 6 && worldPoint.y <= sign.y + sh + 6) {
             // Check player proximity (allow within 96px)
             if (this.localPlayer) {
               const px = this.localPlayer.x;
@@ -176,14 +179,15 @@ export default class WorldScene extends Phaser.Scene {
       }
     });
 
-    SocketClient.on('player:init',   (d) => this.onPlayerInit(d));
+    SocketClient.on('player:init', (d) => this.onPlayerInit(d));
     SocketClient.on('player:joined', (d) => this.onPlayerJoined(d));
-    SocketClient.on('player:moved',  (d) => this.onPlayerMoved(d));
-    SocketClient.on('player:left',   (d) => this.onPlayerLeft(d));
-    SocketClient.on('room:changed',  (d) => this.onRoomChanged(d));
-    SocketClient.on('chat:message',  (d) => this.onChatMessage(d));
+    SocketClient.on('player:moved', (d) => this.onPlayerMoved(d));
+    SocketClient.on('player:left', (d) => this.onPlayerLeft(d));
+    SocketClient.on('player:buddy_updated', (d) => this.onBuddyUpdated(d));
+    SocketClient.on('room:changed', (d) => this.onRoomChanged(d));
+    SocketClient.on('chat:message', (d) => this.onChatMessage(d));
     SocketClient.on('world:weather', (d) => this.onWorldWeather(d));
-    SocketClient.on('world:time',    (d) => this.onWorldTime(d));
+    SocketClient.on('world:time', (d) => this.onWorldTime(d));
 
     // Snap player position to exact integer pixels after physics update to eliminate subpixel rendering jitter
     this.events.on('postupdate', () => {
@@ -225,12 +229,17 @@ export default class WorldScene extends Phaser.Scene {
     this.localPlayer.setDepth(100 + self.y / 10000);
     this._attachPlayerColliders(this.localPlayer);
 
-    const w = this.currentMap?.widthInPixels  || this.currentRoom.width  || 1152;
+    const w = this.currentMap?.widthInPixels || this.currentRoom.width || 1152;
     const h = this.currentMap?.heightInPixels || this.currentRoom.height || 640;
     this.cameras.main.setBounds(0, 0, w, h);
     this.cameras.main.startFollow(this.localPlayer, true, 1, 1);
     this.cameras.main.roundPixels = true;
     this.cameras.main.setZoom(1.0);
+
+    if (self.activeBuddy) {
+      if (this.localFollower) this.localFollower.destroy();
+      this.localFollower = new FollowerPokemon(this, this.localPlayer, self.activeBuddy);
+    }
 
     this._clearRemotePlayers();
     for (const p of players) this._addRemotePlayer(p);
@@ -265,7 +274,7 @@ export default class WorldScene extends Phaser.Scene {
       this._attachPlayerColliders(this.localPlayer);
     }
 
-    const w = this.currentMap?.widthInPixels  || this.currentRoom.width  || 1152;
+    const w = this.currentMap?.widthInPixels || this.currentRoom.width || 1152;
     const h = this.currentMap?.heightInPixels || this.currentRoom.height || 640;
     this.cameras.main.setBounds(0, 0, w, h);
     this.cameras.main.startFollow(this.localPlayer, true, 1, 1);
@@ -284,7 +293,6 @@ export default class WorldScene extends Phaser.Scene {
     this.portalCooldown = (this.time?.now ?? 0) + 1500;
   }
 
-
   onPlayerJoined(playerData) {
     if (this.localPlayer && playerData.characterId === this.localPlayer.characterId) return;
     this._addRemotePlayer(playerData);
@@ -301,6 +309,43 @@ export default class WorldScene extends Phaser.Scene {
       remote.destroy();
       this.remotePlayers.delete(data.socketId);
     }
+    const follower = this.remoteFollowers.get(data.socketId);
+    if (follower) {
+      follower.destroy();
+      this.remoteFollowers.delete(data.socketId);
+    }
+  }
+
+  onBuddyUpdated(data) {
+    const { socketId, buddy } = data || {};
+    const isLocal = SocketClient.socket?.id === socketId;
+
+    if (isLocal) {
+      if (!buddy) {
+        if (this.localFollower) {
+          this.localFollower.destroy();
+          this.localFollower = null;
+        }
+      } else if (this.localFollower) {
+        this.localFollower.updateBuddy(buddy);
+      } else if (this.localPlayer) {
+        this.localFollower = new FollowerPokemon(this, this.localPlayer, buddy);
+      }
+    } else {
+      const remote = this.remotePlayers.get(socketId);
+      if (!buddy) {
+        const follower = this.remoteFollowers.get(socketId);
+        if (follower) {
+          follower.destroy();
+          this.remoteFollowers.delete(socketId);
+        }
+      } else if (this.remoteFollowers.has(socketId)) {
+        this.remoteFollowers.get(socketId).updateBuddy(buddy);
+      } else if (remote) {
+        const follower = new FollowerPokemon(this, remote, buddy);
+        this.remoteFollowers.set(socketId, follower);
+      }
+    }
   }
 
   onChatMessage(data) {
@@ -308,7 +353,7 @@ export default class WorldScene extends Phaser.Scene {
     const isLocal =
       this.localPlayer &&
       (data.sender === this.localPlayer.name ||
-       data.senderSocketId === SocketClient.socket?.id);
+        data.senderSocketId === SocketClient.socket?.id);
 
     if (isLocal) {
       this.localPlayer.showSpeechBubble(data.text);
@@ -496,9 +541,9 @@ export default class WorldScene extends Phaser.Scene {
       this._portals = portalLayer.objects.map(obj => {
         const props = this._readProps(obj.properties);
         return {
-          targetRoom:  props.targetRoom  || obj.name || this.currentRoom.id,
+          targetRoom: props.targetRoom || obj.name || this.currentRoom.id,
           targetSpawn: { x: props.targetX ?? obj.x, y: props.targetY ?? obj.y },
-          trigger:     { x: obj.x, y: obj.y, width: obj.width, height: obj.height }
+          trigger: { x: obj.x, y: obj.y, width: obj.width, height: obj.height }
         };
       });
     } else {
@@ -515,10 +560,10 @@ export default class WorldScene extends Phaser.Scene {
       for (const obj of layer.objects) {
         const props = this._readProps(obj.properties);
         const isSign = obj.type === 'sign' ||
-                       layer.name === 'Points of interest' ||
-                       layer.name === 'Signs' ||
-                       props.dialogue ||
-                       (props.text && (props.title || obj.name));
+          layer.name === 'Points of interest' ||
+          layer.name === 'Signs' ||
+          props.dialogue ||
+          (props.text && (props.title || obj.name));
         if (isSign) {
           const title = props.title || obj.name || 'PLACA';
           const text = props.text || props.dialogue || '';
@@ -635,81 +680,242 @@ export default class WorldScene extends Phaser.Scene {
     const remote = new RemotePlayer(this, playerData.x, playerData.y, playerData);
     remote.setDepth(100 + playerData.y / 10000);
     this.remotePlayers.set(playerData.socketId, remote);
+
+    if (playerData.activeBuddy) {
+      if (this.remoteFollowers.has(playerData.socketId)) {
+        this.remoteFollowers.get(playerData.socketId).destroy();
+      }
+      const follower = new FollowerPokemon(this, remote, playerData.activeBuddy);
+      this.remoteFollowers.set(playerData.socketId, follower);
+    }
   }
 
   _clearRemotePlayers() {
     for (const remote of this.remotePlayers.values()) remote.destroy();
     this.remotePlayers.clear();
+    for (const follower of this.remoteFollowers.values()) follower.destroy();
+    this.remoteFollowers.clear();
   }
 
   // ─── Update loop ───────────────────────────────────────────────────────────
 
   update(time, delta) {
-    // Day and Night cycle update (ambient overlay + player light aura + HUD badge)
+
+    // -------------------------------------------------------------------------
+    // DAY / NIGHT
+    // -------------------------------------------------------------------------
+
     if (this.dayNightManager) {
-      this.dayNightManager.update(time, this.localPlayer);
+      this.dayNightManager.update(
+        time,
+        this.localPlayer
+      );
     }
 
-    // Water wave tile animation update
+    // -------------------------------------------------------------------------
+    // WATER
+    // -------------------------------------------------------------------------
+
     if (this.waterAnimationManager) {
       this.waterAnimationManager.update(time);
     }
 
-    // Flower swaying tile animation update (Gen 3 authentic)
+    // -------------------------------------------------------------------------
+    // FLOWERS
+    // -------------------------------------------------------------------------
+
     if (this.flowerAnimationManager) {
       this.flowerAnimationManager.update(time);
     }
 
-    // Dynamic weather update (rain, storm, snow, fog, sunny, sandstorm)
+    // -------------------------------------------------------------------------
+    // WEATHER
+    // -------------------------------------------------------------------------
+
     if (this.weatherManager) {
-      this.weatherManager.update(time, delta);
+      this.weatherManager.update(
+        time,
+        delta
+      );
     }
 
-    // Wind-induced tree swaying simulation
+    // -------------------------------------------------------------------------
+    // TREE SWAY
+    // -------------------------------------------------------------------------
+
     this._updateTreeSway(time);
 
-    if (!this.localPlayer) return;
+    // -------------------------------------------------------------------------
+    // PLAYER
+    // -------------------------------------------------------------------------
+
+    if (!this.localPlayer) {
+      return;
+    }
 
     this.localPlayer.update(time);
 
-    // Track coordinates in HUD in real-time
-    const tx = Math.floor(this.localPlayer.x / 32);
-    const ty = Math.floor(this.localPlayer.y / 32);
-    if (this._lastCoordX !== tx || this._lastCoordY !== ty) {
+    // -------------------------------------------------------------------------
+    // LOCAL PLAYER COORDINATES
+    // -------------------------------------------------------------------------
+
+    const tx = Math.floor(
+      this.localPlayer.x / 32
+    );
+
+    const ty = Math.floor(
+      this.localPlayer.y / 32
+    );
+
+    if (
+      this._lastCoordX !== tx ||
+      this._lastCoordY !== ty
+    ) {
+
       this._lastCoordX = tx;
       this._lastCoordY = ty;
-      const coordsEl = document.getElementById('hud-coords');
-      if (coordsEl) coordsEl.innerText = `(${tx}, ${ty})`;
+
+      const coordsEl =
+        document.getElementById('hud-coords');
+
+      if (coordsEl) {
+        coordsEl.innerText =
+          `(${tx}, ${ty})`;
+      }
     }
 
-    // Dynamic depth sorting among players (around depth 100, below Overhead at 200)
-    this.localPlayer.setDepth(100 + this.localPlayer.y / 10000);
-    for (const remote of this.remotePlayers.values()) {
-      remote.setDepth(100 + remote.y / 10000);
+    // -------------------------------------------------------------------------
+    // LOCAL PLAYER DEPTH
+    // -------------------------------------------------------------------------
+
+    this.localPlayer.setDepth(
+      100 + this.localPlayer.y / 10000
+    );
+
+    // -------------------------------------------------------------------------
+    // LOCAL FOLLOWER
+    // -------------------------------------------------------------------------
+
+    if (this.localFollower) {
+
+      this.localFollower.updateFollower(
+        this.localPlayer.x,
+        this.localPlayer.y,
+        this.localPlayer.direction,
+        this.localPlayer.isMoving,
+        delta,
+        this.localPlayer.isJumping
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // REMOTE PLAYERS
+    // -------------------------------------------------------------------------
+
+    for (
+      const [socketId, remote]
+      of this.remotePlayers.entries()
+    ) {
+
+      if (!remote || !remote.active) {
+        continue;
+      }
+
+      // Player depth
+      remote.setDepth(
+        100 + remote.y / 10000
+      );
+
+      // Remote movement interpolation
       remote.update();
+
+      // -------------------------------------------------------------
+      // REMOTE FOLLOWER
+      // -------------------------------------------------------------
+
+      const remoteFollower =
+        this.remoteFollowers.get(socketId);
+
+      if (remoteFollower) {
+
+        remoteFollower.updateFollower(
+          remote.x,
+          remote.y,
+          remote.direction,
+          remote.isMoving,
+          delta,
+          remote.isJumping
+        );
+      }
     }
 
-    // Tall grass immersion and rustle effects
+    // -------------------------------------------------------------------------
+    // TALL GRASS
+    // -------------------------------------------------------------------------
+
     if (this.tallGrassManager) {
-      const allPlayers = [this.localPlayer, ...this.remotePlayers.values()].filter(Boolean);
-      this.tallGrassManager.update(allPlayers, time);
+
+      const allPlayers = [
+        this.localPlayer,
+        ...this.remotePlayers.values()
+      ].filter(Boolean);
+
+      this.tallGrassManager.update(
+        allPlayers,
+        time
+      );
     }
 
-    // Sign proximity detection (generous distance to comfortably interact with adjacent 32x32 tiles)
+    // -------------------------------------------------------------------------
+    // SIGN PROXIMITY
+    // -------------------------------------------------------------------------
+
     let closestSign = null;
     let minDist = 72;
-    if (this._signs && this._signs.length > 0 && (!this.dialogueBox || !this.dialogueBox.isOpen)) {
+
+    if (
+      this._signs &&
+      this._signs.length > 0 &&
+      (!this.dialogueBox ||
+        !this.dialogueBox.isOpen)
+    ) {
+
       const px = this.localPlayer.x;
       const py = this.localPlayer.y;
 
       for (const sign of this._signs) {
-        const cx = sign.x + sign.width / 2;
-        const cy = sign.y + sign.height / 2;
-        const dx = Math.abs(px - cx);
-        const dy = Math.abs(py - cy);
-        if (dx <= 60 && dy <= 72) {
-          const dist = Phaser.Math.Distance.Between(px, py, cx, cy);
+
+        const cx =
+          sign.x +
+          sign.width / 2;
+
+        const cy =
+          sign.y +
+          sign.height / 2;
+
+        const dx = Math.abs(
+          px - cx
+        );
+
+        const dy = Math.abs(
+          py - cy
+        );
+
+        if (
+          dx <= 60 &&
+          dy <= 72
+        ) {
+
+          const dist =
+            Phaser.Math.Distance.Between(
+              px,
+              py,
+              cx,
+              cy
+            );
+
           if (dist < minDist) {
+
             minDist = dist;
             closestSign = sign;
           }
@@ -719,32 +925,80 @@ export default class WorldScene extends Phaser.Scene {
 
     this.nearbySign = closestSign;
 
-    // Zone detection
+    // -------------------------------------------------------------------------
+    // ZONE DETECTION
+    // -------------------------------------------------------------------------
+
     if (this.zones.length > 0) {
+
       const px = this.localPlayer.x;
       const py = this.localPlayer.y;
+
       for (const zone of this.zones) {
-        if (zone.bounds.contains(px, py)) {
-          if (this.currentZone !== zone.name) {
-            this.currentZone = zone.name;
-            this._updateHUD(zone.name);
+
+        if (
+          zone.bounds.contains(
+            px,
+            py
+          )
+        ) {
+
+          if (
+            this.currentZone !==
+            zone.name
+          ) {
+
+            this.currentZone =
+              zone.name;
+
+            this._updateHUD(
+              zone.name
+            );
           }
+
           break;
         }
       }
     }
 
-    // Portal detection
-    if (!this.isTransitioning && time > this.portalCooldown && this._portals) {
-      for (const portal of this._portals) {
+    // -------------------------------------------------------------------------
+    // PORTALS
+    // -------------------------------------------------------------------------
+
+    if (
+      !this.isTransitioning &&
+      time > this.portalCooldown &&
+      this._portals
+    ) {
+
+      for (
+        const portal
+        of this._portals
+      ) {
+
         const t = portal.trigger;
+
         if (
-          this.localPlayer.x >= t.x && this.localPlayer.x <= t.x + t.width &&
-          this.localPlayer.y >= t.y && this.localPlayer.y <= t.y + t.height
+          this.localPlayer.x >= t.x &&
+          this.localPlayer.x <=
+          t.x + t.width &&
+          this.localPlayer.y >= t.y &&
+          this.localPlayer.y <=
+          t.y + t.height
         ) {
-          this.isTransitioning = true;
-          this.portalCooldown = time + 2000;
-          SocketClient.changeRoom(portal.targetRoom, portal.targetSpawn.x, portal.targetSpawn.y);
+
+          this.isTransitioning =
+            true;
+
+          this.portalCooldown =
+            time + 2000;
+
+          SocketClient.changeRoom(
+            portal.targetRoom,
+            portal.targetSpawn.x,
+            portal.targetSpawn.y
+          );
+
           break;
         }
       }

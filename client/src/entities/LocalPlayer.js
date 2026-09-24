@@ -58,6 +58,7 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
     this.lastY = y;
     this.lastDir = this.direction;
     this.wasMoving = false;
+    this.isMoving = false;
     this.lastDustTime = 0;
     this.dustStepToggle = false;
     this.lastAnimFrameIndex = -1;
@@ -87,6 +88,7 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
 
     if (this.scene.isChatting || (this.scene.dialogueBox && this.scene.dialogueBox.isOpen)) {
       this.body.setVelocity(0, 0);
+      this.isMoving = false;
       this.playIdle();
       return;
     }
@@ -132,6 +134,8 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
     this.body.setVelocity(vx, vy);
 
     const isMoving = vx !== 0 || vy !== 0;
+
+    this.isMoving = isMoving;
 
     if (isMoving) {
       this.direction = newDirection;
@@ -262,7 +266,10 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
   }
 
   jumpLedge(direction, ledgeTileX, ledgeTileY, landingTileX, landingTileY) {
-    if (this.isJumping) return;
+    if (this.isJumping) {
+      this.isMoving = false;
+      return;
+    }
     this.isJumping = true;
     this.direction = direction;
 
@@ -277,6 +284,17 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
 
     const targetX = landingTileX * 32 + 16;
     const targetY = landingTileY * 32 + 6;
+    this.jumpTargetX = targetX;
+    this.jumpTargetY = targetY;
+    this.lastLedgeInfo = {
+      direction,
+      ledgeTileX,
+      ledgeTileY,
+      landingTileX,
+      landingTileY,
+      targetX,
+      targetY
+    };
     const jumpDuration = 360;
 
     // Parabolic arc on sprite
@@ -328,6 +346,8 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
       ease: 'Linear',
       onComplete: () => {
         this.isJumping = false;
+        this.jumpTargetX = null;
+        this.jumpTargetY = null;
         this.body.checkCollision.none = false;
 
         this.x = targetX;

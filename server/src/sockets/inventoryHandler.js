@@ -42,8 +42,9 @@ function setupInventoryHandlers(io, socket) {
         const healAmount = itemNameLower.includes('super') ? 50 : 20;
         
         const party = await prisma.pokemon.findMany({
-          where: { characterId: player.characterId, isParty: true },
-          orderBy: { slot: 'asc' }
+          where: { characterId: player.characterId, location: 'party' },
+          include: { species: true },
+          orderBy: { partySlot: 'asc' }
         });
         const injuredMon = party.find(p => p.currentHp < p.maxHp) || party[0];
 
@@ -56,7 +57,7 @@ function setupInventoryHandlers(io, socket) {
             data: { currentHp: newHp }
           });
 
-          effectMessage = `Curou ${healed > 0 ? healed : healAmount} HP de ${injuredMon.name}!`;
+          effectMessage = `Curou ${healed > 0 ? healed : healAmount} HP de ${injuredMon.nickname || injuredMon.species.name}!`;
         } else {
           effectMessage = `Usou ${item.name}! Recuperou energia do time.`;
         }
@@ -66,8 +67,9 @@ function setupInventoryHandlers(io, socket) {
         effectMessage = `Usou ${item.name}! O Pokémon foi curado de status negativos.`;
       } else if (itemNameLower.includes('candy')) {
         const leadMon = await prisma.pokemon.findFirst({
-          where: { characterId: player.characterId, isParty: true },
-          orderBy: { slot: 'asc' }
+          where: { characterId: player.characterId, location: 'party' },
+          include: { species: true },
+          orderBy: { partySlot: 'asc' }
         });
         if (leadMon) {
           const newLvl = leadMon.level + 1;
@@ -76,7 +78,7 @@ function setupInventoryHandlers(io, socket) {
             where: { id: leadMon.id },
             data: { level: newLvl, maxHp: newMaxHp, currentHp: newMaxHp }
           });
-          effectMessage = `Parabéns! ${leadMon.name} subiu para o Nível ${newLvl}!`;
+          effectMessage = `Parabéns! ${leadMon.nickname || leadMon.species.name} subiu para o Nível ${newLvl}!`;
         } else {
           effectMessage = `Usou ${item.name}! Ganhou experiência instantânea.`;
         }
@@ -167,6 +169,21 @@ function setupInventoryHandlers(io, socket) {
       socket.emit('inventory:update', { inventory: updatedInventory });
     } catch (err) {
       console.error('Error on inventory:swap:', err);
+    }
+  });
+
+  // ─── Atualizar Equipamentos do Personagem ─────────────────────────────────
+  socket.on('equipment:update', async ({ equipment }) => {
+    try {
+      const player = roomManager.getPlayer(socket.id);
+      if (!player) return;
+
+      const characterService = require('../services/characterService');
+      const updated = await characterService.updateCharacterEquipment(player.characterId, equipment);
+
+      socket.emit('equipment:updated', { equipment: updated.equipment });
+    } catch (err) {
+      console.error('Error on equipment:update:', err);
     }
   });
 }

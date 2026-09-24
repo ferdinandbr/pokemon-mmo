@@ -1,4 +1,5 @@
 import SocketClient from '../network/SocketClient';
+import PokemonStorageUI from './PokemonStorageUI';
 
 export function getItemIcon(itemOrName = '', itemSprite = null) {
   let name = '';
@@ -89,7 +90,6 @@ export default class BagUI {
               <img src="/assets/ui/bag_sprite.png" class="bag-title-sprite" alt="Bag" />
               <h2 class="bag-title">MOCHILA DO TREINADOR</h2>
               <div class="bag-capacity-badge" id="bag-capacity-badge">
-                <img src="/assets/ui/icon_item.png" class="bag-capacity-icon-img" alt="" />
                 <span id="bag-capacity-text">0 / 24 Slots</span>
               </div>
             </div>
@@ -156,44 +156,63 @@ export default class BagUI {
               </div>
             </div>
 
-            <!-- Painel do Item Selecionado -->
+            <!-- Painel de Equipamentos do Treinador -->
             <div class="bag-inspector" id="bag-inspector">
-              <div class="bag-inspector-empty">
-                <img src="/assets/ui/bag_sprite.png" class="bag-empty-icon-img" alt="Mochila" />
-                <p>Selecione um item na mochila para ver detalhes e ações</p>
-              </div>
-              <div class="bag-inspector-content hidden" id="bag-inspector-content">
-                <div class="bag-item-card">
-                  <div class="bag-item-preview-box">
-                    <img id="bag-item-preview-img" src="" alt="" class="bag-item-preview-img" />
-                  </div>
-                  <div class="bag-item-info">
-                    <h3 id="bag-item-name" class="bag-item-name">Item</h3>
-                    <div class="bag-item-badges">
-                      <span id="bag-item-category-tag" class="bag-chip">Categoria</span>
-                      <span id="bag-item-qty-tag" class="bag-chip bag-chip-qty">x1</span>
+              <div class="bag-equip-panel">
+                <div class="bag-equip-header">
+                  <h3>EQUIPAMENTOS DO TREINADOR</h3>
+                </div>
+                <div class="bag-equip-stage">
+                  <!-- Slot Superior: Chapéu -->
+                  <div class="bag-equip-slot-wrapper slot-top">
+                    <span class="bag-slot-label">CHAPÉU</span>
+                    <div class="bag-equip-slot" data-equip-slot="hat" title="Chapéu / Acessório">
+                      <div class="bag-equip-item-container" id="equip-container-hat"></div>
                     </div>
                   </div>
-                </div>
 
-                <div class="bag-item-desc-box">
-                  <p id="bag-item-desc" class="bag-item-desc"></p>
-                  <div class="bag-item-meta" id="bag-item-meta"></div>
-                </div>
+                  <!-- Linha Meio: Skin, Player Preview, Buddy -->
+                  <div class="bag-equip-row middle">
+                    <div class="bag-equip-slot-wrapper">
+                      <span class="bag-slot-label">SKIN</span>
+                      <div class="bag-equip-slot" data-equip-slot="skin" title="Skin / Traje de Treinador">
+                        <div class="bag-equip-item-container" id="equip-container-skin"></div>
+                      </div>
+                    </div>
 
-                <!-- Ações do Item -->
-                <div class="bag-item-actions">
-                  <button id="bag-btn-use" class="bag-action-btn bag-btn-use">
-                    USAR ITEM
-                  </button>
-                  <div class="bag-hotbar-assign-group">
-                    <span class="bag-assign-label">Equipar na Barra Rápida:</span>
-                    <div class="bag-hotbar-btn-group">
-                      <button class="bag-hotbar-quick-assign" data-slot="1">1</button>
-                      <button class="bag-hotbar-quick-assign" data-slot="2">2</button>
-                      <button class="bag-hotbar-quick-assign" data-slot="3">3</button>
-                      <button class="bag-hotbar-quick-assign" data-slot="4">4</button>
-                      <button class="bag-hotbar-quick-assign" data-slot="5">5</button>
+                    <div class="bag-player-preview-wrapper" title="Prévia do Treinador">
+                      <canvas id="bag-player-canvas" width="48" height="72"></canvas>
+                    </div>
+
+                    <div class="bag-equip-slot-wrapper">
+                      <span class="bag-slot-label">BUDDY</span>
+                      <div class="bag-equip-slot" data-equip-slot="buddy" title="Pokémon Companheiro">
+                        <div class="bag-equip-item-container" id="equip-container-buddy"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Linha Inferior: Ferramenta, Amuleto (Centro), Montaria -->
+                  <div class="bag-equip-row bottom">
+                    <div class="bag-equip-slot-wrapper">
+                      <span class="bag-slot-label">FERRAMENTA</span>
+                      <div class="bag-equip-slot" data-equip-slot="tool" title="Ferramenta Utilitária">
+                        <div class="bag-equip-item-container" id="equip-container-tool"></div>
+                      </div>
+                    </div>
+
+                    <div class="bag-equip-slot-wrapper slot-bottom">
+                      <span class="bag-slot-label">AMULETO</span>
+                      <div class="bag-equip-slot" data-equip-slot="amulet" title="Amuleto / Relíquia">
+                        <div class="bag-equip-item-container" id="equip-container-amulet"></div>
+                      </div>
+                    </div>
+
+                    <div class="bag-equip-slot-wrapper">
+                      <span class="bag-slot-label">MONTARIA</span>
+                      <div class="bag-equip-slot" data-equip-slot="mount" title="Montaria / Veículo">
+                        <div class="bag-equip-item-container" id="equip-container-mount"></div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -209,15 +228,16 @@ export default class BagUI {
     this.slotsGrid = document.getElementById('bag-slots-grid');
     this.capacityText = document.getElementById('bag-capacity-text');
     this.searchInput = document.getElementById('bag-search-input');
-    this.inspectorEmpty = document.querySelector('.bag-inspector-empty');
-    this.inspectorContent = document.getElementById('bag-inspector-content');
+    this.tierInfoFooter = document.getElementById('bag-tier-info');
 
-    this.previewImg = document.getElementById('bag-item-preview-img');
-    this.itemName = document.getElementById('bag-item-name');
-    this.categoryTag = document.getElementById('bag-item-category-tag');
-    this.qtyTag = document.getElementById('bag-item-qty-tag');
-    this.itemDesc = document.getElementById('bag-item-desc');
-    this.btnUse = document.getElementById('bag-btn-use');
+    this.equippedItems = {
+      hat: null,
+      skin: null,
+      buddy: null,
+      tool: null,
+      mount: null,
+      amulet: null
+    };
   }
 
   bindEvents() {
@@ -352,6 +372,46 @@ export default class BagUI {
           console.error('Error on quickSlot drop:', err);
         }
       }
+
+      if (bagSlot) {
+        const targetSlotIndex = parseInt(bagSlot.dataset.slotIndex);
+        try {
+          const raw = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('application/json');
+          if (!raw) return;
+          const data = JSON.parse(raw);
+
+          if (data.source === 'bag') {
+            const fromSlotIndex = data.slotIndex;
+            if (typeof fromSlotIndex === 'number' && !isNaN(targetSlotIndex) && fromSlotIndex !== targetSlotIndex) {
+              SocketClient.emit('inventory:swap', {
+                fromSlot: fromSlotIndex,
+                toSlot: targetSlotIndex
+              });
+
+              // Optimistic instant local swap for zero-latency feel
+              const slotA = this.inventory.find(s => s.slotIndex === fromSlotIndex);
+              const slotB = this.inventory.find(s => s.slotIndex === targetSlotIndex);
+              if (slotA && slotB) {
+                slotA.slotIndex = targetSlotIndex;
+                slotB.slotIndex = fromSlotIndex;
+              } else if (slotA && !slotB) {
+                slotA.slotIndex = targetSlotIndex;
+              }
+
+              if (this.selectedSlotIndex === fromSlotIndex) {
+                this.selectedSlotIndex = targetSlotIndex;
+              } else if (this.selectedSlotIndex === targetSlotIndex) {
+                this.selectedSlotIndex = fromSlotIndex;
+              }
+
+              this.renderSlots();
+              this.updateInspector();
+            }
+          }
+        } catch (err) {
+          console.error('Error on bagSlot drop:', err);
+        }
+      }
     });
 
     const quickBar = document.querySelector('.hud-quick-bar');
@@ -390,9 +450,33 @@ export default class BagUI {
       if (data.inventory) {
         this.inventory = data.inventory;
       }
+      if (data.equipment) {
+        try {
+          this.equippedItems = typeof data.equipment === 'string' ? JSON.parse(data.equipment) : data.equipment;
+        } catch (e) {}
+      }
       this.loadHotbar();
       this.sanitizeHotbar();
       this.updateHotbarView();
+    });
+
+    SocketClient.on('equipment:updated', (data) => {
+      if (data.equipment) {
+        try {
+          const newEquip = typeof data.equipment === 'string' ? JSON.parse(data.equipment) : data.equipment;
+          this.equippedItems = { ...this.equippedItems, ...newEquip };
+          if (this.isOpen) this.renderEquippedSlots();
+        } catch (e) {}
+      }
+    });
+
+    SocketClient.on('player:buddy_updated', (data) => {
+      const isLocal = data.socketId === SocketClient.socket?.id ||
+                      (this.character && data.characterId === this.character.id);
+      if (isLocal) {
+        this.equippedItems.buddy = data.buddy || null;
+        if (this.isOpen) this.renderEquippedSlots();
+      }
     });
 
     SocketClient.on('inventory:update', (data) => {
@@ -432,6 +516,26 @@ export default class BagUI {
     if (characterData.bagCapacity) {
       this.bagCapacity = characterData.bagCapacity;
     }
+    if (characterData.equipment) {
+      try {
+        const parsed = typeof characterData.equipment === 'string'
+          ? JSON.parse(characterData.equipment)
+          : characterData.equipment;
+        this.equippedItems = { ...this.equippedItems, ...parsed };
+      } catch (e) {}
+    }
+    const buddyPkmn = (characterData.pokemon || []).find(p => p.isBuddy);
+    if (buddyPkmn) {
+      const formattedId = String(buddyPkmn.speciesId).padStart(3, '0');
+      this.equippedItems.buddy = {
+        id: buddyPkmn.id,
+        speciesId: buddyPkmn.speciesId,
+        name: buddyPkmn.nickname || buddyPkmn.species?.name || buddyPkmn.name,
+        level: buddyPkmn.level,
+        isShiny: buddyPkmn.isShiny,
+        sprite: `${formattedId}.png`
+      };
+    }
     this.loadHotbar();
     this.sanitizeHotbar();
     this.updateHotbarView();
@@ -440,9 +544,14 @@ export default class BagUI {
   open() {
     this.isOpen = true;
     this.modal.classList.remove('hidden');
+    if (!this.equippedItems.buddy && this.worldScene?.localFollower?.buddyData) {
+      this.equippedItems.buddy = this.worldScene.localFollower.buddyData;
+    }
     this.sanitizeHotbar();
     this.renderSlots();
     this.updateCapacityBadge();
+    this.renderPlayerPreview();
+    this.renderEquippedSlots();
     if (this.worldScene) {
       this.worldScene.isBagOpen = true;
     }
@@ -464,6 +573,135 @@ export default class BagUI {
   updateCapacityBadge() {
     if (this.capacityText) {
       this.capacityText.innerText = `${this.inventory.length} / ${this.bagCapacity} Slots`;
+    }
+  }
+
+  renderPlayerPreview() {
+    const canvas = document.getElementById('bag-player-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const spriteName = this.character?.sprite || 'boy_run';
+    const img = new Image();
+    img.onload = () => {
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(img, 0, 0, 32, 48, 8, 12, 32, 48);
+      ctx.globalCompositeOperation = 'source-in';
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.globalCompositeOperation = 'source-over';
+    };
+    img.onerror = () => {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(8, 12, 32, 48);
+    };
+    img.src = `/assets/characters/${spriteName}.png`;
+  }
+
+  renderEquippedSlots() {
+    const slots = ['hat', 'skin', 'buddy', 'tool', 'mount', 'amulet'];
+    slots.forEach(slotKey => {
+      const container = document.getElementById(`equip-container-${slotKey}`);
+      if (!container) return;
+
+      const equipped = this.equippedItems[slotKey];
+
+      if (slotKey === 'buddy') {
+        const buddy = equipped ||
+                      this.equippedItems.buddy ||
+                      this.worldScene?.localFollower?.buddyData ||
+                      (this.character?.pokemon || []).find(p => p.isBuddy);
+
+        if (buddy) {
+          this.equippedItems.buddy = buddy;
+          container.innerHTML = '';
+
+          const canvas = document.createElement('canvas');
+          canvas.width = 64;
+          canvas.height = 64;
+          canvas.className = `bag-equipped-icon ${buddy.isShiny ? 'shiny-glow' : ''}`;
+          canvas.title = `${buddy.nickname || buddy.name || 'Pokémon'} (Lv.${buddy.level || 1})\n(Clique para alterar companheiro)`;
+          canvas.style.cursor = 'pointer';
+
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.imageSmoothingEnabled = false;
+
+            let formattedId = '001';
+            if (buddy.speciesId) {
+              formattedId = String(buddy.speciesId).padStart(3, '0');
+            } else if (buddy.sprite) {
+              formattedId = String(buddy.sprite).replace('.png', '').padStart(3, '0');
+            } else if (buddy.pokedexId) {
+              formattedId = String(buddy.pokedexId).padStart(3, '0');
+            } else if (buddy.species?.id) {
+              formattedId = String(buddy.species.id).padStart(3, '0');
+            }
+
+            const img = new Image();
+            img.onload = () => {
+              ctx.clearRect(0, 0, 64, 64);
+              const frameW = img.width / 2;
+              const frameH = img.height / 4;
+              // Frame 4 (DOWN idle = Olhando de frente): coluna 0, linha 2 (y = 2 * frameH)
+              const sx = 0;
+              const sy = frameH * 2;
+              ctx.drawImage(img, sx, sy, frameW, frameH, 0, 0, 64, 64);
+            };
+            img.onerror = () => {
+              if (buddy.icon) {
+                container.innerHTML = `<img src="${buddy.icon}" class="bag-equipped-icon" />`;
+              }
+            };
+            img.src = `/assets/pokemon/overworld/${formattedId}.png`;
+          }
+
+          container.appendChild(canvas);
+        } else {
+          container.innerHTML = `<span style="font-size: 10px; color: #78909c;">+ Selecionar</span>`;
+        }
+        container.onclick = (e) => {
+          e.stopPropagation();
+          if (!this.pokemonStorageUI) {
+            this.pokemonStorageUI = new PokemonStorageUI(this.worldScene);
+          }
+          this.pokemonStorageUI.open();
+        };
+      } else {
+        if (equipped) {
+          container.innerHTML = `
+            <img src="${equipped.icon}" class="bag-equipped-icon" title="${equipped.name}\n(Clique para desequipar)" />
+          `;
+          container.onclick = (e) => {
+            e.stopPropagation();
+            this.unequipItem(slotKey);
+          };
+        } else {
+          container.innerHTML = '';
+          container.onclick = null;
+        }
+      }
+    });
+  }
+
+  saveEquipment() {
+    const charId = this.character?.id || 'default';
+    try {
+      localStorage.setItem(`pokemmo_equipment_${charId}`, JSON.stringify(this.equippedItems));
+    } catch (e) {}
+    SocketClient.emit('equipment:update', { equipment: this.equippedItems });
+  }
+
+  unequipItem(slotKey) {
+    if (this.equippedItems[slotKey]) {
+      const name = this.equippedItems[slotKey].name;
+      this.equippedItems[slotKey] = null;
+      this.renderEquippedSlots();
+      this.saveEquipment();
+      this.showToast(`Item "${name}" desequipado!`);
     }
   }
 
@@ -558,30 +796,49 @@ export default class BagUI {
     }
 
     if (!slotData || !slotData.item) {
-      this.inspectorEmpty.classList.remove('hidden');
-      this.inspectorContent.classList.add('hidden');
+      this.selectedSlotIndex = null;
+      if (this.tierInfoFooter) {
+        this.tierInfoFooter.innerHTML = `
+          <span class="bag-dnd-hint">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" stroke-width="2" style="vertical-align: text-bottom; margin-right: 4px;">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="16" x2="12" y2="12"/>
+              <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            Arraste itens para os slots da Barra Rápida visível na parte inferior
+          </span>
+        `;
+      }
       return;
     }
 
     const item = slotData.item;
-    this.inspectorEmpty.classList.add('hidden');
-    this.inspectorContent.classList.remove('hidden');
+    const iconUrl = getItemIcon(item);
 
-    this.previewImg.src = getItemIcon(item);
-    this.previewImg.onerror = () => { this.previewImg.src = '/assets/ui/items/defaultitem.svg'; };
-    this.itemName.innerText = item.name;
-    this.categoryTag.innerText = getItemCategoryLabel(item.category);
-    this.qtyTag.innerText = `x${slotData.quantity}`;
-    this.itemDesc.innerText = item.description || 'Nenhuma descrição disponível.';
-
-    const metaBox = document.getElementById('bag-item-meta');
-    if (metaBox) {
-      metaBox.innerHTML = `
-        <div style="font-size: 11px; color: #94a3b8; display: flex; justify-content: space-between; margin-top: 6px;">
-          <span>Preço de Venda:</span>
-          <strong style="color: #ffd700;">¥ ${(item.price / 2).toLocaleString('pt-BR')}</strong>
+    if (this.tierInfoFooter) {
+      this.tierInfoFooter.innerHTML = `
+        <div class="bag-footer-item-bar">
+          <div class="bag-footer-item-preview">
+            <img src="${iconUrl}" alt="${item.name}" class="bag-footer-icon" onerror="this.onerror=null; this.src='/assets/ui/items/defaultitem.svg';" />
+          </div>
+          <div class="bag-footer-item-details">
+            <div class="bag-footer-item-head">
+              <strong class="bag-footer-item-title">${item.name}</strong>
+              <span class="bag-chip">x${slotData.quantity}</span>
+              <span class="bag-chip bag-chip-cat">${getItemCategoryLabel(item.category)}</span>
+            </div>
+            <p class="bag-footer-item-desc">${item.description || 'Sem descrição.'}</p>
+          </div>
+          <div class="bag-footer-item-actions">
+            <button id="bag-footer-btn-use" class="bag-action-btn bag-btn-use">USAR ITEM</button>
+          </div>
         </div>
       `;
+
+      const btnUse = document.getElementById('bag-footer-btn-use');
+      btnUse?.addEventListener('click', () => {
+        SocketClient.useItem(slotData.slotIndex, item.id);
+      });
     }
   }
 

@@ -26,6 +26,20 @@ function setupPlayerHandlers(io, socket) {
 
 
       // Add to Room Manager
+      const activeBuddyPkmn = (character.pokemon || []).find(p => p.isBuddy);
+      let activeBuddyData = null;
+      if (activeBuddyPkmn) {
+        const formattedId = String(activeBuddyPkmn.speciesId).padStart(3, '0');
+        activeBuddyData = {
+          id: activeBuddyPkmn.id,
+          speciesId: activeBuddyPkmn.speciesId,
+          name: activeBuddyPkmn.nickname || activeBuddyPkmn.name,
+          level: activeBuddyPkmn.level,
+          isShiny: activeBuddyPkmn.isShiny || false,
+          sprite: `${formattedId}.png`
+        };
+      }
+
       const player = roomManager.addPlayer(socket.id, {
         userId: socket.user.userId,
         characterId: character.id,
@@ -35,7 +49,8 @@ function setupPlayerHandlers(io, socket) {
         roomId: character.roomId,
         x: spawnX,
         y: spawnY,
-        direction: character.direction
+        direction: character.direction,
+        activeBuddy: activeBuddyData
       });
 
       // Join socket room
@@ -51,6 +66,7 @@ function setupPlayerHandlers(io, socket) {
         allRooms: roomManager.getAllRooms(),
         money: character.money,
         bagCapacity: character.bagCapacity || 24,
+        equipment: character.equipment || '{}',
         inventory: character.inventory,
         pokedex: character.pokedex,
         pokemon: character.pokemon,

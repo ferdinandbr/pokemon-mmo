@@ -932,7 +932,8 @@ class RoomManager {
       x: typeof playerData.x === 'number' ? playerData.x : roomDef.defaultSpawn.x,
       y: typeof playerData.y === 'number' ? playerData.y : roomDef.defaultSpawn.y,
       direction: playerData.direction || 'down',
-      isMoving: false
+      isMoving: false,
+      activeBuddy: playerData.activeBuddy || null
     };
 
     this.players.set(socketId, player);

@@ -29,6 +29,7 @@ model Character {
   direction String   @default("down") // "down", "left", "right", "up"
   money     Int      @default(3000)
   bagCapacity Int    @default(24)
+  equipment String?  @default("{}")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -71,17 +72,81 @@ model PokedexEntry {
   @@unique([characterId, pokemonNumber])
 }
 
-model Pokemon {
-  id          Int       @id @default(autoincrement())
-  characterId Int
-  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
-  speciesId   Int
-  name        String
-  level       Int       @default(5)
-  currentHp   Int       @default(20)
-  maxHp       Int       @default(20)
-  moves       String    @default("[]") // JSON string of moves
-  isParty     Boolean   @default(true)
-  slot        Int       @default(0)
-  createdAt   DateTime  @default(now())
+model PokemonSpecies {
+  id           Int       @id // Pokedex Number (1 to 151)
+  name         String
+  internalName String
+  type1        String
+  type2        String?
+  baseHp       Int
+  baseAttack   Int
+  baseDefense  Int
+  baseSpAtk    Int
+  baseSpDef    Int
+  baseSpeed    Int
+  genderRate   String    @default("Genderless")
+  growthRate   String    @default("MediumFast")
+  baseExp      Int       @default(64)
+  evolutions   String    @default("[]") // JSON string of evolution rules
+  moves        String    @default("[]") // JSON string of learnset [{level, moveInternalName}]
+  instances    Pokemon[]
 }
+
+model MoveData {
+  id           Int     @id @default(autoincrement())
+  name         String
+  internalName String  @unique
+  type         String
+  category     String  @default("Physical") // Physical, Special, Status
+  power        Int     @default(0)
+  accuracy     Int     @default(100)
+  pp           Int     @default(35)
+  description  String? @default("")
+}
+
+model Pokemon {
+  id          Int            @id @default(autoincrement())
+  characterId Int
+  character   Character      @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  speciesId   Int
+  species     PokemonSpecies @relation(fields: [speciesId], references: [id])
+  nickname    String?
+  level       Int            @default(5)
+  exp         Int            @default(0)
+  gender      String         @default("M") // "M", "F", "G"
+  isShiny     Boolean        @default(false)
+  currentHp   Int            @default(20)
+  maxHp       Int            @default(20)
+
+  // Individual Values (0 to 31)
+  ivHp        Int            @default(15)
+  ivAtk       Int            @default(15)
+  ivDef       Int            @default(15)
+  ivSpAtk     Int            @default(15)
+  ivSpDef     Int            @default(15)
+  ivSpeed     Int            @default(15)
+
+  // Effort Values (0 to 252)
+  evHp        Int            @default(0)
+  evAtk       Int            @default(0)
+  evDef       Int            @default(0)
+  evSpAtk     Int            @default(0)
+  evSpDef     Int            @default(0)
+  evSpeed     Int            @default(0)
+
+  // Calculated Stats JSON { hp, attack, defense, spAtk, spDef, speed }
+  stats       String         @default("{}")
+
+  // Active Moves JSON array [{ id, name, type, category, power, pp, maxPp }]
+  moves       String         @default("[]")
+
+  // Storage & Party Management
+  location    String         @default("party") // "party" or "storage"
+  partySlot   Int?           @default(0)       // 0 to 5 for party
+  boxNumber   Int            @default(1)       // PC Box 1 to 10
+  boxSlot     Int            @default(0)       // Slot 0 to 29 in box
+  isBuddy     Boolean        @default(false)   // Active follower buddy
+
+  createdAt   DateTime       @default(now())
+}
+

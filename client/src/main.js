@@ -9,6 +9,7 @@ import ChatUI from './ui/ChatUI';
 import MenuUI from './ui/MenuUI';
 import EditorUI from './ui/EditorUI';
 import BagUI from './ui/BagUI';
+import PokemonStorageUI from './ui/PokemonStorageUI';
 
 // Phaser Game Configuration
 const config = {
@@ -64,7 +65,7 @@ game.events.once('ready', () => {
 });
 
 // Initialize UI Controllers
-let authUI, charUI, chatUI, menuUI, bagUI;
+let authUI, charUI, chatUI, menuUI, bagUI, pokemonStorageUI;
 
 function checkRoute() {
   const isEditorRoute = window.location.hash.startsWith('#editor') || window.location.pathname.startsWith('/editor');
@@ -123,6 +124,27 @@ function initApp() {
 
   chatUI = new ChatUI(worldSceneInstance);
   bagUI = new BagUI(worldSceneInstance);
+  pokemonStorageUI = new PokemonStorageUI(worldSceneInstance);
+  bagUI.pokemonStorageUI = pokemonStorageUI;
+
+  // Hook hud-btn-pokemon directly to PokemonStorageUI toggle
+  const hudPkmnBtn = document.getElementById('hud-btn-pokemon');
+  if (hudPkmnBtn) {
+    hudPkmnBtn.onclick = (e) => {
+      e.stopPropagation();
+      pokemonStorageUI.toggle();
+    };
+  }
+
+  // Hook menu-btn-pokemon to open PokemonStorageUI and close menu
+  const menuPkmnBtn = document.getElementById('menu-btn-pokemon');
+  if (menuPkmnBtn) {
+    menuPkmnBtn.onclick = (e) => {
+      e.stopPropagation();
+      menuUI.hide();
+      pokemonStorageUI.open();
+    };
+  }
 
   // Hook hud-btn-bag directly to BagUI toggle
   const hudBagBtn = document.getElementById('hud-btn-bag');
@@ -175,6 +197,7 @@ function initApp() {
       SocketClient.connect(token);
       SocketClient.on('connect', () => {
         SocketClient.joinGame(character.id);
+        SocketClient.emit('pokemon:get_data');
       });
     },
     () => {

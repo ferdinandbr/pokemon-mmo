@@ -157,7 +157,7 @@ export default class MenuUI {
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px;">
         <div><strong>Nome:</strong> ${char.name}</div>
         <div><strong>ID Nº:</strong> ${trainerId}</div>
-        <div><strong>Dinheiro:</strong> ₽ ${char.money.toLocaleString('pt-BR')}</div>
+        <div><strong>Dinheiro:</strong> <img src="/assets/ui/hud_gold.png" style="width:14px;height:14px;vertical-align:-2px;image-rendering:pixelated;" alt="Gold" /> ${char.money.toLocaleString('pt-BR')}</div>
         <div><strong>Insígnias:</strong> 0 / 8</div>
         <div><strong>Região:</strong> Kanto</div>
         <div><strong>Local Atual:</strong> ${char.roomId}</div>

@@ -42,6 +42,9 @@ class SocketClient {
       'player:joined',
       'player:moved',
       'player:left',
+      'player:buddy_updated',
+      'pokemon:data_response',
+      'equipment:updated',
       'room:changed',
       'chat:message',
       'server:stats',
@@ -88,6 +91,11 @@ class SocketClient {
   swapInventorySlots(fromSlot, toSlot) {
     if (!this.socket) return;
     this.socket.emit('inventory:swap', { fromSlot, toSlot });
+  }
+
+  emit(event, data) {
+    if (!this.socket) return;
+    this.socket.emit(event, data);
   }
 
   on(event, callback) {

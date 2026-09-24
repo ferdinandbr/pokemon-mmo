@@ -39,6 +39,14 @@ export default class BootScene extends Phaser.Scene {
       this.load.tilemapTiledJSON(mapKey, `/assets/maps/${mapKey}.json?t=${timestamp}`);
     }
 
+    // ── Pokémon Overworld Spritesheets (151 Gen 1, 64×64 per frame) ──
+    for (let id = 1; id <= 151; id++) {
+      const formattedId = String(id).padStart(3, '0');
+      this.load.spritesheet(`pkmn_${formattedId}`, `/assets/pokemon/overworld/${formattedId}.png?t=${timestamp}`, {
+        frameWidth: 64,
+        frameHeight: 64
+      });
+    }
   }
 
   create() {
@@ -76,6 +84,26 @@ export default class BootScene extends Phaser.Scene {
       ctx.arc(3.5, 4.5, 2.2, 0, Math.PI * 2);
       ctx.fill();
       dustCanvas.refresh();
+    }
+
+    // 3. Shiny Star Sparkle Particle Texture
+    if (!this.textures.exists('star_sparkle')) {
+      const starCanvas = this.textures.createCanvas('star_sparkle', 16, 16);
+      const ctx = starCanvas.getContext();
+      ctx.fillStyle = '#ffea00';
+      ctx.beginPath();
+      // Draw a tiny 4-point star
+      ctx.moveTo(8, 0);
+      ctx.lineTo(10, 6);
+      ctx.lineTo(16, 8);
+      ctx.lineTo(10, 10);
+      ctx.lineTo(8, 16);
+      ctx.lineTo(6, 10);
+      ctx.lineTo(0, 8);
+      ctx.lineTo(6, 6);
+      ctx.closePath();
+      ctx.fill();
+      starCanvas.refresh();
     }
   }
 
