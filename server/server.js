@@ -1,6 +1,6 @@
-require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const http = require('http');
 const express = require('express');
 const cors = require('cors');
@@ -28,6 +28,7 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '50mb' }));
+
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -98,7 +99,7 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`===========================================`);
   console.log(` Pokémon Fire Red MMO Server rodando na porta ${PORT}`);
-  console.log(` PostgreSQL + Prisma ORM conectado`);
+  console.log(` SQLite + Prisma ORM conectado`);
   console.log(`===========================================`);
 
   // Start authoritative Day/Night and Weather service

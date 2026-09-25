@@ -28,22 +28,23 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
     switch (direction) {
       case 'down':
         // Quando o player olha para baixo, o Pokémon fica atrás (acima da cabeça/boné)
-        return 50;
+        return 36;
 
       case 'up':
         // Quando o player olha para cima, o Pokémon fica abaixo dos pés
-        return 42;
+        return 32;
 
       case 'left':
       case 'right':
       default:
         // Laterais: afasta da mochila/lateral do player (evita colar no sprite)
-        return 44;
+        return 34;
     }
   }
 
   // Quantos pixels de movimento real para trocar idle/step (cadência suave)
   static STEP_INTERVAL = 26;
+  static FOLLOW_DISTANCE = 34;
 
   static idleFrame(direction) {
     switch (direction) {
@@ -225,6 +226,10 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
     this.buddyData = buddyData;
 
     this.direction = direction;
+    this.ownerTrail = [
+      { x: position.x, y: position.y },
+      { x: ownerX, y: ownerY }
+    ];
 
     // Estado de movimento e pulo do barranco
     this.isMoving = false;
@@ -251,6 +256,44 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
     scene.add.existing(this);
 
     this.setDepth(100 + this.y / 10000);
+  }
+
+  recordOwnerPosition(ownerX, ownerY) {
+    const last = this.ownerTrail[this.ownerTrail.length - 1];
+    const distance = last ? Math.hypot(ownerX - last.x, ownerY - last.y) : Infinity;
+
+    if (distance > 120) {
+      this.ownerTrail = [{ x: this.x, y: this.y }, { x: ownerX, y: ownerY }];
+      return true;
+    }
+
+    if (distance >= 0.5) {
+      this.ownerTrail.push({ x: ownerX, y: ownerY });
+      if (this.ownerTrail.length > 240) this.ownerTrail.splice(0, this.ownerTrail.length - 240);
+    }
+    return false;
+  }
+
+  getTrailTarget() {
+    if (!this.ownerTrail.length) return { x: this.x, y: this.y };
+    let remaining = FollowerPokemon.FOLLOW_DISTANCE;
+
+    for (let index = this.ownerTrail.length - 1; index > 0; index--) {
+      const newer = this.ownerTrail[index];
+      const older = this.ownerTrail[index - 1];
+      const segment = Math.hypot(newer.x - older.x, newer.y - older.y);
+      if (segment <= 0) continue;
+      if (remaining <= segment) {
+        const ratio = remaining / segment;
+        return {
+          x: newer.x + (older.x - newer.x) * ratio,
+          y: newer.y + (older.y - newer.y) * ratio
+        };
+      }
+      remaining -= segment;
+    }
+
+    return this.ownerTrail[0];
   }
 
   createVisual() {
@@ -511,6 +554,10 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
         this.lastY = this.y;
         this.lastOwnerX = Math.round(this.ownerSprite?.x ?? this.x);
         this.lastOwnerY = Math.round(this.ownerSprite?.y ?? this.y);
+        this.ownerTrail = [
+          { x: this.x, y: this.y },
+          { x: this.lastOwnerX, y: this.lastOwnerY }
+        ];
         this.setDepth(100 + this.y / 10000);
 
         this.setPokemonFrame(FollowerPokemon.idleFrame(this.direction));
@@ -643,18 +690,8 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
     }
 
     /**
-     * Mudança de direção: atualiza facing limpo sem squash deformador
-     */
-    if (direction !== this.direction) {
-      this.direction = direction;
-      this.setPokemonFrame(
-        FollowerPokemon.idleFrame(direction)
-      );
-    }
-
-    /**
      * ---------------------------------------------------------
-     * POSIÇÃO: DISTÂNCIA RIGOROSAMENTE IDÊNTICA + TRANSIÇÃO SUAVE AO VIRAR
+     * POSIÇÃO: segue exatamente o rastro percorrido pelo treinador.
      * ---------------------------------------------------------
      */
 
@@ -663,42 +700,14 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
       this.lastOwnerY = ownerY;
     }
 
-    const playerDx = ownerX - this.lastOwnerX;
-    const playerDy = ownerY - this.lastOwnerY;
     this.lastOwnerX = ownerX;
     this.lastOwnerY = ownerY;
-
-    const target = this.getValidTarget(
-      ownerX,
-      ownerY,
-      direction
-    );
-
-    const distToTarget = Math.hypot(target.x - this.x, target.y - this.y);
-
-    if (distToTarget > 120) {
-      // Teleporte, warp ou troca abrupta de mapa: alinha imediatamente
-      this.x = target.x;
-      this.y = target.y;
-    } else {
-      // 1. Move junto com o player de forma contínua (elimina 100% da trepidação de arredondamento)
-      this.x += playerDx;
-      this.y += playerDy;
-
-      // 2. Interpola suavemente o reposicionamento lateral durante curvas
-      const diffX = target.x - this.x;
-      const diffY = target.y - this.y;
-      const remainingDist = Math.hypot(diffX, diffY);
-
-      if (remainingDist <= 0.05) {
-        this.x = target.x;
-        this.y = target.y;
-      } else {
-        const factor = 1 - Math.exp(-14 * (delta / 1000));
-        this.x += diffX * factor;
-        this.y += diffY * factor;
-      }
-    }
+    const teleported = this.recordOwnerPosition(ownerX, ownerY);
+    const target = teleported
+      ? FollowerPokemon.behindPosition(ownerX, ownerY, direction, FollowerPokemon.FOLLOW_DISTANCE)
+      : this.getTrailTarget();
+    this.x = target.x;
+    this.y = target.y;
 
     /**
      * ---------------------------------------------------------
@@ -707,8 +716,20 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
      */
 
     const moveDist = Math.hypot(this.x - this.lastX, this.y - this.lastY);
+    const moveX = this.x - this.lastX;
+    const moveY = this.y - this.lastY;
     this.lastX = this.x;
     this.lastY = this.y;
+
+    if (moveDist > 0.05) {
+      const pathDirection = Math.abs(moveX) >= Math.abs(moveY)
+        ? (moveX < 0 ? 'left' : 'right')
+        : (moveY < 0 ? 'up' : 'down');
+      if (pathDirection !== this.direction) {
+        this.direction = pathDirection;
+        this.setPokemonFrame(FollowerPokemon.idleFrame(this.direction));
+      }
+    }
 
     // Está em movimento se o Pokémon ou o dono está se deslocando
     const isMoving = moveDist > 0.05 || Boolean(ownerMoving);

@@ -97,39 +97,32 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
     let vy = 0;
     let newDirection = this.direction;
 
-    // WASD and Arrow Keys
-    const isUp = this.keys.up.isDown || this.keys.arrowUp.isDown;
-    const isDown = this.keys.down.isDown || this.keys.arrowDown.isDown;
-    const isLeft = this.keys.left.isDown || this.keys.arrowLeft.isDown;
-    const isRight = this.keys.right.isDown || this.keys.arrowRight.isDown;
+    // Only one cardinal direction is active. When multiple keys are held,
+    // the most recently pressed one wins (W held + A pressed => left).
+    const directionInputs = [
+      { direction: 'up', keys: [this.keys.up, this.keys.arrowUp] },
+      { direction: 'down', keys: [this.keys.down, this.keys.arrowDown] },
+      { direction: 'left', keys: [this.keys.left, this.keys.arrowLeft] },
+      { direction: 'right', keys: [this.keys.right, this.keys.arrowRight] }
+    ];
+    const activeInput = directionInputs
+      .map(input => ({
+        direction: input.direction,
+        pressedAt: Math.max(...input.keys.filter(key => key.isDown).map(key => key.timeDown), -1)
+      }))
+      .filter(input => input.pressedAt >= 0)
+      .sort((a, b) => b.pressedAt - a.pressedAt)[0];
 
-    if (isLeft) {
-      vx = -this.speed;
-      newDirection = 'left';
-    } else if (isRight) {
-      vx = this.speed;
-      newDirection = 'right';
-    }
-
-    if (isUp) {
-      vy = -this.speed;
-      newDirection = 'up';
-    } else if (isDown) {
-      vy = this.speed;
-      newDirection = 'down';
+    if (activeInput) {
+      newDirection = activeInput.direction;
+      if (newDirection === 'left') vx = -this.speed;
+      else if (newDirection === 'right') vx = this.speed;
+      else if (newDirection === 'up') vy = -this.speed;
+      else if (newDirection === 'down') vy = this.speed;
     }
 
     // Check for ledge jump (one-way hop in permitted direction)
-    if (isDown && this._checkLedgeJump('down')) return;
-    if (isLeft && this._checkLedgeJump('left')) return;
-    if (isRight && this._checkLedgeJump('right')) return;
-    if (isUp && this._checkLedgeJump('up')) return;
-
-    // Diagonal normalization
-    if (vx !== 0 && vy !== 0) {
-      vx *= 0.7071;
-      vy *= 0.7071;
-    }
+    if (activeInput && this._checkLedgeJump(newDirection)) return;
 
     this.body.setVelocity(vx, vy);
 

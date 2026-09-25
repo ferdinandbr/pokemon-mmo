@@ -24,6 +24,30 @@ async function main() {
     });
   }
 
+  await prisma.pokemonSpecies.upsert({
+    where: { id: 25 },
+    update: {},
+    create: {
+      id: 25,
+      name: 'Pikachu',
+      internalName: 'PIKACHU',
+      type1: 'ELECTRIC',
+      baseHp: 35,
+      baseAttack: 55,
+      baseDefense: 40,
+      baseSpAtk: 50,
+      baseSpDef: 50,
+      baseSpeed: 90,
+      genderRate: 'Female50Percent',
+      growthRate: 'MediumFast',
+      baseExp: 112,
+      moves: JSON.stringify([
+        { level: 1, moveInternalName: 'THUNDERSHOCK' },
+        { level: 1, moveInternalName: 'GROWL' }
+      ])
+    }
+  });
+
   console.log('Database seeded successfully!');
 }
 

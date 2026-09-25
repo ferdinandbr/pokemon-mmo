@@ -24,8 +24,10 @@ async function createCharacter({ userId, name, gender, sprite }) {
   const validSprites = ['boy_run', 'girl_run'];
   const charSprite = validSprites.includes(sprite) ? sprite : (charGender === 'female' ? 'girl_run' : 'boy_run');
 
+  let character = null;
+  try {
   // Spawn position in Pallet Town
-  const character = await prisma.character.create({
+  character = await prisma.character.create({
     data: {
       userId,
       name: trimmedName,
@@ -119,7 +121,14 @@ async function createCharacter({ userId, name, gender, sprite }) {
     forceBuddy: true
   });
 
-  return getCharacterDetails(character.id);
+  return await getCharacterDetails(character.id);
+  } catch (error) {
+    // Never reserve a name when the starter kit or Pokémon creation fails.
+    if (character) {
+      await prisma.character.delete({ where: { id: character.id } }).catch(() => {});
+    }
+    throw error;
+  }
 }
 
 async function getUserCharacters(userId) {
