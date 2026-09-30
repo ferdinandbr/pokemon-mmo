@@ -284,16 +284,20 @@ export default class DayNightManager {
       let normY = 0.5;
 
       if (localPlayer) {
-        const screenX = (localPlayer.x - camera.scrollX) * camera.zoom;
-        const screenY = (localPlayer.y - camera.scrollY) * camera.zoom;
-        normX = screenX / camera.width;
-        normY = 1.0 - (screenY / camera.height); // WebGL Y invertido (0 embaixo, 1 em cima)
+        const wv = camera.worldView;
+        if (wv && wv.width > 0 && wv.height > 0) {
+          normX = (localPlayer.x - wv.x) / wv.width;
+          normY = 1.0 - ((localPlayer.y - wv.y) / wv.height);
+        } else {
+          normX = 0.5;
+          normY = 0.5;
+        }
       }
 
-      this.pipelineInstance.lightX = normX;
-      this.pipelineInstance.lightY = normY;
+      this.pipelineInstance.lightX = Phaser.Math.Clamp(normX, -0.2, 1.2);
+      this.pipelineInstance.lightY = Phaser.Math.Clamp(normY, -0.2, 1.2);
       this.pipelineInstance.aspect = camera.width / camera.height;
-      this.pipelineInstance.lightRadius = 0.24; // Raio de iluminação acolhedor e focado da tocha/lanterna
+      this.pipelineInstance.lightRadius = 0.30; // Raio de iluminação acolhedor e focado da tocha/lanterna
       this.pipelineInstance.flicker = Math.sin(time * 0.007) * 0.02 + Math.sin(time * 0.019) * 0.012;
 
       this._updatePipelinePhase(state);

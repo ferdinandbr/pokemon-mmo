@@ -1,6 +1,7 @@
 const roomManager = require('../rooms/roomManager');
 const characterService = require('../services/characterService');
 const worldService = require('../services/worldService');
+const pokemonService = require('../services/pokemonService');
 
 function setupPlayerHandlers(io, socket) {
   socket.on('player:join', async (payload) => {
@@ -30,12 +31,17 @@ function setupPlayerHandlers(io, socket) {
       let activeBuddyData = null;
       if (activeBuddyPkmn) {
         const formattedId = String(activeBuddyPkmn.speciesId).padStart(3, '0');
+        const curHp = typeof activeBuddyPkmn.currentHp === 'number' ? activeBuddyPkmn.currentHp : (activeBuddyPkmn.maxHp || 20);
+        const maxHp = activeBuddyPkmn.maxHp || 20;
         activeBuddyData = {
           id: activeBuddyPkmn.id,
           speciesId: activeBuddyPkmn.speciesId,
           name: activeBuddyPkmn.nickname || activeBuddyPkmn.name,
           level: activeBuddyPkmn.level,
           isShiny: activeBuddyPkmn.isShiny || false,
+          currentHp: curHp,
+          maxHp,
+          isFainted: curHp <= 0,
           sprite: `${formattedId}.png`
         };
       }
@@ -47,6 +53,8 @@ function setupPlayerHandlers(io, socket) {
         name: character.name,
         gender: character.gender,
         sprite: character.sprite,
+        level: character.level || 1,
+        exp: character.exp || 0,
         roomId: character.roomId,
         x: spawnX,
         y: spawnY,
@@ -75,6 +83,14 @@ function setupPlayerHandlers(io, socket) {
         pokemon: character.pokemon,
         worldState: worldService.getFullWorldState()
       });
+
+      // Send initial active party and storage data automatically on join
+      try {
+        const pokemonData = await pokemonService.getCharacterPokemonData(player.characterId);
+        socket.emit('pokemon:data_response', { success: true, ...pokemonData });
+      } catch (pkErr) {
+        console.warn('[PlayerJoin] Error sending initial pokemon data:', pkErr);
+      }
 
       // Notify others in room
       socket.to(player.roomId).emit('player:joined', player);

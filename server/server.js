@@ -14,8 +14,10 @@ const setupPlayerHandlers = require('./src/sockets/playerHandler');
 const setupChatHandlers = require('./src/sockets/chatHandler');
 const setupInventoryHandlers = require('./src/sockets/inventoryHandler');
 const setupPokemonHandlers = require('./src/sockets/pokemonHandler');
+const setupBattleHandlers = require('./src/sockets/battleHandler');
 
 const mapRoutes = require('./src/routes/mapRoutes');
+const moveRegistry = require('./src/services/moves/MoveRegistry');
 
 const app = express();
 const server = http.createServer(app);
@@ -88,6 +90,7 @@ io.on('connection', (socket) => {
   setupChatHandlers(io, socket);
   setupInventoryHandlers(io, socket);
   setupPokemonHandlers(io, socket);
+  setupBattleHandlers(io, socket);
 
   socket.on('error', (err) => {
     console.error(`[Socket Error] ${socket.id}:`, err);
@@ -95,11 +98,18 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`===========================================`);
   console.log(` Pokémon Fire Red MMO Server rodando na porta ${PORT}`);
   console.log(` PostgreSQL + Prisma ORM conectado`);
   console.log(`===========================================`);
+
+  // Initialize in-memory moves registry
+  try {
+    await moveRegistry.init();
+  } catch (err) {
+    console.error('[Startup Error] Falha ao carregar MoveRegistry:', err);
+  }
 
   // Start authoritative Day/Night and Weather service
   worldService.init(io);

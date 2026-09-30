@@ -6,6 +6,12 @@ export default class BootScene extends Phaser.Scene {
   }
 
   preload() {
+    // Progresso real no loader (pokebola + "Carregando... N%")
+    this.load.on('progress', (value) => {
+      const pct = document.getElementById('loader-pct');
+      if (pct) pct.textContent = ` ${Math.round(value * 100)}%`;
+    });
+
     // ── Character spritesheets (Fire Red, 32×48 per frame) ──
     this.load.spritesheet('boy_run', '/assets/characters/boy_run.png', {
       frameWidth: 32,
@@ -56,6 +62,12 @@ export default class BootScene extends Phaser.Scene {
   create() {
     this._generateVisualTextures();
     this._createAnimations();
+    // Preload concluído: esconde o loader com fade
+    const loader = document.getElementById('game-loader');
+    if (loader) {
+      loader.classList.add('done');
+      setTimeout(() => loader.classList.add('hidden'), 450);
+    }
     const isEditorRoute = window.location.hash.startsWith('#editor') || window.location.pathname.startsWith('/editor');
     if (!isEditorRoute) {
       this.scene.start('WorldScene');

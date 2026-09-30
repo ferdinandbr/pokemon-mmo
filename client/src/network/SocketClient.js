@@ -36,7 +36,12 @@ class SocketClient {
       this.emitInternal('error', err.message);
     });
 
-    // Game events
+    // Dynamically forward any socket event to registered internal listeners
+    this.socket.onAny((event, ...args) => {
+      this.emitInternal(event, args[0]);
+    });
+
+    // Explicitly tracked game events
     const forwardEvents = [
       'player:init',
       'player:joined',
@@ -44,6 +49,9 @@ class SocketClient {
       'player:left',
       'player:buddy_updated',
       'pokemon:data_response',
+      'pokemon:learn_move_prompt',
+      'pokemon:move_learned',
+      'pokemon:move_replaced',
       'equipment:updated',
       'room:changed',
       'chat:message',
@@ -54,8 +62,15 @@ class SocketClient {
       'inventory:update',
       'inventory:used_result',
       'character:update',
+      'character:progress_update',
       'money:updated',
-      'player:intro_completed'
+      'player:intro_completed',
+      'pokemon:evolution_eligible',
+      'pokemon:evolve_success',
+      'battle:started',
+      'battle:start_failed',
+      'battle:turn_result',
+      'battle:action_error'
     ];
 
     for (const event of forwardEvents) {
@@ -85,9 +100,9 @@ class SocketClient {
     this.socket.emit('chat:send', { message, channel, target });
   }
 
-  useItem(slotIndex, itemId = null) {
+  useItem(slotIndex, itemId = null, pokemonId = null) {
     if (!this.socket) return;
-    this.socket.emit('inventory:use', { slotIndex, itemId });
+    this.socket.emit('inventory:use', { slotIndex, itemId, pokemonId });
   }
 
   swapInventorySlots(fromSlot, toSlot) {

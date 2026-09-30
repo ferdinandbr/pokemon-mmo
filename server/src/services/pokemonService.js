@@ -1,4 +1,6 @@
 const prisma = require('../database');
+const moveRegistry = require('./moves/MoveRegistry');
+const moveManager = require('./moves/MoveManager');
 
 class PokemonService {
   /**
@@ -65,74 +67,41 @@ class PokemonService {
   }
 
   /**
-   * Selects up to 4 moves from learnset up to specified level
+   * Formats a Pokemon object for client consumption, inflating moves definitions from MoveRegistry.
+   */
+  formatPokemonForClient(pkmn) {
+    if (!pkmn) return null;
+    const copy = { ...pkmn };
+    copy.friendship = pkmn.friendship !== undefined && pkmn.friendship !== null ? pkmn.friendship : 70;
+    copy.moves = moveRegistry.inflateMovesList(pkmn.moves);
+    return copy;
+  }
+
+  /**
+   * Selects up to 4 moves from learnset up to specified level using MoveManager.
    */
   async selectMovesForLevel(species, level) {
-    let learnset = [];
-    try {
-      learnset = JSON.parse(species.moves || '[]');
-    } catch (e) {
-      learnset = [];
-    }
-
-    const eligibleMoves = learnset
-      .filter(m => m.level <= level)
-      .slice(-4); // Take up to 4 most recent moves
-
-    const activeMoves = [];
-    for (const item of eligibleMoves) {
-      const moveData = await prisma.moveData.findUnique({
-        where: { internalName: item.moveInternalName }
-      });
-
-      if (moveData) {
-        activeMoves.push({
-          id: moveData.id,
-          name: moveData.name,
-          internalName: moveData.internalName,
-          type: moveData.type,
-          category: moveData.category,
-          power: moveData.power,
-          accuracy: moveData.accuracy,
-          pp: moveData.pp,
-          maxPp: moveData.pp
-        });
-      } else {
-        activeMoves.push({
-          id: 0,
-          name: item.moveInternalName,
-          internalName: item.moveInternalName,
-          type: 'NORMAL',
-          category: 'Physical',
-          power: 40,
-          accuracy: 100,
-          pp: 35,
-          maxPp: 35
-        });
-      }
-    }
-
-    if (activeMoves.length === 0) {
-      activeMoves.push({
-        id: 1,
-        name: 'Tackle',
-        internalName: 'TACKLE',
-        type: 'NORMAL',
-        category: 'Physical',
-        power: 40,
-        accuracy: 100,
-        pp: 35,
-        maxPp: 35
-      });
-    }
-
-    return activeMoves;
+    await moveRegistry.ensureLoaded();
+    return moveManager.selectMovesForInitialLevel(species, level);
   }
 
   /**
    * Spawns / Creates a Pokemon for a Character
    */
-  async createPokemon({ characterId, speciesIdOrName, level = 5, isShiny = null, forceBuddy = true, targetLocation = null }) {
+  async createPokemon({
+    characterId,
+    speciesIdOrName,
+    level = 5,
+    isShiny = null,
+    forceBuddy = true,
+    targetLocation = null,
+    caughtLocation = null,
+    caughtLevel = null,
+    caughtBall = 'poke-ball',
+    originalTrainerId = null,
+    originalTrainerName = null,
+    obtainedMethod = 'capture'
+  }) {
     const species = await this.resolveSpecies(speciesIdOrName);
     if (!species) {
       throw new Error(`Espécie de Pokémon "${speciesIdOrName}" não encontrada.`);
@@ -199,14 +168,38 @@ class PokemonService {
       });
     }
 
-    // Create DB instance
+    // Automatically resolve Original Trainer (OT) and Location if not provided
+    let otId = originalTrainerId;
+    let otName = originalTrainerName;
+    let loc = caughtLocation;
+
+    if (!otId || !otName || !loc) {
+      const char = await prisma.character.findUnique({
+        where: { id: characterId },
+        select: { id: true, name: true, roomId: true }
+      });
+      if (char) {
+        if (!otId) otId = char.id;
+        if (!otName) otName = char.name;
+        if (!loc) {
+          try {
+            const roomManager = require('../rooms/roomManager');
+            loc = roomManager.ROOM_DEFINITIONS?.[char.roomId]?.name || 'Rota 1';
+          } catch (e) {
+            loc = 'Rota 1';
+          }
+        }
+      }
+    }
+
+    // Create DB instance with permanent provenance / birth certificate
     const newPokemon = await prisma.pokemon.create({
       data: {
         characterId,
         speciesId: species.id,
         nickname: null,
         level,
-        exp: 0,
+        exp: Math.pow(level, 3),
         gender,
         isShiny: shiny,
         currentHp: calculatedStats.hp,
@@ -229,7 +222,14 @@ class PokemonService {
         partySlot,
         boxNumber,
         boxSlot,
-        isBuddy: shouldBeBuddy
+        isBuddy: shouldBeBuddy,
+        caughtLocation: loc || 'Rota 1',
+        caughtAt: new Date(),
+        caughtLevel: caughtLevel !== null && caughtLevel !== undefined ? caughtLevel : level,
+        caughtBall: caughtBall || 'poke-ball',
+        originalTrainerId: otId || characterId,
+        originalTrainerName: otName || 'Treinador',
+        obtainedMethod: obtainedMethod || 'capture'
       },
       include: { species: true }
     });
@@ -238,7 +238,7 @@ class PokemonService {
       await this.updateCharacterEquipmentBuddy(characterId, newPokemon);
     }
 
-    return newPokemon;
+    return this.formatPokemonForClient(newPokemon);
   }
 
   /**
@@ -268,7 +268,7 @@ class PokemonService {
     });
 
     await this.updateCharacterEquipmentBuddy(characterId, updated);
-    return updated;
+    return this.formatPokemonForClient(updated);
   }
 
   /**
@@ -311,11 +311,25 @@ class PokemonService {
    * Gets character's active party, storage boxes, and active buddy
    */
   async getCharacterPokemonData(characterId) {
+    await moveRegistry.ensureLoaded();
+
     const party = await prisma.pokemon.findMany({
       where: { characterId, location: 'party' },
       orderBy: { partySlot: 'asc' },
       include: { species: true }
     });
+
+    // Auto-normalize any Pokemon whose exp is below baseline (level^3)
+    for (const p of party) {
+      const minExp = Math.pow(p.level, 3);
+      if ((p.exp || 0) < minExp) {
+        p.exp = minExp;
+        await prisma.pokemon.update({
+          where: { id: p.id },
+          data: { exp: minExp }
+        }).catch(() => {});
+      }
+    }
 
     const storage = await prisma.pokemon.findMany({
       where: { characterId, location: 'storage' },
@@ -323,12 +337,27 @@ class PokemonService {
       include: { species: true }
     });
 
+    for (const p of storage) {
+      const minExp = Math.pow(p.level, 3);
+      if ((p.exp || 0) < minExp) {
+        p.exp = minExp;
+        await prisma.pokemon.update({
+          where: { id: p.id },
+          data: { exp: minExp }
+        }).catch(() => {});
+      }
+    }
+
     const activeBuddy = await prisma.pokemon.findFirst({
       where: { characterId, isBuddy: true },
       include: { species: true }
     });
 
-    return { party, storage, activeBuddy };
+    return {
+      party: party.map(p => this.formatPokemonForClient(p)),
+      storage: storage.map(p => this.formatPokemonForClient(p)),
+      activeBuddy: this.formatPokemonForClient(activeBuddy)
+    };
   }
 
   /**
@@ -396,8 +425,95 @@ class PokemonService {
         }
       });
     }
+  }
 
-    return await this.getCharacterPokemonData(characterId);
+  /**
+   * Transfers a Pokemon from one character to another (Trade, Auction purchase, Transfer)
+   * CRITICAL ANTI-FRAUD RULE:
+   * The original birth certificate (originalTrainerId, originalTrainerName, caughtAt, caughtLocation, caughtLevel, caughtBall)
+   * remains permanently intact and immutable.
+   */
+  async transferPokemon({ pokemonId, fromCharacterId, toCharacterId, method = 'trade' }) {
+    const pkmn = await prisma.pokemon.findFirst({
+      where: { id: pokemonId, characterId: fromCharacterId },
+      include: { species: true }
+    });
+
+    if (!pkmn) {
+      throw new Error('Pokémon não encontrado ou não pertence ao treinador de origem.');
+    }
+
+    // If was buddy of previous owner, clear buddy from equipment
+    if (pkmn.isBuddy) {
+      await this.updateCharacterEquipmentBuddy(fromCharacterId, null);
+    }
+
+    // Determine target location in receiver's party or storage
+    const targetParty = await prisma.pokemon.findMany({
+      where: { characterId: toCharacterId, location: 'party' },
+      orderBy: { partySlot: 'asc' }
+    });
+
+    let targetLocation = 'party';
+    let targetSlot = targetParty.length;
+    let targetBox = 1;
+
+    if (targetParty.length >= 6) {
+      targetLocation = 'storage';
+      targetSlot = null;
+      const storageCount = await prisma.pokemon.count({
+        where: { characterId: toCharacterId, location: 'storage' }
+      });
+      targetBox = Math.floor(storageCount / 30) + 1;
+      targetSlot = storageCount % 30;
+    }
+
+    // Update Pokemon ownership (Preserving original birth certificate fields!)
+    const updated = await prisma.pokemon.update({
+      where: { id: pokemonId },
+      data: {
+        characterId: toCharacterId,
+        location: targetLocation,
+        partySlot: targetLocation === 'party' ? targetSlot : null,
+        boxNumber: targetLocation === 'storage' ? targetBox : 1,
+        boxSlot: targetLocation === 'storage' ? targetSlot : 0,
+        isBuddy: false
+        // Notice: originalTrainerId, originalTrainerName, caughtAt, caughtLocation NEVER change!
+      },
+      include: { species: true }
+    });
+
+    return this.formatPokemonForClient(updated);
+  }
+
+  /**
+   * Verified Capture Counter for Events (100% Anti-Fraud):
+   * Only counts Pokémon where:
+   * 1. originalTrainerId === characterId (Player must have caught it personally, not bought or received in trade)
+   * 2. obtainedMethod === 'capture' (Must be wild capture, not starter, egg, auction, or gift)
+   * 3. caughtAt is within the event time window
+   * 4. Optional: caughtLocation matches the event route/map
+   */
+  async countEventCaptures({ characterId, startDate, endDate, location = null }) {
+    const whereClause = {
+      originalTrainerId: Number(characterId),
+      obtainedMethod: 'capture',
+      caughtAt: {
+        gte: new Date(startDate),
+        lte: new Date(endDate)
+      }
+    };
+
+    if (location) {
+      whereClause.caughtLocation = {
+        equals: location,
+        mode: 'insensitive'
+      };
+    }
+
+    return await prisma.pokemon.count({
+      where: whereClause
+    });
   }
 }
 

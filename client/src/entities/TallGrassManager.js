@@ -66,10 +66,22 @@ export default class TallGrassManager {
             overlay = this._createOverlay(tx, ty, player.depth + 0.5);
             this.overlays.set(key, overlay);
             if (isPrimary) {
-              this.triggerRustle(overlay, tx, ty);
-              this.lastRustleTime.set(key, time);
+              // Rustle only while actually moving (player or buddy standing still = silent)
+              const isMoving = player.isMoving || (player.body && (player.body.velocity.x !== 0 || player.body.velocity.y !== 0));
+              if (isMoving) {
+                this.triggerRustle(overlay, tx, ty);
+                this.lastRustleTime.set(key, time);
+                if (player === this.scene.localPlayer) {
+                  this.scene.onStepInGrass?.();
+                }
+              }
             }
           } else {
+            if (overlay.isFading) {
+              overlay.isFading = false;
+              this.scene.tweens.killTweensOf(overlay);
+              overlay.setAlpha(1);
+            }
             overlay.setDepth(Math.max(overlay.depth, player.depth + 0.5));
 
             if (isPrimary) {
@@ -78,6 +90,9 @@ export default class TallGrassManager {
               if (isMoving && time - lastTime > 260) {
                 this.triggerRustle(overlay, tx, ty);
                 this.lastRustleTime.set(key, time);
+                if (player === this.scene.localPlayer) {
+                  this.scene.onStepInGrass?.();
+                }
               }
             }
           }

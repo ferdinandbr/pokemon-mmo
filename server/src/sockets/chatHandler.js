@@ -2,6 +2,7 @@ const roomManager = require('../rooms/roomManager');
 const worldService = require('../services/worldService');
 const pokemonService = require('../services/pokemonService');
 const characterService = require('../services/characterService');
+const prisma = require('../database');
 
 function setupChatHandlers(io, socket) {
   socket.on('chat:send', async (payload) => {
@@ -31,7 +32,25 @@ function setupChatHandlers(io, socket) {
       }
     } else if (message.startsWith('/')) {
       // Server-Authoritative Admin Commands
-      const isAdmin = (player.role === 'admin') || (socket.user?.role === 'admin');
+      let isAdmin = (player.role === 'admin') || (socket.user?.role === 'admin');
+
+      // Real-time fallback check in DB if token was issued prior to role upgrade
+      if (!isAdmin && (player.userId || socket.user?.userId)) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: player.userId || socket.user?.userId },
+            select: { role: true }
+          });
+          if (dbUser && dbUser.role === 'admin') {
+            isAdmin = true;
+            player.role = 'admin';
+            if (socket.user) socket.user.role = 'admin';
+          }
+        } catch (err) {
+          console.error('[ChatHandler] Erro ao validar cargo de administrador no banco:', err);
+        }
+      }
+
       if (!isAdmin) {
         return socket.emit('chat:message', {
           channel: 'system',
@@ -182,6 +201,46 @@ function setupChatHandlers(io, socket) {
             text: 'Uso correto do comando: /spawn <numero_ou_nome> [nivel] [shiny]',
             timestamp: new Date().toISOString()
           });
+        }
+      }
+
+      // Command: /heal or /curar (Cura toda a equipe do jogador)
+      if (lower === '/heal' || lower === '/curar' || lower === '/cure') {
+        try {
+          const partyMons = await prisma.pokemon.findMany({
+            where: { characterId: player.characterId, location: 'party' }
+          });
+          for (const p of partyMons) {
+            await prisma.pokemon.update({
+              where: { id: p.id },
+              data: { currentHp: p.maxHp }
+            });
+          }
+          const allData = await pokemonService.getCharacterPokemonData(player.characterId);
+          socket.emit('pokemon:data_response', { success: true, ...allData });
+
+          if (player.activeBuddy) {
+            const freshBuddy = (allData.party || []).find(p => p.id === player.activeBuddy.id);
+            if (freshBuddy) {
+              player.activeBuddy.currentHp = freshBuddy.currentHp;
+              player.activeBuddy.maxHp = freshBuddy.maxHp;
+              player.activeBuddy.isFainted = false;
+              io.to(player.roomId).emit('player:buddy_updated', {
+                socketId: socket.id,
+                characterId: player.characterId,
+                buddy: player.activeBuddy
+              });
+            }
+          }
+
+          return socket.emit('chat:message', {
+            channel: 'system',
+            sender: 'Centro Pokémon',
+            text: '💖 Todos os Pokémon da sua equipe foram totalmente recuperados!',
+            timestamp: new Date().toISOString()
+          });
+        } catch (healErr) {
+          console.error('[Chat /heal Error]:', healErr);
         }
       }
 

@@ -4,9 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokémon Fire Red MMO</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <!-- pokemon-bw.otf preload removido: arquivo corrompido (ver nota em style.css) -->
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./src/style.css" />
+  <link rel="stylesheet" href="./src/battle.css" />
 </head>
 <body>
+  <!-- Tela de carregamento (visível até o BootScene terminar o preload) -->
+  <div id="game-loader">
+    <img src="/assets/ui/hud_pokeball.png" class="loader-ball" alt="Carregando" onerror="this.style.display='none'" />
+    <div class="loader-text">Carregando<span id="loader-pct"></span></div>
+  </div>
   <div id="app">
     <!-- Centered Game Display Area (Flanked by the right-hand chat) -->
     <div id="game-wrapper">

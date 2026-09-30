@@ -92,11 +92,12 @@ export default class MenuUI {
     let html = '<h3 style="color: var(--fr-gold); margin-bottom: 8px;">Time Pokémon</h3><div style="display: flex; flex-direction: column; gap: 8px;">';
     for (const p of list) {
       const moves = typeof p.moves === 'string' ? JSON.parse(p.moves) : (p.moves || []);
+      const moveNames = moves.map(m => typeof m === 'string' ? m : (m.name || m.internalName)).join(', ');
       html += `
         <div style="background: rgba(255,255,255,0.06); padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
           <div>
-            <strong>${p.name}</strong> <span style="color: var(--fr-gold); font-size: 11px;">Lv. ${p.level}</span>
-            <div style="font-size: 11px; color: var(--fr-text-muted); margin-top: 2px;">Golpes: ${moves.join(', ')}</div>
+            <strong>${p.name || p.species?.name || 'Pokemon'}</strong> <span style="color: var(--fr-gold); font-size: 11px;">Lv. ${p.level}</span>
+            <div style="font-size: 11px; color: var(--fr-text-muted); margin-top: 2px;">Golpes: ${moveNames || 'Nenhum'}</div>
           </div>
           <div style="text-align: right; font-size: 12px;">
             <span style="color: #4caf50;">HP: ${p.currentHp}/${p.maxHp}</span>

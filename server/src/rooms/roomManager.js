@@ -928,6 +928,8 @@ class RoomManager {
       name: playerData.name,
       gender: playerData.gender || 'male',
       sprite: playerData.sprite || 'boy_run',
+      level: playerData.level || 1,
+      exp: playerData.exp || 0,
       roomId: roomDef.id,
       x: typeof playerData.x === 'number' ? playerData.x : roomDef.defaultSpawn.x,
       y: typeof playerData.y === 'number' ? playerData.y : roomDef.defaultSpawn.y,

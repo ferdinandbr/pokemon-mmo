@@ -107,6 +107,13 @@ class BGMManager {
   }
 
   /**
+   * Alias de conveniência para tocar trilhas por chave
+   */
+  async play(roomIdOrTrackKey) {
+    return this.playForRoom(roomIdOrTrackKey);
+  }
+
+  /**
    * Toca um arquivo MIDI direto pela URL de forma confiável via ArrayBuffer
    * @param {string} trackUrl
    */

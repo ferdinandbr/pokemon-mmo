@@ -55,6 +55,7 @@ export default class BagUI {
     this.currentCategory = 'all';
     this.searchQuery = '';
     this.isOpen = false;
+    this.party = [];
 
     // Default hotbar slots (unique)
     this.hotbarSlots = [
@@ -251,7 +252,7 @@ export default class BagUI {
       if (this.selectedSlotIndex === null) return;
       const slot = this.inventory.find(s => s.slotIndex === this.selectedSlotIndex);
       if (slot) {
-        SocketClient.useItem(slot.slotIndex, slot.itemId);
+        this.handleUseItem(slot);
       }
     });
 
@@ -286,6 +287,11 @@ export default class BagUI {
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
       if (document.body.classList.contains('editor-mode')) return;
       if (this.worldScene?.isChatting) return;
+
+      // Se a interface de batalha estiver aberta, não executar atalhos do mapa / overworld
+      const battleEl = document.getElementById('battle-ui-container');
+      const isBattleOpen = this.worldScene?.battleUI?.isOpen || window._battleUI?.isOpen || (battleEl && !battleEl.classList.contains('hidden'));
+      if (isBattleOpen) return;
 
       if (e.key === 'b' || e.key === 'B') {
         e.preventDefault();
@@ -499,6 +505,22 @@ export default class BagUI {
       }
     });
 
+    SocketClient.on('pokemon:data_response', (data) => {
+      if (data && data.success && Array.isArray(data.party)) {
+        this.party = data.party;
+      }
+    });
+
+    SocketClient.on('player:init', (data) => {
+      if (data?.pokemon && Array.isArray(data.pokemon)) {
+        const partyList = data.pokemon.filter(p => p.location === 'party');
+        if (partyList.length > 0) {
+          this.party = partyList;
+        }
+      }
+      SocketClient.emit('pokemon:get_data');
+    });
+
     SocketClient.on('character:update', (data) => {
       if (typeof data.money === 'number') {
         const moneyBadge = document.getElementById('hud-money');
@@ -516,6 +538,9 @@ export default class BagUI {
     }
     if (characterData.bagCapacity) {
       this.bagCapacity = characterData.bagCapacity;
+    }
+    if (Array.isArray(characterData.pokemon)) {
+      this.party = characterData.pokemon.filter(p => p.location === 'party');
     }
     if (characterData.equipment) {
       try {
@@ -545,6 +570,9 @@ export default class BagUI {
   open() {
     this.isOpen = true;
     this.modal.classList.remove('hidden');
+    if (!this.party || this.party.length === 0) {
+      SocketClient.emit('pokemon:get_data');
+    }
     if (!this.equippedItems.buddy && this.worldScene?.localFollower?.buddyData) {
       this.equippedItems.buddy = this.worldScene.localFollower.buddyData;
     }
@@ -556,6 +584,17 @@ export default class BagUI {
     if (this.worldScene) {
       this.worldScene.isBagOpen = true;
     }
+  }
+
+  getParty() {
+    if (Array.isArray(this.party) && this.party.length > 0) return this.party;
+    if (this.worldScene?.partyHUDUI?.party?.length) return this.worldScene.partyHUDUI.party;
+    if (window._partyHUDUI?.party?.length) return window._partyHUDUI.party;
+    if (this.pokemonStorageUI?.party?.length) return this.pokemonStorageUI.party;
+    if (window._pokemonStorageUI?.party?.length) return window._pokemonStorageUI.party;
+    const charPkmn = (this.character?.pokemon || []).filter(p => p.location === 'party');
+    if (charPkmn.length > 0) return charPkmn;
+    return [];
   }
 
   close() {
@@ -778,7 +817,7 @@ export default class BagUI {
         };
 
         slotEl.ondblclick = () => {
-          SocketClient.useItem(slotData.slotIndex, item.id);
+          this.handleUseItem(slotData);
         };
       } else {
         slotEl.classList.add('empty');
@@ -838,7 +877,7 @@ export default class BagUI {
 
       const btnUse = document.getElementById('bag-footer-btn-use');
       btnUse?.addEventListener('click', () => {
-        SocketClient.useItem(slotData.slotIndex, item.id);
+        this.handleUseItem(slotData);
       });
     }
   }
@@ -1002,7 +1041,237 @@ export default class BagUI {
       slotEl.classList.add('active-pulse');
     }
 
-    SocketClient.useItem(invSlot.slotIndex, invSlot.itemId);
+    if (!this.isOpen) {
+      this.quickUseFromHotbar(invSlot);
+    } else {
+      this.handleUseItem(invSlot);
+    }
+  }
+
+  handleUseItem(slotData) {
+    if (!slotData || !slotData.item) return;
+    const item = slotData.item;
+    const lowerName = (item.name || '').toLowerCase();
+    const cat = (item.category || '').toLowerCase();
+
+    // Pokébolas não podem ser usadas fora de batalha
+    if (cat === 'pokeball' || lowerName.endsWith('ball') || lowerName.endsWith('bola')) {
+      this.showToast('Pokébolas só podem ser usadas durante uma batalha para capturar Pokémon selvagens!', 'error');
+      return;
+    }
+
+    // Itens aplicáveis a Pokémon (Medicina, Poções, Reviver, Doces, Pedras, Vitaminas)
+    const isRevive = lowerName.includes('revive');
+    const isCandy = lowerName.includes('candy') || lowerName.includes('doce');
+    const isPotion = lowerName.includes('potion') || lowerName.includes('poção') || lowerName.includes('water') || lowerName.includes('milk') || lowerName.includes('soda') || lowerName.includes('lemonade') || lowerName.includes('berry') || lowerName.includes('restore');
+    const isStatusHeal = lowerName.includes('antidote') || lowerName.includes('antídoto') || lowerName.includes('paralyz') || lowerName.includes('paralisia') || lowerName.includes('awakening') || lowerName.includes('despertar') || lowerName.includes('burn') || lowerName.includes('queimadura') || lowerName.includes('ice heal') || lowerName.includes('gelo') || lowerName.includes('full heal') || lowerName.includes('cura total');
+    const isEvolutionStone = cat === 'evolution_stone' || lowerName.includes('stone') || lowerName.includes('pedra');
+
+    const isTargeted = cat === 'medicine' || isRevive || isCandy || isPotion || isStatusHeal || isEvolutionStone;
+
+    if (!isTargeted) {
+      SocketClient.useItem(slotData.slotIndex, item.id);
+      return;
+    }
+
+    // Obter Pokémon da equipe
+    const party = this.getParty();
+
+    if (!party || party.length === 0) {
+      SocketClient.emit('pokemon:get_data');
+      this.showToast('Sincronizando equipe Pokémon, tente novamente em instantes...', 'info');
+      return;
+    }
+
+    // Se for Revive e nenhum Pokémon estiver desmaiado na equipe:
+    if (isRevive) {
+      const anyFainted = party.some(p => Number(p.currentHp !== undefined && p.currentHp !== null ? p.currentHp : 0) <= 0);
+      if (!anyFainted) {
+        this.showToast('Nenhum Pokémon da sua equipe está desmaiado!', 'info');
+        return;
+      }
+    }
+
+    // Abrir o modal de seleção de Pokémon da equipe estilo Battle Box
+    this.openPartyTargetModal(slotData, party);
+  }
+
+  openPartyTargetModal(slotData, party) {
+    let modalWrap = document.getElementById('bag-target-modal-overlay');
+    if (modalWrap) {
+      modalWrap.remove();
+    }
+
+    modalWrap = document.createElement('div');
+    modalWrap.id = 'bag-target-modal-overlay';
+    modalWrap.className = 'bag-target-modal-overlay';
+
+    const item = slotData.item;
+    const lowerName = (item.name || '').toLowerCase();
+    const isRevive = lowerName.includes('revive');
+    const isCandy = lowerName.includes('candy') || lowerName.includes('doce');
+    const isPotion = lowerName.includes('potion') || lowerName.includes('poção') || lowerName.includes('water') || lowerName.includes('milk') || lowerName.includes('soda') || lowerName.includes('lemonade') || lowerName.includes('berry') || lowerName.includes('restore');
+    const isStatusHeal = lowerName.includes('antidote') || lowerName.includes('antídoto') || lowerName.includes('paralyz') || lowerName.includes('paralisia') || lowerName.includes('awakening') || lowerName.includes('despertar') || lowerName.includes('burn') || lowerName.includes('queimadura') || lowerName.includes('ice heal') || lowerName.includes('gelo') || lowerName.includes('full heal') || lowerName.includes('cura total');
+
+    modalWrap.innerHTML = `
+      <div class="battle-modal-backdrop active" id="bag-target-backdrop"></div>
+      <div class="battle-modal-panel battle-team-modal bag-target-modal-panel active" id="bag-target-panel">
+        <div class="battle-modal-shelf"></div>
+        <div class="battle-modal-header">
+          <div class="battle-modal-title">
+            <img src="${getItemIcon(item)}" class="btm-item-icon" alt="${item.name}">
+            <span>USAR ${String(item.name).toUpperCase()}</span>
+            <div class="btm-badge-count">${party.length}/6</div>
+          </div>
+          <div class="btm-subtitle">Selecione o Pokémon da sua equipe para receber o item</div>
+          <button class="battle-modal-close" id="bag-target-close-btn" title="Fechar (ESC)">✕</button>
+        </div>
+
+        <div class="battle-team-board">
+          <div class="battle-team-cells-grid" id="bag-target-cells-grid"></div>
+          <div class="battle-team-footer">
+            <button class="swsh-back-btn" id="bag-target-back-btn">◀ CANCELAR</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modalWrap);
+
+    const gridEl = modalWrap.querySelector('#bag-target-cells-grid');
+    const closeBtn = modalWrap.querySelector('#bag-target-close-btn');
+    const backBtn = modalWrap.querySelector('#bag-target-back-btn');
+    const backdrop = modalWrap.querySelector('#bag-target-backdrop');
+
+    const closeModal = () => {
+      modalWrap.classList.add('closing');
+      setTimeout(() => modalWrap.remove(), 150);
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    backBtn.addEventListener('click', closeModal);
+    backdrop.addEventListener('click', closeModal);
+
+    const escHandler = (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        document.removeEventListener('keydown', escHandler);
+      }
+    };
+    document.addEventListener('keydown', escHandler);
+
+    // Preencher 6 células da grade da equipe (PC Box / Battle Team Style)
+    for (let idx = 0; idx < 6; idx++) {
+      const pkmn = party[idx];
+      const cell = document.createElement('div');
+
+      if (pkmn) {
+        const curHp = Number(pkmn.currentHp !== undefined && pkmn.currentHp !== null ? pkmn.currentHp : 0);
+        const maxHp = Number(pkmn.maxHp || 20);
+        const isFainted = curHp <= 0;
+        const isFullHp = curHp >= maxHp;
+        const isMaxLvl = (pkmn.level || 1) >= 100;
+        const isShiny = Boolean(pkmn.isShiny);
+
+        let isDisabled = false;
+        let hintText = '';
+        let statusTagHtml = '';
+
+        if (isRevive) {
+          if (!isFainted) {
+            isDisabled = true;
+            hintText = 'não está desmaiado';
+            statusTagHtml = '<span class="pbc-tag-status disabled">NÃO DESMAIADO</span>';
+          } else {
+            statusTagHtml = '<span class="pbc-tag-status revive-active">REVIVER</span>';
+            hintText = 'Reviver Pokémon';
+          }
+        } else if (isPotion) {
+          if (isFainted) {
+            isDisabled = true;
+            hintText = 'está desmaiado! Use um Revive';
+            statusTagHtml = '<span class="pbc-tag-status fainted">DESMAIADO</span>';
+          } else if (isFullHp) {
+            isDisabled = true;
+            hintText = 'já está com o HP máximo';
+            statusTagHtml = '<span class="pbc-tag-status disabled">HP CHEIO</span>';
+          } else {
+            statusTagHtml = '';
+            hintText = 'Curar HP';
+          }
+        } else if (isCandy) {
+          if (isMaxLvl) {
+            isDisabled = true;
+            hintText = 'já atingiu o Nível Máximo (100)';
+            statusTagHtml = '<span class="pbc-tag-status disabled">NÍVEL MÁX</span>';
+          } else {
+            statusTagHtml = '';
+            hintText = 'Usar Doce';
+          }
+        } else if (isStatusHeal) {
+          if (isFainted) {
+            isDisabled = true;
+            hintText = 'está desmaiado! Use um Revive';
+            statusTagHtml = '<span class="pbc-tag-status fainted">DESMAIADO</span>';
+          } else if (pkmn.status && pkmn.status !== 'NONE') {
+            statusTagHtml = '';
+            hintText = 'Curar Status';
+          } else {
+            isDisabled = true;
+            hintText = 'não possui nenhum problema de status';
+            statusTagHtml = '<span class="pbc-tag-status disabled">SEM STATUS</span>';
+          }
+        } else {
+          statusTagHtml = '';
+          hintText = 'Usar Item';
+        }
+
+        cell.className = `battle-pbc pkmn-box-cell ${isDisabled ? 'is-disabled' : 'selectable'} ${isFainted ? 'is-fainted' : ''}`;
+
+        const speciesId = pkmn.speciesId || pkmn.species?.id || 1;
+        const fmtId = String(speciesId).padStart(3, '0');
+        const owSpriteUrl = getPokemonOverworldSprite(speciesId, { isShiny });
+        const hpPct = Math.max(0, Math.min(100, Math.round((curHp / maxHp) * 100)));
+        const hpColor = hpPct <= 20 ? 'hp-red' : hpPct <= 50 ? 'hp-yellow' : 'hp-green';
+
+        const name = pkmn.nickname || pkmn.species?.name || pkmn.name || 'POKÉMON';
+
+        cell.innerHTML = `
+          <span class="pbc-dex-num">#${fmtId}</span>
+          <div class="pkmn-ow-sprite pbc-ow-sprite" style="background-image: url('${owSpriteUrl}')"></div>
+          <span class="pbc-name">${name}</span>
+          <span class="pbc-level">Lv.${pkmn.level || 1}</span>
+          <div class="pbc-hp-row" title="HP: ${curHp}/${maxHp}">
+            <span class="pbc-hp-lbl">HP</span>
+            <div class="pbc-hp-track">
+              <div class="pbc-hp-fill ${hpColor}" style="width: ${hpPct}%;"></div>
+            </div>
+            <span class="pbc-hp-num">${curHp}/${maxHp}</span>
+          </div>
+          ${statusTagHtml}
+        `;
+
+        cell.addEventListener('click', () => {
+          if (isDisabled) {
+            this.showToast(`${name} ${hintText}!`, 'error');
+            return;
+          }
+          closeModal();
+          SocketClient.useItem(slotData.slotIndex, item.id, pkmn.id);
+          this.showToast(`Usando ${item.name} em ${name}...`, 'success');
+        });
+      } else {
+        cell.className = 'battle-pbc pkmn-box-cell empty-cell';
+        cell.innerHTML = `<span class="pbc-num">${idx + 1}</span>`;
+      }
+
+      gridEl.appendChild(cell);
+    }
+  }
+
+  quickUseFromHotbar(invSlot) {
+    if (!invSlot || !invSlot.item) return;
+    this.handleUseItem(invSlot);
   }
 
   showToast(message, type = 'info') {

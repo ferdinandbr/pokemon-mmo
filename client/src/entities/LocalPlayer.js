@@ -37,7 +37,7 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
     // 3. Name Tag (compact and positioned above head)
     const nameColor = this.gender === 'female' ? '#ff80ab' : '#90caf9';
     this.nameTag = scene.add.text(0, PLAYER_VISUAL.nameY, this.name, {
-      fontFamily: "'Outfit', sans-serif",
+      fontFamily: "'PokemonBW', 'Outfit', sans-serif",
       fontSize: PLAYER_VISUAL.nameFontSize,
       fontWeight: '700',
       color: nameColor,
@@ -86,7 +86,7 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
   update(time) {
     if (this.isJumping) return;
 
-    if (this.scene.isChatting || (this.scene.dialogueBox && this.scene.dialogueBox.isOpen)) {
+    if (this.scene.isChatting || (this.scene.dialogueBox && this.scene.dialogueBox.isOpen) || (this.scene.battleUI && this.scene.battleUI.isOpen) || this.scene.isWildBattleTriggered) {
       this.body.setVelocity(0, 0);
       this.isMoving = false;
       this.playIdle();
@@ -103,20 +103,24 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
     const isLeft = this.keys.left.isDown || this.keys.arrowLeft.isDown;
     const isRight = this.keys.right.isDown || this.keys.arrowRight.isDown;
 
-    if (isLeft) {
-      vx = -this.speed;
-      newDirection = 'left';
-    } else if (isRight) {
-      vx = this.speed;
-      newDirection = 'right';
-    }
+    const hasHorizontal = isLeft || isRight;
+    const hasVertical = isUp || isDown;
 
-    if (isUp) {
-      vy = -this.speed;
-      newDirection = 'up';
-    } else if (isDown) {
-      vy = this.speed;
-      newDirection = 'down';
+    // Strict 4-directional movement (disallow diagonal)
+    if (hasHorizontal && hasVertical) {
+      if (this.direction === 'left' || this.direction === 'right') {
+        if (isLeft) { vx = -this.speed; newDirection = 'left'; }
+        else if (isRight) { vx = this.speed; newDirection = 'right'; }
+      } else {
+        if (isUp) { vy = -this.speed; newDirection = 'up'; }
+        else if (isDown) { vy = this.speed; newDirection = 'down'; }
+      }
+    } else if (hasHorizontal) {
+      if (isLeft) { vx = -this.speed; newDirection = 'left'; }
+      else if (isRight) { vx = this.speed; newDirection = 'right'; }
+    } else if (hasVertical) {
+      if (isUp) { vy = -this.speed; newDirection = 'up'; }
+      else if (isDown) { vy = this.speed; newDirection = 'down'; }
     }
 
     // Check for ledge jump (one-way hop in permitted direction)
@@ -125,10 +129,17 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
     if (isRight && this._checkLedgeJump('right')) return;
     if (isUp && this._checkLedgeJump('up')) return;
 
-    // Diagonal normalization
-    if (vx !== 0 && vy !== 0) {
-      vx *= 0.7071;
-      vy *= 0.7071;
+    // Grid alignment: prevent perpendicular drift while walking along an axis
+    if (vx !== 0 && vy === 0) {
+      const alignY = Math.round((this.y - 6) / 32) * 32 + 6;
+      if (Math.abs(this.y - alignY) > 0.1 && Math.abs(this.y - alignY) < 12) {
+        this.y = Phaser.Math.Linear(this.y, alignY, 0.3);
+      }
+    } else if (vy !== 0 && vx === 0) {
+      const alignX = Math.round((this.x - 16) / 32) * 32 + 16;
+      if (Math.abs(this.x - alignX) > 0.1 && Math.abs(this.x - alignX) < 12) {
+        this.x = Phaser.Math.Linear(this.x, alignX, 0.3);
+      }
     }
 
     this.body.setVelocity(vx, vy);
@@ -402,7 +413,7 @@ export default class LocalPlayer extends Phaser.GameObjects.Container {
     this.bubbleContainer.removeAll(true);
 
     const bubbleText = this.scene.add.text(0, 0, text, {
-      fontFamily: "'Outfit', sans-serif",
+      fontFamily: "'PokemonBW', 'Outfit', sans-serif",
       fontSize: '11px',
       color: '#000000',
       wordWrap: { width: 140 },

@@ -1,5 +1,9 @@
 const prisma = require('../database');
 const roomManager = require('../rooms/roomManager');
+const pokemonProgressionService = require('../services/pokemonProgressionService');
+const pokemonService = require('../services/pokemonService');
+const itemEffectRegistry = require('../services/items/ItemEffectRegistry');
+const battleManager = require('../services/battle/BattleManager');
 
 function setupInventoryHandlers(io, socket) {
   // ─── Usar Item do Inventário / Hotbar ───────────────────────────────────────
@@ -7,6 +11,14 @@ function setupInventoryHandlers(io, socket) {
     try {
       const player = roomManager.getPlayer(socket.id);
       if (!player) return;
+
+      const activeBattle = battleManager.getSession(player.characterId);
+      if (activeBattle && !activeBattle.isEnded) {
+        return socket.emit('inventory:used_result', {
+          success: false,
+          message: 'Você está em batalha! Use os itens pelo menu de combate ou atalho de batalha.'
+        });
+      }
 
       const { slotIndex, itemId } = payload;
 
@@ -31,73 +43,95 @@ function setupInventoryHandlers(io, socket) {
         });
       }
 
+      const targetPokemonId = payload.pokemonId || payload.targetPokemonId || null;
+
       const item = slot.item;
-      let effectMessage = '';
-      let updatedPokemon = null;
+      const effectResult = await itemEffectRegistry.applyItemEffect({
+        player,
+        item,
+        targetPokemonId
+      });
 
-      // Aplicar efeito conforme o tipo de item
-      const itemNameLower = item.name.toLowerCase();
-
-      if (itemNameLower.includes('potion')) {
-        const healAmount = itemNameLower.includes('super') ? 50 : 20;
-        
-        const party = await prisma.pokemon.findMany({
-          where: { characterId: player.characterId, location: 'party' },
-          include: { species: true },
-          orderBy: { partySlot: 'asc' }
+      if (!effectResult.success) {
+        return socket.emit('inventory:used_result', {
+          success: false,
+          message: effectResult.message || 'Não foi possível usar este item agora.'
         });
-        const injuredMon = party.find(p => p.currentHp < p.maxHp) || party[0];
-
-        if (injuredMon) {
-          const newHp = Math.min(injuredMon.maxHp, injuredMon.currentHp + healAmount);
-          const healed = newHp - injuredMon.currentHp;
-          
-          updatedPokemon = await prisma.pokemon.update({
-            where: { id: injuredMon.id },
-            data: { currentHp: newHp }
-          });
-
-          effectMessage = `Curou ${healed > 0 ? healed : healAmount} HP de ${injuredMon.nickname || injuredMon.species.name}!`;
-        } else {
-          effectMessage = `Usou ${item.name}! Recuperou energia do time.`;
-        }
-      } else if (itemNameLower.includes('ball')) {
-        effectMessage = `Você preparou a ${item.name} para arremesso!`;
-      } else if (itemNameLower.includes('antidote')) {
-        effectMessage = `Usou ${item.name}! O Pokémon foi curado de status negativos.`;
-      } else if (itemNameLower.includes('candy')) {
-        const leadMon = await prisma.pokemon.findFirst({
-          where: { characterId: player.characterId, location: 'party' },
-          include: { species: true },
-          orderBy: { partySlot: 'asc' }
-        });
-        if (leadMon) {
-          const newLvl = leadMon.level + 1;
-          const newMaxHp = leadMon.maxHp + 3;
-          updatedPokemon = await prisma.pokemon.update({
-            where: { id: leadMon.id },
-            data: { level: newLvl, maxHp: newMaxHp, currentHp: newMaxHp }
-          });
-          effectMessage = `Parabéns! ${leadMon.nickname || leadMon.species.name} subiu para o Nível ${newLvl}!`;
-        } else {
-          effectMessage = `Usou ${item.name}! Ganhou experiência instantânea.`;
-        }
-      } else if (itemNameLower.includes('map')) {
-        effectMessage = `Você abriu o Mapa da Região de Kanto.`;
-      } else {
-        effectMessage = `Usou 1x ${item.name}!`;
       }
 
-      // Decrementar quantidade do item
-      if (slot.quantity > 1) {
-        await prisma.inventorySlot.update({
-          where: { id: slot.id },
-          data: { quantity: slot.quantity - 1 }
-        });
-      } else {
-        await prisma.inventorySlot.delete({
-          where: { id: slot.id }
-        });
+      const effectMessage = effectResult.message || `Usou 1x ${item.name}!`;
+
+      // Decrementar quantidade do item se foi consumido
+      if (effectResult.consumed !== false) {
+        if (slot.quantity > 1) {
+          await prisma.inventorySlot.update({
+            where: { id: slot.id },
+            data: { quantity: slot.quantity - 1 }
+          });
+        } else {
+          await prisma.inventorySlot.delete({
+            where: { id: slot.id }
+          });
+        }
+      }
+
+      // Se disparou prompt de evolução
+      if (effectResult.evolutionPrompt) {
+        socket.emit('pokemon:evolution_eligible', effectResult.evolutionPrompt);
+      }
+
+      // Se disparou level up (ex: Rare Candy)
+      if (effectResult.levelUpResult) {
+        const lvl = effectResult.levelUpResult;
+        socket.emit('pokemon:level_up', lvl);
+
+        if (lvl.autoLearnedMoves && lvl.autoLearnedMoves.length > 0) {
+          socket.emit('pokemon:move_learned_auto', {
+            pokemonId: lvl.pokemon.id,
+            moves: lvl.autoLearnedMoves
+          });
+        }
+
+        if (lvl.pendingPromptMove) {
+          socket.emit('pokemon:move_learn_prompt', lvl.pendingPromptMove);
+        }
+
+        if (lvl.evolutionEligibility) {
+          socket.emit('pokemon:evolution_eligible', {
+            pokemonId: lvl.pokemon.id,
+            pokemonName: lvl.pokemon.nickname || lvl.pokemon.species.name,
+            ...lvl.evolutionEligibility
+          });
+        }
+
+        if (player.activeBuddy && player.activeBuddy.id === lvl.pokemon.id) {
+          player.activeBuddy.level = lvl.newLevel;
+          io.to(player.roomId).emit('player:buddy_updated', {
+            socketId: socket.id,
+            characterId: player.characterId,
+            buddy: player.activeBuddy
+          });
+        }
+      }
+
+      // Sincronizar dados de Pokémon com o cliente (atualiza HP no HUD e Equipe)
+      const allData = await pokemonService.getCharacterPokemonData(player.characterId);
+      socket.emit('pokemon:data_response', { success: true, ...allData });
+
+      // Atualizar dados de Buddy se necessário
+      if (player.activeBuddy) {
+        const freshBuddy = (allData.party || []).find(p => p.id === player.activeBuddy.id);
+        if (freshBuddy) {
+          player.activeBuddy.currentHp = freshBuddy.currentHp;
+          player.activeBuddy.maxHp = freshBuddy.maxHp;
+          player.activeBuddy.level = freshBuddy.level;
+          player.activeBuddy.isFainted = freshBuddy.currentHp <= 0;
+          io.to(player.roomId).emit('player:buddy_updated', {
+            socketId: socket.id,
+            characterId: player.characterId,
+            buddy: player.activeBuddy
+          });
+        }
       }
 
       // Buscar inventário atualizado
@@ -113,7 +147,7 @@ function setupInventoryHandlers(io, socket) {
         itemId: item.id,
         itemName: item.name,
         message: effectMessage,
-        pokemon: updatedPokemon
+        pokemon: effectResult.updatedPokemon || null
       });
 
     } catch (err) {

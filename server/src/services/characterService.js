@@ -116,7 +116,13 @@ async function createCharacter({ userId, name, gender, sprite }) {
     characterId: character.id,
     speciesIdOrName: 25,
     level: 5,
-    forceBuddy: true
+    forceBuddy: true,
+    caughtLocation: 'Laboratório Pokémon',
+    caughtLevel: 5,
+    caughtBall: 'poke-ball',
+    originalTrainerId: character.id,
+    originalTrainerName: character.name,
+    obtainedMethod: 'starter'
   });
 
   return getCharacterDetails(character.id);

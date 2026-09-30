@@ -29,6 +29,8 @@ model Character {
   y         Float    @default(320)
   direction String   @default("down") // "down", "left", "right", "up"
   money     Int      @default(5000)
+  level     Int      @default(1)
+  exp       Int      @default(0)
   bagCapacity Int    @default(24)
   equipment String?  @default("{}")
   hasCompletedIntro Boolean @default(false)
@@ -115,6 +117,7 @@ model Pokemon {
   nickname    String?
   level       Int            @default(5)
   exp         Int            @default(0)
+  friendship  Int            @default(70)
   gender      String         @default("M") // "M", "F", "G"
   isShiny     Boolean        @default(false)
   currentHp   Int            @default(20)
@@ -148,6 +151,15 @@ model Pokemon {
   boxNumber   Int            @default(1)       // PC Box 1 to 10
   boxSlot     Int            @default(0)       // Slot 0 to 29 in box
   isBuddy     Boolean        @default(false)   // Active follower buddy
+
+  // Provenance & Capture Metadata (Anti-Cheat & Event Validation)
+  caughtLocation      String    @default("Rota 1")    // Map/Route name where caught
+  caughtAt            DateTime  @default(now())       // Timestamp of capture / origin
+  caughtLevel         Int       @default(5)           // Level when caught
+  caughtBall          String    @default("poke-ball") // Pokéball used to catch
+  originalTrainerId   Int?                            // Character ID of original trainer (OT)
+  originalTrainerName String?                         // Name of original trainer (OT)
+  obtainedMethod      String    @default("capture")   // "capture", "starter", "egg", "trade", "auction", "gift"
 
   createdAt   DateTime       @default(now())
 }

@@ -10,15 +10,18 @@ import MenuUI from './ui/MenuUI';
 import EditorUI from './ui/EditorUI';
 import BagUI from './ui/BagUI';
 import PokemonStorageUI from './ui/PokemonStorageUI';
+import MoveLearnUI from './ui/MoveLearnUI';
+import BattleUI from './ui/BattleUI';
+import EvolutionUI from './ui/EvolutionUI';
 import OakIntroUI from './ui/OakIntroUI';
+import { PartyHUDUI } from './ui/PartyHUDUI';
 import bgmManager from './audio/BGMManager';
+import './battle.css';
 
 // Phaser Game Configuration
 const config = {
   type: Phaser.AUTO,
   parent: 'game-container',
-  width: 960,
-  height: 540,
   pixelArt: true,
   roundPixels: true,
   render: {
@@ -43,8 +46,10 @@ const config = {
     forceSetTimeOut: false
   },
   scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH
+    mode: Phaser.Scale.RESIZE,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: '100%',
+    height: '100%'
   },
   scene: [BootScene, WorldScene, EditorScene]
 };
@@ -63,11 +68,23 @@ game.events.once('ready', () => {
   worldSceneInstance = game.scene.getScene('WorldScene');
   editorSceneInstance = game.scene.getScene('EditorScene');
 
+  if (worldSceneInstance) {
+    if (chatUI) chatUI.worldScene = worldSceneInstance;
+    if (bagUI) bagUI.worldScene = worldSceneInstance;
+    if (pokemonStorageUI) pokemonStorageUI.worldScene = worldSceneInstance;
+    if (partyHUDUI) partyHUDUI.worldScene = worldSceneInstance;
+    if (moveLearnUI) moveLearnUI.worldScene = worldSceneInstance;
+    if (battleUI) {
+      battleUI.worldScene = worldSceneInstance;
+      worldSceneInstance.battleUI = battleUI;
+    }
+  }
+
   checkRoute();
 });
 
 // Initialize UI Controllers
-let authUI, charUI, chatUI, menuUI, bagUI, pokemonStorageUI, oakIntroUI;
+let authUI, charUI, chatUI, menuUI, bagUI, pokemonStorageUI, partyHUDUI, oakIntroUI, moveLearnUI, battleUI, evolutionUI;
 
 function checkRoute() {
   const isEditorRoute = window.location.hash.startsWith('#editor') || window.location.pathname.startsWith('/editor');
@@ -127,7 +144,24 @@ function initApp() {
   chatUI = new ChatUI(worldSceneInstance);
   bagUI = new BagUI(worldSceneInstance);
   pokemonStorageUI = new PokemonStorageUI(worldSceneInstance);
+  partyHUDUI = new PartyHUDUI(worldSceneInstance, pokemonStorageUI);
   bagUI.pokemonStorageUI = pokemonStorageUI;
+  moveLearnUI = new MoveLearnUI(worldSceneInstance);
+  battleUI = new BattleUI(worldSceneInstance);
+  evolutionUI = new EvolutionUI(worldSceneInstance);
+  if (worldSceneInstance) {
+    worldSceneInstance.battleUI = battleUI;
+    worldSceneInstance.bagUI = bagUI;
+    worldSceneInstance.partyHUDUI = partyHUDUI;
+    worldSceneInstance.pokemonStorageUI = pokemonStorageUI;
+  }
+  window._battleUI = battleUI;
+  window._bagUI = bagUI;
+  window._chatUI = chatUI;
+  window._partyHUDUI = partyHUDUI;
+  window._pokemonStorageUI = pokemonStorageUI;
+  window._evolutionUI = evolutionUI;
+  window._moveLearnUI = moveLearnUI;
   oakIntroUI = new OakIntroUI();
 
   // Hook BGM Mute/Toggle Button in HUD
@@ -201,6 +235,20 @@ function initApp() {
         const fullData = await res.json();
         menuUI.setData(fullData);
         bagUI.setData(fullData);
+
+        // Update HUD player level, exp, money
+        const lvlBadge = document.getElementById('hud-player-lvl');
+        if (lvlBadge) lvlBadge.innerText = `${fullData.level || 1}`;
+        const expBar = document.getElementById('hud-exp-bar-fill');
+        if (expBar) {
+          const reqExp = Math.floor(Math.pow(fullData.level || 1, 1.8) * 60 + 40);
+          const expPct = Math.min(100, Math.floor(((fullData.exp || 0) / reqExp) * 100));
+          expBar.style.width = `${expPct}%`;
+        }
+        const moneyBadge = document.getElementById('hud-money');
+        if (moneyBadge && typeof fullData.money === 'number') {
+          moneyBadge.innerText = fullData.money.toLocaleString('pt-BR');
+        }
       } catch (e) {
         menuUI.setData(character);
         bagUI.setData(character);
@@ -219,8 +267,28 @@ function initApp() {
         SocketClient.emit('pokemon:get_data');
       });
 
-      // Trigger Dr. Oak intro if first login (not completed yet)
+      // Handle real-time player progression updates (Trainer level, exp, money)
+      SocketClient.on('character:progress_update', (data) => {
+        if (!data) return;
+        const lvlBadge = document.getElementById('hud-player-lvl');
+        if (lvlBadge && data.level) lvlBadge.innerText = `${data.level}`;
+
+        const expBar = document.getElementById('hud-exp-bar-fill');
+        if (expBar && typeof data.expPercent === 'number') {
+          expBar.style.width = `${Math.min(100, Math.max(0, data.expPercent))}%`;
+        }
+
+        const moneyBadge = document.getElementById('hud-money');
+        if (moneyBadge && typeof data.totalMoney === 'number') {
+          moneyBadge.innerText = data.totalMoney.toLocaleString('pt-BR');
+        } else if (moneyBadge && typeof data.money === 'number') {
+          moneyBadge.innerText = data.money.toLocaleString('pt-BR');
+        }
+      });
+
+      // Player joined world
       SocketClient.on('player:init', (data) => {
+        SocketClient.emit('pokemon:get_data');
         if (data && data.hasCompletedIntro === false) {
           oakIntroUI.start(character);
         }
@@ -277,11 +345,11 @@ function initApp() {
 function alignGameWrapper() {
   const wrapper = document.getElementById('game-wrapper');
   if (!wrapper) return;
-  wrapper.style.position = '';
-  wrapper.style.top = '';
-  wrapper.style.left = '';
-  wrapper.style.width = '';
-  wrapper.style.height = '';
+  wrapper.style.position = 'absolute';
+  wrapper.style.top = '0';
+  wrapper.style.left = '0';
+  wrapper.style.width = '100vw';
+  wrapper.style.height = '100vh';
   if (game && game.scale) {
     game.scale.refresh();
   }

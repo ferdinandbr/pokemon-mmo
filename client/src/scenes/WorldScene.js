@@ -74,9 +74,20 @@ export default class WorldScene extends Phaser.Scene {
     this.tallGrassManager = new TallGrassManager(this);
   }
 
+  getZoomFactor() {
+    // Locked: fixed zoom size for consistent proportions on any screen.
+    // Mouse-wheel zoom is disabled (see create()).
+    return 1.5;
+  }
+
   // ─── Network handlers ──────────────────────────────────────────────────────
 
   create() {
+    if (!this.battleUI && window._battleUI) {
+      this.battleUI = window._battleUI;
+      window._battleUI.worldScene = this;
+    }
+
     this.obstacleGroup = this.physics.add.staticGroup();
 
     // Day & Night cycle system
@@ -158,6 +169,18 @@ export default class WorldScene extends Phaser.Scene {
       }
     });
 
+    // Initial fixed zoom (mouse-wheel zoom disabled to keep proportions locked)
+    this.currentZoom = this.getZoomFactor();
+    if (this.cameras.main) {
+      this.cameras.main.setZoom(this.currentZoom);
+    }
+
+    this.scale.on('resize', (gameSize) => {
+      if (this.cameras.main) {
+        this.cameras.main.setViewport(0, 0, gameSize.width, gameSize.height);
+      }
+    });
+
     // Window-level fallback for Space, Enter, E to ensure it reliably triggers when near a sign
     window.addEventListener('keydown', (e) => {
       if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
@@ -190,6 +213,13 @@ export default class WorldScene extends Phaser.Scene {
     SocketClient.on('world:weather', (d) => this.onWorldWeather(d));
     SocketClient.on('world:time', (d) => this.onWorldTime(d));
     SocketClient.on('money:updated', (d) => this.onMoneyUpdated(d));
+    SocketClient.on('battle:started', () => { this.isWildBattleTriggered = false; });
+    SocketClient.on('battle:start_failed', () => { this.isWildBattleTriggered = false; });
+    SocketClient.on('pokemon:data_response', (d) => {
+      if (d && d.success) {
+        this.checkLocalBuddyState(d.activeBuddy, d.party);
+      }
+    });
 
     // Snap player position to exact integer pixels after physics update to eliminate subpixel rendering jitter
     this.events.on('postupdate', () => {
@@ -225,6 +255,66 @@ export default class WorldScene extends Phaser.Scene {
     this._updateHUD(null, null, data.money);
   }
 
+  // Called by BattleUI.close(): locks encounters on the exit tile + short cooldown
+  notifyBattleExited() {
+    this.stepsSinceLastBattle = 0;
+    this.battleExitCooldownUntil = (this.time?.now || 0) + 3000;
+    if (this.localPlayer) {
+      this.lastBattleTile = {
+        tx: Math.floor(this.localPlayer.x / 32),
+        ty: Math.floor((this.localPlayer.y + 19) / 32)
+      };
+    } else {
+      this.lastBattleTile = null;
+    }
+  }
+
+  onStepInGrass() {
+    if (this.battleUI?.isOpen || this.isWildBattleTriggered || this.isTransitioning || this.isChatting) {
+      return;
+    }
+
+    // Post-battle lock: no encounter on the exact exit tile, plus short cooldown
+    const nowMs = this.time?.now || 0;
+    if (nowMs < (this.battleExitCooldownUntil || 0)) return;
+    if (this.localPlayer && this.lastBattleTile) {
+      const tx = Math.floor(this.localPlayer.x / 32);
+      const ty = Math.floor((this.localPlayer.y + 19) / 32);
+      if (tx === this.lastBattleTile.tx && ty === this.lastBattleTile.ty) return;
+      this.lastBattleTile = null;
+    }
+
+    this.stepsSinceLastBattle = (this.stepsSinceLastBattle || 0) + 1;
+
+    // Grace period: first 4 steps after entering room/ending battle have no encounter
+    if (this.stepsSinceLastBattle <= 4) return;
+
+    // 12% chance per step after grace period
+    if (Math.random() < 0.12) {
+      this.isWildBattleTriggered = true;
+      this.stepsSinceLastBattle = 0;
+
+      if (this.localPlayer?.body) {
+        this.localPlayer.body.setVelocity(0, 0);
+        this.localPlayer.playIdle();
+      }
+
+      // Classic encounter screen flash (Gen 3 authentic white flash)
+      this.cameras.main.flash(400, 255, 255, 255);
+
+      this.time.delayedCall(420, () => {
+        SocketClient.emit('battle:wild_trigger');
+      });
+
+      // Safety timeout: if server doesn't respond in 4s, unfreeze player
+      this.time.delayedCall(4000, () => {
+        if (this.isWildBattleTriggered && (!this.battleUI || !this.battleUI.isOpen)) {
+          this.isWildBattleTriggered = false;
+        }
+      });
+    }
+  }
+
   onPlayerInit(data) {
     const { self, room, players } = data;
     const roomId = room?.id || self?.roomId || 'pallet_town';
@@ -242,11 +332,12 @@ export default class WorldScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, w, h);
     this.cameras.main.startFollow(this.localPlayer, true, 1, 1);
     this.cameras.main.roundPixels = true;
-    this.cameras.main.setZoom(1.0);
+    this.currentZoom = this.currentZoom || this.getZoomFactor();
+    this.cameras.main.setZoom(this.currentZoom);
 
     if (self.activeBuddy) {
-      if (this.localFollower) this.localFollower.destroy();
-      this.localFollower = new FollowerPokemon(this, this.localPlayer, self.activeBuddy);
+      const party = (data.pokemon || []).filter(p => p.location === 'party');
+      this.checkLocalBuddyState(self.activeBuddy, party);
     }
 
     this._clearRemotePlayers();
@@ -293,7 +384,8 @@ export default class WorldScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, w, h);
     this.cameras.main.startFollow(this.localPlayer, true, 1, 1);
     this.cameras.main.roundPixels = true;
-    this.cameras.main.setZoom(1.0);
+    this.currentZoom = this.currentZoom || this.getZoomFactor();
+    this.cameras.main.setZoom(this.currentZoom);
 
     this._clearRemotePlayers();
     for (const p of players) this._addRemotePlayer(p);
@@ -330,12 +422,69 @@ export default class WorldScene extends Phaser.Scene {
     }
   }
 
+  isBuddyFainted(buddy, party = null) {
+    if (!buddy) return true;
+    if (typeof buddy.currentHp === 'number' && buddy.currentHp <= 0) return true;
+    if (buddy.isFainted) return true;
+
+    const currentParty = party || this.partyHUDUI?.party || this.pokemonStorageUI?.party || [];
+    const pkmn = currentParty.find(p => Number(p.id) === Number(buddy.id));
+    if (pkmn) {
+      const curHp = typeof pkmn.currentHp === 'number' ? pkmn.currentHp : (pkmn.maxHp || 20);
+      if (curHp <= 0) return true;
+    }
+    return false;
+  }
+
+  checkLocalBuddyState(activeBuddy = null, party = null) {
+    const currentParty = party || this.partyHUDUI?.party || this.pokemonStorageUI?.party || [];
+    const buddy = activeBuddy || this.partyHUDUI?.activeBuddy || this.localFollower?.buddyData || currentParty.find(p => p.isBuddy);
+
+    if (!buddy) {
+      if (this.localFollower) {
+        this.localFollower.destroy();
+        this.localFollower = null;
+      }
+      return;
+    }
+
+    if (this.isBuddyFainted(buddy, currentParty)) {
+      if (this.localFollower) {
+        this.localFollower.destroy();
+        this.localFollower = null;
+      }
+      return;
+    }
+
+    const pkmn = currentParty.find(p => Number(p.id) === Number(buddy.id));
+    const curHp = pkmn ? (typeof pkmn.currentHp === 'number' ? pkmn.currentHp : (pkmn.maxHp || 20)) : buddy.currentHp;
+    const formattedId = String(pkmn?.speciesId || pkmn?.species?.id || buddy.speciesId || 1).padStart(3, '0');
+    const buddyData = {
+      ...(pkmn || {}),
+      ...buddy,
+      id: pkmn?.id || buddy.id,
+      speciesId: pkmn?.speciesId || pkmn?.species?.id || buddy.speciesId,
+      name: pkmn?.nickname || pkmn?.species?.name || pkmn?.name || buddy.name,
+      level: pkmn?.level || buddy.level || 1,
+      isShiny: pkmn ? Boolean(pkmn.isShiny) : Boolean(buddy.isShiny),
+      currentHp: curHp,
+      maxHp: pkmn?.maxHp || buddy.maxHp || 20,
+      sprite: `${formattedId}.png`
+    };
+
+    if (!this.localFollower && this.localPlayer) {
+      this.localFollower = new FollowerPokemon(this, this.localPlayer, buddyData);
+    } else if (this.localFollower) {
+      this.localFollower.updateBuddy(buddyData);
+    }
+  }
+
   onBuddyUpdated(data) {
     const { socketId, buddy } = data || {};
     const isLocal = SocketClient.socket?.id === socketId;
 
     if (isLocal) {
-      if (!buddy) {
+      if (!buddy || this.isBuddyFainted(buddy)) {
         if (this.localFollower) {
           this.localFollower.destroy();
           this.localFollower = null;
@@ -347,7 +496,7 @@ export default class WorldScene extends Phaser.Scene {
       }
     } else {
       const remote = this.remotePlayers.get(socketId);
-      if (!buddy) {
+      if (!buddy || this.isBuddyFainted(buddy)) {
         const follower = this.remoteFollowers.get(socketId);
         if (follower) {
           follower.destroy();
@@ -695,7 +844,7 @@ export default class WorldScene extends Phaser.Scene {
     remote.setDepth(100 + playerData.y / 10000);
     this.remotePlayers.set(playerData.socketId, remote);
 
-    if (playerData.activeBuddy) {
+    if (playerData.activeBuddy && !this.isBuddyFainted(playerData.activeBuddy)) {
       if (this.remoteFollowers.has(playerData.socketId)) {
         this.remoteFollowers.get(playerData.socketId).destroy();
       }
@@ -868,14 +1017,15 @@ export default class WorldScene extends Phaser.Scene {
     // -------------------------------------------------------------------------
 
     if (this.tallGrassManager) {
-
-      const allPlayers = [
+      const allEntities = [
         this.localPlayer,
-        ...this.remotePlayers.values()
+        ...this.remotePlayers.values(),
+        this.localFollower,
+        ...(this.remoteFollowers ? this.remoteFollowers.values() : [])
       ].filter(Boolean);
 
       this.tallGrassManager.update(
-        allPlayers,
+        allEntities,
         time
       );
     }
@@ -1037,8 +1187,12 @@ export default class WorldScene extends Phaser.Scene {
 
     if (playerObj) {
       this.cachedPlayerData = playerObj;
-      const lvlBadge = document.getElementById('hud-player-lvl');
-      if (lvlBadge) lvlBadge.innerText = `${playerObj.level || 1}`;
+      // Only overwrite the level badge when a real value arrives
+      // (player:init self used to carry no level, forcing a fake Lv.1)
+      if (typeof playerObj.level === 'number') {
+        const lvlBadge = document.getElementById('hud-player-lvl');
+        if (lvlBadge) lvlBadge.innerText = `${playerObj.level}`;
+      }
 
       const expBar = document.getElementById('hud-exp-bar-fill');
       if (expBar) {
@@ -1093,7 +1247,6 @@ export default class WorldScene extends Phaser.Scene {
    */
   _updateTreeSway(time) {
     const canopyLayer = this.mapLayers ? this.mapLayers.get('Trees_Canopy') : null;
-    const overheadLayer = this.mapLayers ? this.mapLayers.get('Overhead') : null;
     const treesLayer = this.mapLayers ? this.mapLayers.get('Trees') : null;
 
     // Garante que o layer dos troncos nunca se mova
@@ -1101,25 +1254,22 @@ export default class WorldScene extends Phaser.Scene {
       treesLayer.x = 0;
     }
 
-    if (!canopyLayer && !overheadLayer) return;
+    if (!canopyLayer) return;
 
     const wind = this.weatherManager ? this.weatherManager.getWindFactor() : 0;
     if (wind <= 0.001) {
       if (canopyLayer && canopyLayer.x !== 0) canopyLayer.x = 0;
-      if (overheadLayer && overheadLayer.x !== 0) overheadLayer.x = 0;
       return;
     }
 
     // Onda harmônica de balanço simulando brisa suave e relaxante na copa
     // Período lento e elegante (~4.2s) com amplitude sutil (máximo ~1.0px no pico da tempestade)
+    // NOTA: a camada Overhead (telhados/arcos) NÃO balança — só a copa das árvores.
     const t = time * 0.0015;
     const sway = (Math.sin(t) * 0.75 + Math.sin(t * 1.6) * 0.25) * wind;
 
     if (canopyLayer) {
       canopyLayer.x = sway;
-    }
-    if (overheadLayer) {
-      overheadLayer.x = sway;
     }
   }
 }
