@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 
 const MAPS_DIR = path.join(__dirname, '../../../client/public/assets/maps');
-const DEFAULT_MAP_PATH = path.join(MAPS_DIR, 'pallet_town.json');
+const DEFAULT_MAP_PATH = path.join(MAPS_DIR, 'kanto.json');
 const TILESETS_DIR = path.join(__dirname, '../../../client/public/assets/tilesets');
 
 function resolveMapPath(mapName) {
@@ -49,7 +49,7 @@ router.get('/', (req, res) => {
   try {
     const targetPath = resolveMapPath(req.query.map);
     if (!fs.existsSync(targetPath)) {
-      return res.status(404).json({ error: 'Mapa não encontrado: ' + (req.query.map || 'pallet_town') });
+      return res.status(404).json({ error: 'Mapa não encontrado: ' + (req.query.map || 'kanto') });
     }
     const data = fs.readFileSync(targetPath, 'utf8');
     res.type('application/json').send(data);

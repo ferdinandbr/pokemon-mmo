@@ -139,8 +139,12 @@ export default class WeatherManager {
 
     // Handle viewport resize
     this.scene.scale.on('resize', (gameSize) => {
-      if (this.tintOverlay) this.tintOverlay.setSize(gameSize.width * 3, gameSize.height * 3);
-      if (this.lightningOverlay) this.lightningOverlay.setSize(gameSize.width * 3, gameSize.height * 3);
+      if (this.tintOverlay && this.tintOverlay.active && typeof this.tintOverlay.setSize === 'function') {
+        this.tintOverlay.setSize(gameSize.width * 3, gameSize.height * 3);
+      }
+      if (this.lightningOverlay && this.lightningOverlay.active && typeof this.lightningOverlay.setSize === 'function') {
+        this.lightningOverlay.setSize(gameSize.width * 3, gameSize.height * 3);
+      }
     });
   }
 

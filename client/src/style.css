@@ -2103,12 +2103,35 @@ body.editor-mode #game-container canvas {
 
 .tileset-picker-toolbar {
   display: flex;
+  flex-direction: column;
   gap: 6px;
   margin-bottom: 7px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.tileset-picker-toolbar-buttons {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+
+.tileset-picker-toolbar-buttons .editor-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 6px;
+  font-size: 11px;
+  height: 30px;
+  box-sizing: border-box;
+  white-space: nowrap;
 }
 
 .small-select {
-  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
   padding: 4px 8px;
   height: 30px;
   font-size: 11px;
@@ -8678,6 +8701,52 @@ body.is-dragging-item .bag-slot * {
   78% { opacity: 1; }
   100% { opacity: 0; transform: translate(-50%, -18px) scale(1); }
 }
+
+/* Interactive Portal Picker Banner */
+.portal-picker-bar {
+  position: absolute;
+  top: 54px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2000;
+  background: rgba(15, 23, 42, 0.94);
+  border: 1px solid #38bdf8;
+  border-radius: 8px;
+  padding: 8px 16px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), 0 0 15px rgba(56, 189, 248, 0.3);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  color: #f8fafc;
+  transition: all 0.2s ease;
+  pointer-events: auto;
+}
+
+.portal-picker-bar.hidden {
+  display: none !important;
+}
+
+.portal-picker-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.portal-picker-badge {
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+  color: #ffffff;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 
 
 

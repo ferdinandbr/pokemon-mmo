@@ -3,6 +3,34 @@ import { ROOMS_CONFIG } from '../maps/roomData';
 import { COLLISION_TYPES, COLLISION_META } from '../maps/collisionConfig';
 import NodeGraphUI from './NodeGraphUI';
 
+export const PRESET_TILESETS = [
+  { name: 'Outside4 Winter', file: 'Outside4 Winter.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 4544, imagewidth: 256, imageheight: 18176 },
+  { name: 'Outside1 Spring', file: 'Outside1 Spring.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 4544, imagewidth: 256, imageheight: 18176 },
+  { name: 'Outside2 Summer', file: 'Outside2 Summer.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 4544, imagewidth: 256, imageheight: 18176 },
+  { name: 'Outside3 Autumn', file: 'Outside3 Autumn.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 4544, imagewidth: 256, imageheight: 18176 },
+  { name: 'Outside', file: 'Outside.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 4016, imagewidth: 256, imageheight: 16064 },
+  { name: 'spz3zUx_scaled', file: 'spz3zUx_scaled.png', tilewidth: 32, tileheight: 32, columns: 64, tilecount: 1689, imagewidth: 2176, imageheight: 918, margin: 1, spacing: 2 },
+  { name: 'Caves', file: 'Caves.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 800, imagewidth: 256, imageheight: 3200 },
+  { name: 'Dungeon cave', file: 'Dungeon cave.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 152, imagewidth: 256, imageheight: 608 },
+  { name: 'Dungeon forest', file: 'Dungeon forest.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 160, imagewidth: 256, imageheight: 640 },
+  { name: 'Factory interior', file: 'Factory interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 224, imagewidth: 256, imageheight: 896 },
+  { name: 'Game Corner interior', file: 'Game Corner interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 240, imagewidth: 256, imageheight: 960 },
+  { name: 'Graveyard tower interior', file: 'Graveyard tower interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 152, imagewidth: 256, imageheight: 608 },
+  { name: 'Gyms interior', file: 'Gyms interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 1264, imagewidth: 256, imageheight: 5056 },
+  { name: 'Interior general', file: 'Interior general.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 2120, imagewidth: 256, imageheight: 8480 },
+  { name: 'Mansion interior', file: 'Mansion interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 232, imagewidth: 256, imageheight: 928 },
+  { name: 'Mart interior', file: 'Mart interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 144, imagewidth: 256, imageheight: 576 },
+  { name: 'Multiplayer rooms', file: 'Multiplayer rooms.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 344, imagewidth: 256, imageheight: 1376 },
+  { name: 'Museum interior', file: 'Museum interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 184, imagewidth: 256, imageheight: 736 },
+  { name: 'Poke Centre interior', file: 'Poke Centre interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 320, imagewidth: 256, imageheight: 1280 },
+  { name: 'Ruins interior', file: 'Ruins interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 128, imagewidth: 256, imageheight: 512 },
+  { name: 'Trainer Tower interior', file: 'Trainer Tower interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 440, imagewidth: 256, imageheight: 1760 },
+  { name: 'Underground path', file: 'Underground path.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 72, imagewidth: 256, imageheight: 288 },
+  { name: 'Underwater', file: 'Underwater.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 112, imagewidth: 256, imageheight: 448 },
+  { name: 'Bike shop interior', file: 'Bike shop interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 176, imagewidth: 256, imageheight: 704 },
+  { name: 'Boat', file: 'Boat.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 648, imagewidth: 256, imageheight: 2592 }
+];
+
 /**
  * EditorUI – Modern HTML/CSS overlay and control system for the Phaser Map Editor.
  * Includes Map Selector, Dynamic Layer Management, Visual Portals Manager,
@@ -17,13 +45,13 @@ export default class EditorUI {
     this.dialogueBox = new DialogueBox();
 
     this.tilesetImage = new Image();
-    this.tilesetImage.src = '/assets/tilesets/Outside1 Spring.png';
+    this.tilesetImage.src = '/assets/tilesets/spz3zUx_scaled.png';
 
     this.activeGid = 1;
     this.activeTileset = null;
     this.columns = 64;
     this.tileSize = 32;
-    this.totalTiles = 4544;
+    this.totalTiles = 3881;
 
     this.allMapsList = this._getDefaultMapsList();
     this.activeSidebarTab = 'layers'; // 'layers', 'portals', 'signs'
@@ -81,9 +109,9 @@ export default class EditorUI {
           <!-- Map Selector Dropdown -->
           <div class="editor-map-select-group">
             <select id="editor-map-select" class="editor-map-select">
-              <option value="pallet_town">Pallet Town</option>
+              <option value="kanto">Kanto</option>
             </select>
-            <span id="editor-map-badge" class="editor-badge">pallet_town (36x20)</span>
+            <span id="editor-map-badge" class="editor-badge">kanto (408x400)</span>
           </div>
         </div>
 
@@ -99,20 +127,19 @@ export default class EditorUI {
         </div>
 
         <div class="editor-actions">
-          <button id="btn-mode-nodes" class="editor-btn gold" title="Visualizador de Conexões de Mapas (Node Graph)">
-            🕸️ <span>REDE DE MAPAS</span>
-          </button>
-
           <button id="btn-center-map" class="editor-btn" title="Centralizar Mapa na Tela (Home)">
-            🎯 <span>CENTRALIZAR</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle><line x1="12" y1="2" x2="12" y2="5"></line><line x1="12" y1="19" x2="12" y2="22"></line><line x1="2" y1="12" x2="5" y2="12"></line><line x1="19" y1="12" x2="22" y2="12"></line></svg>
+            <span>CENTRALIZAR</span>
           </button>
 
           <button id="btn-toggle-grid" class="editor-btn active" title="Alternar Grade (G)">
-            ⊞ <span>GRADE</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>
+            <span>GRADE</span>
           </button>
 
           <button id="btn-toggle-collision" class="editor-btn active" title="Alternar Overlay de Colisões (C)">
-            🛡️ <span>COLISÕES</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            <span>COLISÕES</span>
           </button>
 
           <button id="btn-editor-save" class="editor-btn gold">
@@ -141,6 +168,15 @@ export default class EditorUI {
             <span>SAIR</span>
           </button>
         </div>
+      </div>
+
+      <!-- Interactive Portal Picker Banner -->
+      <div id="portal-picker-bar" class="portal-picker-bar hidden">
+        <div class="portal-picker-info">
+          <span id="portal-picker-mode-badge" class="portal-picker-badge">🎯 MARCAR SPAWN DE DESTINO</span>
+          <span id="portal-picker-instructions">Clique no mapa para definir as coordenadas do jogador (use Espaço/Arrastar para Pan).</span>
+        </div>
+        <button id="btn-portal-picker-cancel" class="editor-btn small danger">Cancelar</button>
       </div>
 
       <!-- Left Tool Bar (Floating Dock) -->
@@ -187,11 +223,11 @@ export default class EditorUI {
         </button>
 
         <button id="tool-sign" class="editor-tool-btn" data-tooltip="Marcar Placa FireRed no Mapa (1 grid)">
-          <span style="font-size: 16px;">🪧</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6h14v8H5z"></path><path d="M12 14v7"></path></svg>
         </button>
 
         <button id="tool-link" class="editor-tool-btn" data-tooltip="Marcar Teleporte no Mapa (Grids)">
-          <span style="font-size: 16px;">🚪</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16"></path><path d="M14 12v.01"></path><path d="M20 20H4"></path></svg>
         </button>
 
         <button id="tool-object" class="editor-tool-btn" data-tooltip="Inspetor de Objetos (O)">
@@ -226,7 +262,7 @@ export default class EditorUI {
         </button>
 
         <button id="tool-centermap" class="editor-tool-btn" data-tooltip="Centralizar Mapa (Home)">
-          <span style="font-size: 15px;">🎯</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle><line x1="12" y1="2" x2="12" y2="5"></line><line x1="12" y1="19" x2="12" y2="22"></line><line x1="2" y1="12" x2="5" y2="12"></line><line x1="19" y1="12" x2="22" y2="12"></line></svg>
         </button>
 
         <button id="tool-grid" class="editor-tool-btn active" data-tooltip="Grade (G)">
@@ -257,9 +293,18 @@ export default class EditorUI {
       <div class="editor-sidebar">
         <!-- Tab Navigation -->
         <div class="sidebar-tabs">
-          <button id="tab-btn-layers" class="sidebar-tab-btn active">🎨 Camadas</button>
-          <button id="tab-btn-portals" class="sidebar-tab-btn">🚪 Portais</button>
-          <button id="tab-btn-signs" class="sidebar-tab-btn">🪧 Placas</button>
+          <button id="tab-btn-layers" class="sidebar-tab-btn active" style="display:inline-flex; align-items:center; justify-content:center; gap:5px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+            <span>Camadas</span>
+          </button>
+          <button id="tab-btn-portals" class="sidebar-tab-btn" style="display:inline-flex; align-items:center; justify-content:center; gap:5px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 20V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16"></path><path d="M14 12v.01"></path></svg>
+            <span>Portais</span>
+          </button>
+          <button id="tab-btn-signs" class="sidebar-tab-btn" style="display:inline-flex; align-items:center; justify-content:center; gap:5px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 6h14v8H5z"></path><path d="M12 14v7"></path></svg>
+            <span>Placas</span>
+          </button>
         </div>
 
         <!-- TAB 1: Layers & Tileset Palette -->
@@ -273,7 +318,10 @@ export default class EditorUI {
               <div style="display:flex; gap:4px; align-items:center;">
                 <button id="btn-move-layer-up" class="editor-btn small" style="height: 24px; padding: 2px 7px; font-size: 11px;" title="Subir camada ativa (renderizar por cima)">▲</button>
                 <button id="btn-move-layer-down" class="editor-btn small" style="height: 24px; padding: 2px 7px; font-size: 11px;" title="Descer camada ativa (renderizar por baixo)">▼</button>
-                <button id="btn-clear-layer" class="editor-btn small danger" style="height: 24px; padding: 2px 7px; font-size: 10px;" title="Limpar todos os tiles da camada selecionada">🧹 Limpar</button>
+                <button id="btn-clear-layer" class="editor-btn small danger" style="height: 24px; padding: 2px 7px; font-size: 10px; display:inline-flex; align-items:center; gap:3px;" title="Limpar todos os tiles da camada selecionada">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                  <span>Limpar</span>
+                </button>
               </div>
             </div>
             <div id="editor-layers-list" class="layer-list" style="max-height: 180px; overflow-y: auto;">
@@ -285,7 +333,7 @@ export default class EditorUI {
           <div id="editor-collision-palette" class="sidebar-section hidden">
             <div class="section-header">
               <div class="section-title-group">
-                <span style="font-size: 15px;">🛡️</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                 <h3>TIPO DE COLISÃO</h3>
               </div>
               <span id="selected-collision-badge" class="badge-gid" style="background:#ff1744; color:#fff;">Sólido</span>
@@ -295,42 +343,50 @@ export default class EditorUI {
             </p>
             <div class="collision-types-list">
               <button class="collision-type-btn active" data-type="1" title="Bloqueio total - impede passagem de todos os lados">
-                <span class="col-icon">🟥</span>
+                <span class="col-icon" style="color: #ff1744;">■</span>
                 <div class="col-details">
                   <strong>Sólido</strong>
                   <small>Bloqueio total de passagem</small>
                 </div>
               </button>
               <button class="collision-type-btn" data-type="2" title="Barranco - pode pular/descer para baixo, bloqueia subida">
-                <span class="col-icon">⬇️</span>
+                <span class="col-icon">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                </span>
                 <div class="col-details">
-                  <strong>Barranco (Descer ⬇️)</strong>
+                  <strong>Barranco (Descer)</strong>
                   <small>Pula para baixo, bloqueia subida</small>
                 </div>
               </button>
               <button class="collision-type-btn" data-type="3" title="Barranco - pode pular para esquerda, bloqueia retorno">
-                <span class="col-icon">⬅️</span>
+                <span class="col-icon">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                </span>
                 <div class="col-details">
-                  <strong>Barranco (Esquerda ⬅️)</strong>
+                  <strong>Barranco (Esquerda)</strong>
                   <small>Pula para esq., bloqueia retorno</small>
                 </div>
               </button>
               <button class="collision-type-btn" data-type="4" title="Barranco - pode pular para direita, bloqueia retorno">
-                <span class="col-icon">➡️</span>
+                <span class="col-icon">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                </span>
                 <div class="col-details">
-                  <strong>Barranco (Direita ➡️)</strong>
+                  <strong>Barranco (Direita)</strong>
                   <small>Pula para dir., bloqueia retorno</small>
                 </div>
               </button>
               <button class="collision-type-btn" data-type="5" title="Barranco - pode pular para cima, bloqueia descida">
-                <span class="col-icon">⬆️</span>
+                <span class="col-icon">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+                </span>
                 <div class="col-details">
-                  <strong>Barranco (Subir ⬆️)</strong>
+                  <strong>Barranco (Subir)</strong>
                   <small>Pula para cima, bloqueia descida</small>
                 </div>
               </button>
               <button class="collision-type-btn" data-type="6" title="Apagar/remover colisão existente (Montanha, Árvores, Construções, etc.)">
-                <span class="col-icon">🟩</span>
+                <span class="col-icon" style="color: #00e676;">■</span>
                 <div class="col-details">
                   <strong>Livre / Passável</strong>
                   <small>Apaga colisão própria do tileset</small>
@@ -350,7 +406,16 @@ export default class EditorUI {
 
             <div class="tileset-picker-toolbar">
               <select id="editor-tileset-select" class="small-select"></select>
-              <button id="btn-add-tileset-png" class="editor-btn gold" style="padding: 4px 8px; font-size: 11px; height: 32px;" title="Importar tileset PNG">➕ Add PNG</button>
+              <div class="tileset-picker-toolbar-buttons">
+                <button id="btn-add-outside4" class="editor-btn blue" title="Usar Tileset Outside 4 (Inverno)">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M20 16l-4-4 4-4M4 8l4 4-4 4M16 4l-4 4-4-4M8 20l4-4 4 4"/></svg>
+                  <span>Outside 4</span>
+                </button>
+                <button id="btn-add-tileset-png" class="editor-btn gold" title="Importar tileset PNG">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                  <span>Add PNG</span>
+                </button>
+              </div>
               <input type="file" id="input-tileset-png-file" accept="image/png" style="display:none;" />
             </div>
 
@@ -374,10 +439,13 @@ export default class EditorUI {
           <div class="sidebar-section">
             <div class="section-header">
               <div class="section-title-group">
-                <span style="font-size: 14px;">🚪</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 20V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16"></path><path d="M14 12v.01"></path></svg>
                 <h3>PORTAIS & CONEXÕES</h3>
               </div>
-              <button id="btn-add-new-portal" class="editor-btn small gold" style="height: 28px; padding: 2px 8px; font-size: 11px;">➕ Novo Portal</button>
+              <button id="btn-add-new-portal" class="editor-btn small gold" style="height: 28px; padding: 2px 8px; font-size: 11px; display:inline-flex; align-items:center; gap:4px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>Novo Portal</span>
+              </button>
             </div>
             <p style="font-size: 11px; color: var(--fr-text-muted); margin-bottom: 8px;">Conectam esta sala às outras cidades e rotas de Kanto.</p>
 
@@ -392,10 +460,13 @@ export default class EditorUI {
           <div class="sidebar-section">
             <div class="section-header">
               <div class="section-title-group">
-                <span style="font-size: 14px;">🪧</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 6h14v8H5z"></path><path d="M12 14v7"></path></svg>
                 <h3>PLACAS & CONVERSAS</h3>
               </div>
-              <button id="btn-add-new-sign" class="editor-btn small gold" style="height: 28px; padding: 2px 8px; font-size: 11px;">➕ Nova Placa</button>
+              <button id="btn-add-new-sign" class="editor-btn small gold" style="height: 28px; padding: 2px 8px; font-size: 11px; display:inline-flex; align-items:center; gap:4px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>Nova Placa</span>
+              </button>
             </div>
             <p style="font-size: 11px; color: var(--fr-text-muted); margin-bottom: 8px;">Placas e objetos interativos com diálogo estilo FireRed.</p>
 
@@ -410,7 +481,7 @@ export default class EditorUI {
       <div id="editor-portal-modal" class="editor-modal hidden">
         <div class="modal-header">
           <div class="modal-title">
-            <span style="font-size: 16px;">🚪</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 20V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16"></path><path d="M14 12v.01"></path></svg>
             <h4>CONFIGURAR PORTAL</h4>
           </div>
           <button id="btn-close-portal-modal" class="close-btn">✕</button>
@@ -424,26 +495,39 @@ export default class EditorUI {
             <label>Mapa de Destino</label>
             <select id="portal-prop-target-room" class="form-input editor-map-select"></select>
           </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Spawn Destino X (px)</label>
+
+          <!-- SPAWN DESTINO ROW + PICK BUTTON -->
+          <div class="form-row" style="align-items: flex-end; gap: 6px;">
+            <div class="form-group" style="flex:1;">
+              <label>Spawn X (px)</label>
               <input type="number" id="portal-prop-target-x" class="form-input" />
             </div>
-            <div class="form-group">
-              <label>Spawn Destino Y (px)</label>
+            <div class="form-group" style="flex:1;">
+              <label>Spawn Y (px)</label>
               <input type="number" id="portal-prop-target-y" class="form-input" />
             </div>
+            <button id="btn-portal-pick-target" class="editor-btn small gold" style="height: 34px; padding: 0 10px; display:inline-flex; align-items:center; gap:4px; font-weight: 600;" title="Carrega o mapa de destino para você clicar no local exato do spawn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+              <span>Marcar Destino</span>
+            </button>
           </div>
-          <div class="form-row">
-            <div class="form-group">
+
+          <!-- GATILHO ORIGEM ROW + RE-MARK BUTTON -->
+          <div class="form-row" style="align-items: flex-end; gap: 6px;">
+            <div class="form-group" style="flex:1;">
               <label>Gatilho X (px)</label>
               <input type="number" id="portal-prop-x" class="form-input" />
             </div>
-            <div class="form-group">
+            <div class="form-group" style="flex:1;">
               <label>Gatilho Y (px)</label>
               <input type="number" id="portal-prop-y" class="form-input" />
             </div>
+            <button id="btn-portal-pick-origin" class="editor-btn small secondary" style="height: 34px; padding: 0 10px; display:inline-flex; align-items:center; gap:4px;" title="Re-desenhar o retângulo do portal no mapa de origem">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><path d="M9 3v18"></path><path d="M15 3v18"></path></svg>
+              <span>Marcar Origem</span>
+            </button>
           </div>
+
           <div class="form-row">
             <div class="form-group">
               <label>Largura (W)</label>
@@ -454,8 +538,20 @@ export default class EditorUI {
               <input type="number" id="portal-prop-h" class="form-input" />
             </div>
           </div>
+
+          <!-- AUTOMATIC TWO-WAY CONNECT CHECKBOX -->
+          <div style="margin: 8px 0 12px 0; background: rgba(15, 23, 42, 0.6); padding: 8px 10px; border-radius: 6px; border: 1px solid rgba(251, 191, 36, 0.3);">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 11px; margin: 0; color: #ffecb3;">
+              <input type="checkbox" id="portal-prop-create-return" checked style="accent-color: #f59e0b;" />
+              <span>Criar portal de retorno automático (Destino ➔ Origem)</span>
+            </label>
+          </div>
+
           <div class="modal-actions">
-            <button id="btn-portal-jump" class="editor-btn small secondary" title="Carrega o mapa de destino no editor para verificar o local">🚀 Ir para Destino</button>
+            <button id="btn-portal-jump" class="editor-btn small secondary" title="Carrega o mapa de destino no editor para navegar" style="display:inline-flex; align-items:center; gap:4px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+              <span>Ver Destino</span>
+            </button>
             <button id="btn-save-portal" class="editor-btn small primary">Salvar Portal</button>
             <button id="btn-delete-portal" class="editor-btn small danger">Excluir</button>
           </div>
@@ -466,7 +562,7 @@ export default class EditorUI {
       <div id="editor-sign-modal" class="editor-modal hidden">
         <div class="modal-header">
           <div class="modal-title">
-            <span style="font-size: 16px;">🪧</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 6h14v8H5z"></path><path d="M12 14v7"></path></svg>
             <h4>CONVERSA / DIÁLOGO DA PLACA</h4>
           </div>
           <button id="btn-close-sign-modal" class="close-btn">✕</button>
@@ -491,8 +587,9 @@ export default class EditorUI {
             </div>
           </div>
           <div class="modal-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <button id="btn-test-dialogue" class="editor-btn gold" style="flex: 1 1 100%;">
-              💬 <span>TESTAR DIÁLOGO (FIRERED PREVIEW)</span>
+            <button id="btn-test-dialogue" class="editor-btn gold" style="flex: 1 1 100%; display:inline-flex; align-items:center; justify-content:center; gap:5px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+              <span>TESTAR DIÁLOGO (FIRERED PREVIEW)</span>
             </button>
             <button id="btn-save-sign" class="editor-btn small primary" style="flex: 1;">Salvar Placa</button>
             <button id="btn-delete-sign" class="editor-btn small danger" style="flex: 1;">Excluir</button>
@@ -641,6 +738,41 @@ export default class EditorUI {
       this.showToast(msg, type);
     };
 
+    this.editorScene.onPortalTargetPicked = async (targetX, targetY, context) => {
+      document.getElementById('portal-picker-bar')?.classList.add('hidden');
+
+      if (context && context.sourceMap && context.sourceMap !== this.editorScene.currentMapName) {
+        this.showToast(`Retornando ao mapa de origem '${context.sourceMap}'...`, 'info');
+        await this.editorScene.loadMapByName(context.sourceMap);
+        const mapSelect = document.getElementById('editor-map-select');
+        if (mapSelect) mapSelect.value = context.sourceMap;
+      }
+
+      const modal = document.getElementById('editor-portal-modal');
+      if (modal) {
+        document.getElementById('portal-prop-target-x').value = targetX;
+        document.getElementById('portal-prop-target-y').value = targetY;
+        if (context) {
+          if (context.label !== undefined) document.getElementById('portal-prop-label').value = context.label;
+          if (context.targetMap !== undefined) document.getElementById('portal-prop-target-room').value = context.targetMap;
+          if (context.originX !== undefined) document.getElementById('portal-prop-x').value = context.originX;
+          if (context.originY !== undefined) document.getElementById('portal-prop-y').value = context.originY;
+          if (context.originW !== undefined) document.getElementById('portal-prop-w').value = context.originW;
+          if (context.originH !== undefined) document.getElementById('portal-prop-h').value = context.originH;
+          if (context.createReturn !== undefined) {
+            const chk = document.getElementById('portal-prop-create-return');
+            if (chk) chk.checked = context.createReturn;
+          }
+        }
+        modal.classList.remove('hidden');
+        if (this.editorScene?.input?.keyboard) {
+          this.editorScene.input.keyboard.enabled = false;
+        }
+      }
+
+      this.showToast(`🎯 Spawn de destino definido: (${targetX}px, ${targetY}px)!`, 'success');
+    };
+
     // Top Bar Map Selector Change
     const mapSelect = document.getElementById('editor-map-select');
     if (mapSelect) {
@@ -743,17 +875,28 @@ export default class EditorUI {
     // New Portal & New Sign Buttons (First mark on map, then open config modal)
     document.getElementById('btn-add-new-portal')?.addEventListener('click', () => {
       this.selectTool('link');
-      this.showToast('🚪 Clique e arraste no mapa para marcar a área do teleporte (1 ou mais grids).', 'info');
+      this.showToast('Clique e arraste no mapa para marcar a área do teleporte (1 ou mais grids).', 'info');
     });
 
     document.getElementById('btn-add-new-sign')?.addEventListener('click', () => {
       this.selectTool('sign');
-      this.showToast('🪧 Clique no mapa para marcar a posição da placa (1 grid).', 'info');
+      this.showToast('Clique no mapa para marcar a posição da placa (1 grid).', 'info');
     });
 
-    // Tileset Select & Upload
+    // Tileset Select, Quick Add & Upload
     document.getElementById('editor-tileset-select')?.addEventListener('change', (e) => {
-      this.switchTileset(parseInt(e.target.value, 10));
+      const val = e.target.value;
+      if (val.startsWith('map:')) {
+        const idx = parseInt(val.replace('map:', ''), 10);
+        this.switchTileset(idx);
+      } else if (val.startsWith('lib:')) {
+        const presetName = val.replace('lib:', '');
+        this.addLibraryTileset(presetName);
+      }
+    });
+
+    document.getElementById('btn-add-outside4')?.addEventListener('click', () => {
+      this.addOrSwitchTileset('Outside4 Winter');
     });
 
     const btnAddPNG = document.getElementById('btn-add-tileset-png');
@@ -819,6 +962,96 @@ export default class EditorUI {
         }
         this.editorScene.loadMapByName(targetRoom);
       }
+    });
+
+    // Interactive Portal Picking Buttons
+    document.getElementById('btn-portal-pick-target')?.addEventListener('click', async () => {
+      const targetRoom = document.getElementById('portal-prop-target-room').value;
+      const label = document.getElementById('portal-prop-label').value;
+      const targetX = parseInt(document.getElementById('portal-prop-target-x').value, 10) || 0;
+      const targetY = parseInt(document.getElementById('portal-prop-target-y').value, 10) || 0;
+      const x = parseInt(document.getElementById('portal-prop-x').value, 10) || 0;
+      const y = parseInt(document.getElementById('portal-prop-y').value, 10) || 0;
+      const w = parseInt(document.getElementById('portal-prop-w').value, 10) || 32;
+      const h = parseInt(document.getElementById('portal-prop-h').value, 10) || 32;
+      const createReturn = document.getElementById('portal-prop-create-return')?.checked ?? true;
+
+      const currentObj = this.editorScene.selectedObject || {};
+
+      const context = {
+        sourceMap: this.editorScene.currentMapName,
+        targetMap: targetRoom,
+        portalId: currentObj.id,
+        label,
+        targetX,
+        targetY,
+        originX: x,
+        originY: y,
+        originW: w,
+        originH: h,
+        createReturn
+      };
+
+      document.getElementById('editor-portal-modal').classList.add('hidden');
+
+      if (targetRoom && targetRoom !== this.editorScene.currentMapName) {
+        this.showToast(`Carregando mapa de destino '${targetRoom}'...`, 'info');
+        await this.editorScene.loadMapByName(targetRoom);
+        const mapSelect = document.getElementById('editor-map-select');
+        if (mapSelect) mapSelect.value = targetRoom;
+      }
+
+      this.editorScene.startPortalTargetPicking(context);
+
+      const pickerBar = document.getElementById('portal-picker-bar');
+      if (pickerBar) {
+        document.getElementById('portal-picker-mode-badge').textContent = '🎯 MARCAR SPAWN DE DESTINO';
+        document.getElementById('portal-picker-instructions').textContent = `Clique no mapa '${targetRoom}' para marcar a posição de nascimento (use Espaço/Arrastar para Pan).`;
+        pickerBar.classList.remove('hidden');
+      }
+    });
+
+    document.getElementById('btn-portal-pick-origin')?.addEventListener('click', async () => {
+      const targetRoom = document.getElementById('portal-prop-target-room').value;
+      const label = document.getElementById('portal-prop-label').value;
+      const targetX = parseInt(document.getElementById('portal-prop-target-x').value, 10) || 0;
+      const targetY = parseInt(document.getElementById('portal-prop-target-y').value, 10) || 0;
+      const createReturn = document.getElementById('portal-prop-create-return')?.checked ?? true;
+
+      const currentObj = this.editorScene.selectedObject || {};
+
+      const context = {
+        sourceMap: this.editorScene.currentMapName,
+        targetMap: targetRoom,
+        portalId: currentObj.id,
+        label,
+        targetX,
+        targetY,
+        createReturn
+      };
+
+      document.getElementById('editor-portal-modal').classList.add('hidden');
+      this.selectTool('link');
+      this.showToast('📍 Clique e arraste no mapa para desenhar a área do gatilho de origem.', 'info');
+
+      const pickerBar = document.getElementById('portal-picker-bar');
+      if (pickerBar) {
+        document.getElementById('portal-picker-mode-badge').textContent = '📍 DESENHAR GATILHO DE ORIGEM';
+        document.getElementById('portal-picker-instructions').textContent = 'Clique e arraste no mapa para marcar a área do portal.';
+        pickerBar.classList.remove('hidden');
+      }
+    });
+
+    document.getElementById('btn-portal-picker-cancel')?.addEventListener('click', async () => {
+      document.getElementById('portal-picker-bar')?.classList.add('hidden');
+      this.editorScene.stopPortalPicking();
+      const ctx = this.editorScene.portalPickContext;
+      if (ctx && ctx.sourceMap && ctx.sourceMap !== this.editorScene.currentMapName) {
+        await this.editorScene.loadMapByName(ctx.sourceMap);
+        const mapSelect = document.getElementById('editor-map-select');
+        if (mapSelect) mapSelect.value = ctx.sourceMap;
+      }
+      document.getElementById('editor-portal-modal')?.classList.remove('hidden');
     });
 
     // Sign Modal Buttons
@@ -928,7 +1161,7 @@ export default class EditorUI {
       }
     }
 
-    select.value = this.editorScene.currentMapName || 'pallet_town';
+    select.value = this.editorScene.currentMapName || 'kanto';
   }
 
   populatePortalTargetSelect() {
@@ -936,7 +1169,7 @@ export default class EditorUI {
     if (!select) return;
 
     select.innerHTML = '';
-    const all = [...(this.allMapsList.cities || []), ...(this.allMapsList.routes || [])];
+    const all = [...(this.allMapsList.cities || []), ...(this.allMapsList.routes || []), ...(this.allMapsList.root || [])];
     all.sort().forEach(mapId => {
       const opt = document.createElement('option');
       opt.value = mapId;
@@ -957,6 +1190,9 @@ export default class EditorUI {
     const visualTileLayers = allMapLayers.filter(l => l.type === 'tilelayer' && l.name !== 'Collision');
     const hasCollision = allMapLayers.some(l => l.name === 'Collision') || (this.editorScene.tileLayerData && this.editorScene.tileLayerData['Collision']);
 
+    const eyeOnSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+    const eyeOffSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.4;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
+
     // 1. Collision layer item (pinned at top of list as special editor tool layer)
     if (hasCollision) {
       const colItem = document.createElement('div');
@@ -964,7 +1200,7 @@ export default class EditorUI {
       colItem.dataset.layer = 'Collision';
       colItem.innerHTML = `
         <div style="display:flex; align-items:center; gap:8px;">
-          <button class="layer-visibility-btn" title="Alternar Visibilidade da Colisão">${this.editorScene.showCollisions ? '👁️' : '🕶️'}</button>
+          <button class="layer-visibility-btn" title="Alternar Visibilidade da Colisão">${this.editorScene.showCollisions ? eyeOnSvg : eyeOffSvg}</button>
           <span class="layer-name">Collision</span>
         </div>
         <div style="display:flex; align-items:center; gap:6px;">
@@ -981,14 +1217,13 @@ export default class EditorUI {
       visBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         this.editorScene.toggleCollisions();
-        visBtn.textContent = this.editorScene.showCollisions ? '👁️' : '🕶️';
+        visBtn.innerHTML = this.editorScene.showCollisions ? eyeOnSvg : eyeOffSvg;
       });
 
       container.appendChild(colItem);
     }
 
     // 2. Visual tile layers rendered in reverse order (Topmost visual layer first, bottommost visual layer last)
-    // In this.editorScene.mapJsonData.layers, index 0 is bottom, index N-1 is top.
     const numVisual = visualTileLayers.length;
     for (let i = numVisual - 1; i >= 0; i--) {
       const layerObj = visualTileLayers[i];
@@ -1014,7 +1249,7 @@ export default class EditorUI {
 
       item.innerHTML = `
         <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
-          <button class="layer-visibility-btn" title="Alternar Visibilidade">${isVisible ? '👁️' : '🕶️'}</button>
+          <button class="layer-visibility-btn" title="Alternar Visibilidade">${isVisible ? eyeOnSvg : eyeOffSvg}</button>
           <span class="layer-name" title="${name}">${name}</span>
         </div>
         <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
@@ -1039,7 +1274,7 @@ export default class EditorUI {
         const pL = this.editorScene.phaserLayers[name];
         const newVis = pL ? !pL.visible : false;
         this.editorScene.setLayerVisible(name, newVis);
-        visBtn.textContent = newVis ? '👁️' : '🕶️';
+        visBtn.innerHTML = newVis ? eyeOnSvg : eyeOffSvg;
       });
 
       // Type toggle (Topo / Chão)
@@ -1052,7 +1287,7 @@ export default class EditorUI {
         this.showToast(`Camada "${name}" configurada como ${isOverhead ? 'Chão (abaixo do jogador)' : 'Topo (acima do jogador)'}!`, 'info');
       });
 
-      // Move Up (towards top, higher index, render on top)
+      // Move Up
       const upBtn = item.querySelector('.btn-layer-up');
       upBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -1061,11 +1296,11 @@ export default class EditorUI {
         if (moved) {
           this.renderLayersList(this.editorScene.allTileLayerNames);
           await this.saveMap();
-          this.showToast(`▲ Camada "${name}" subiu e foi salva!`, 'success');
+          this.showToast(`Camada "${name}" subiu e foi salva!`, 'success');
         }
       });
 
-      // Move Down (towards bottom, lower index, render below)
+      // Move Down
       const downBtn = item.querySelector('.btn-layer-down');
       downBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -1074,14 +1309,13 @@ export default class EditorUI {
         if (moved) {
           this.renderLayersList(this.editorScene.allTileLayerNames);
           await this.saveMap();
-          this.showToast(`▼ Camada "${name}" desceu e foi salva!`, 'success');
+          this.showToast(`Camada "${name}" desceu e foi salva!`, 'success');
         }
       });
 
       container.appendChild(item);
     }
 
-    // Update palette visibility according to current active layer
     this._updateActiveLayerState();
   }
 
@@ -1142,7 +1376,10 @@ export default class EditorUI {
       card.className = 'portal-card';
       card.innerHTML = `
         <div class="portal-card-header">
-          <span>🚪 ${props.label || obj.name || 'Portal'}</span>
+          <span style="display:inline-flex; align-items:center; gap:4px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 20V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16"></path><path d="M14 12v.01"></path></svg>
+            <span>${props.label || obj.name || 'Portal'}</span>
+          </span>
           <span style="color:var(--fr-gold); font-size:11px;">[${obj.x}, ${obj.y}]</span>
         </div>
         <div class="portal-card-details">
@@ -1245,6 +1482,66 @@ export default class EditorUI {
       this.editorScene.input.keyboard.clearCaptures();
     }
     await this.saveMap();
+
+    const createReturn = document.getElementById('portal-prop-create-return')?.checked;
+    if (createReturn && targetRoom && targetRoom !== this.editorScene.currentMapName) {
+      await this.saveReturnPortal(targetRoom, this.editorScene.currentMapName, targetX, targetY, x, y + h);
+    }
+  }
+
+  async saveReturnPortal(targetRoom, sourceMapName, returnX, returnY, returnTargetX, returnTargetY) {
+    try {
+      const res = await fetch(`/api/admin/map?map=${encodeURIComponent(targetRoom)}`);
+      if (!res.ok) return;
+      const targetMapJson = await res.json();
+      if (!targetMapJson || !targetMapJson.layers) return;
+
+      let portalLayer = targetMapJson.layers.find(l => (l.name === 'Portals' || l.name === 'Warps' || l.name === 'Doors') && l.type === 'objectgroup');
+      if (!portalLayer) {
+        portalLayer = {
+          name: 'Portals',
+          type: 'objectgroup',
+          visible: true,
+          opacity: 1,
+          objects: []
+        };
+        targetMapJson.layers.push(portalLayer);
+      }
+
+      let existingReturn = portalLayer.objects.find(o => Math.abs(o.x - returnX) < 16 && Math.abs(o.y - returnY) < 16);
+      if (!existingReturn) {
+        existingReturn = {
+          id: Date.now() + Math.floor(Math.random() * 1000),
+          name: `Voltar para ${sourceMapName}`,
+          type: 'portal_link',
+          x: returnX,
+          y: returnY,
+          width: 32,
+          height: 32,
+          properties: []
+        };
+        portalLayer.objects.push(existingReturn);
+      }
+
+      existingReturn.name = `Voltar para ${sourceMapName}`;
+      existingReturn.properties = [
+        { name: 'targetRoom', value: sourceMapName },
+        { name: 'targetX', value: returnTargetX },
+        { name: 'targetY', value: returnTargetY },
+        { name: 'label', value: `Voltar para ${sourceMapName}` },
+        { name: 'isLinked', value: true }
+      ];
+
+      await fetch(`/api/admin/map?map=${encodeURIComponent(targetRoom)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(targetMapJson)
+      });
+
+      this.showToast(`⚡ Portal de retorno em '${targetRoom}' criado e salvo automaticamente!`, 'success');
+    } catch (err) {
+      console.warn('[saveReturnPortal] Falha ao criar portal de retorno automático:', err);
+    }
   }
 
   async deletePortalModal() {
@@ -1278,7 +1575,7 @@ export default class EditorUI {
     const signLayer = this.editorScene.mapJsonData.layers.find(l => (l.name === 'Points of interest' || l.name === 'Signs') && l.type === 'objectgroup');
 
     if (!signLayer || signLayer.objects.length === 0) {
-      container.innerHTML = `<div style="font-size:12px; color:#888; text-align:center; padding:16px;">Nenhuma placa cadastrada. Clique em "Nova Placa" ou use a ferramenta 🪧 para colocar no mapa.</div>`;
+      container.innerHTML = `<div style="font-size:12px; color:#888; text-align:center; padding:16px;">Nenhuma placa cadastrada. Clique em "Nova Placa" ou use a ferramenta de placa para colocar no mapa.</div>`;
       return;
     }
 
@@ -1291,12 +1588,18 @@ export default class EditorUI {
       card.className = 'sign-card';
       card.innerHTML = `
         <div class="sign-card-header">
-          <span>🪧 ${title}</span>
+          <span style="display:inline-flex; align-items:center; gap:4px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 6h14v8H5z"></path><path d="M12 14v7"></path></svg>
+            <span>${title}</span>
+          </span>
           <span style="color:var(--fr-gold); font-size:11px;">[${obj.x}, ${obj.y}]</span>
         </div>
         <div class="sign-card-text">"${text}"</div>
         <div class="portal-card-actions">
-          <button class="editor-btn small gold btn-test-s">💬 Testar</button>
+          <button class="editor-btn small gold btn-test-s" style="display:inline-flex; align-items:center; gap:4px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            <span>Testar</span>
+          </button>
           <button class="editor-btn small primary btn-edit-s">Editar</button>
         </div>
       `;
@@ -1553,16 +1856,93 @@ export default class EditorUI {
     const tilesets = this.editorScene.mapJsonData.tilesets || [];
     select.innerHTML = '';
 
+    const activeGroup = document.createElement('optgroup');
+    activeGroup.label = 'Tilesets no Mapa (Ativos)';
+
     tilesets.forEach((t, idx) => {
       const opt = document.createElement('option');
-      opt.value = idx;
+      opt.value = `map:${idx}`;
       opt.textContent = `${t.name} (GID ${t.firstgid})`;
-      select.appendChild(opt);
+      if (this.activeTileset && (this.activeTileset.name === t.name || this.activeTileset.firstgid === t.firstgid)) {
+        opt.selected = true;
+      }
+      activeGroup.appendChild(opt);
     });
+    select.appendChild(activeGroup);
+
+    const mapTilesetNames = new Set(tilesets.map(t => t.name));
+    const unaddedPresets = PRESET_TILESETS.filter(p => !mapTilesetNames.has(p.name));
+
+    if (unaddedPresets.length > 0) {
+      const libGroup = document.createElement('optgroup');
+      libGroup.label = '➕ Adicionar da Biblioteca...';
+
+      unaddedPresets.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = `lib:${p.name}`;
+        opt.textContent = `+ ${p.name}`;
+        libGroup.appendChild(opt);
+      });
+      select.appendChild(libGroup);
+    }
 
     if (tilesets.length > 0 && !this.activeTileset) {
       this.activeTileset = tilesets[0];
     }
+  }
+
+  addOrSwitchTileset(name) {
+    if (!this.editorScene.mapJsonData) return;
+    if (!this.editorScene.mapJsonData.tilesets) {
+      this.editorScene.mapJsonData.tilesets = [];
+    }
+    const tilesets = this.editorScene.mapJsonData.tilesets;
+    const existingIndex = tilesets.findIndex(t => t.name === name);
+    if (existingIndex >= 0) {
+      this.switchTileset(existingIndex);
+      this.showToast(`Alternado para o tileset '${name}'`, 'info');
+      return;
+    }
+    this.addLibraryTileset(name);
+  }
+
+  addLibraryTileset(presetName) {
+    const preset = PRESET_TILESETS.find(p => p.name === presetName);
+    if (!preset) {
+      this.showToast(`Tileset '${presetName}' não encontrado na biblioteca.`, 'error');
+      return;
+    }
+
+    if (!this.editorScene.mapJsonData.tilesets) {
+      this.editorScene.mapJsonData.tilesets = [];
+    }
+
+    const tilesets = this.editorScene.mapJsonData.tilesets;
+    let maxGid = 1;
+    tilesets.forEach(t => {
+      const endGid = (t.firstgid || 1) + (t.tilecount || 0);
+      if (endGid > maxGid) maxGid = endGid;
+    });
+
+    const newTileset = {
+      name: preset.name,
+      image: '/assets/tilesets/' + preset.file,
+      firstgid: maxGid,
+      tilewidth: preset.tilewidth,
+      tileheight: preset.tileheight,
+      columns: preset.columns,
+      tilecount: preset.tilecount,
+      imagewidth: preset.imagewidth,
+      imageheight: preset.imageheight,
+      margin: 0,
+      spacing: 0
+    };
+
+    tilesets.push(newTileset);
+    this.editorScene.bindTilesetToMap(newTileset);
+    this.populateTilesetSelect();
+    this.switchTileset(tilesets.length - 1);
+    this.showToast(`✅ Tileset '${preset.name}' adicionado ao mapa! (GID inicial: ${maxGid})`, 'success');
   }
 
   switchTileset(idx, targetGid = null) {
@@ -1577,8 +1957,8 @@ export default class EditorUI {
     this.totalTiles = this.activeTileset.tilecount || 1000;
 
     const selectEl = document.getElementById('editor-tileset-select');
-    if (selectEl && parseInt(selectEl.value, 10) !== idx) {
-      selectEl.value = idx;
+    if (selectEl) {
+      selectEl.value = `map:${idx}`;
     }
 
     const onReady = () => {
@@ -1592,7 +1972,7 @@ export default class EditorUI {
       onReady();
     } else {
       this.tilesetImage = new Image();
-      this.tilesetImage.src = '/assets/tilesets/' + filename;
+      this.tilesetImage.src = `/assets/tilesets/${filename}?t=${Date.now()}`;
       this.tilesetImage.onload = () => {
         onReady();
       };
@@ -1621,8 +2001,8 @@ export default class EditorUI {
         const img = new Image();
         img.src = base64Data;
         img.onload = () => {
-          const tileW = 16;
-          const tileH = 16;
+          const tileW = 32;
+          const tileH = 32;
           const columns = Math.floor(img.width / tileW);
           const tilecount = columns * Math.floor(img.height / tileH);
 
@@ -1633,19 +2013,23 @@ export default class EditorUI {
             if (endGid > maxGid) maxGid = endGid;
           });
 
-          tilesets.push({
+          const newTileset = {
             name: cleanName,
             image: '/assets/tilesets/' + data.filename,
             firstgid: maxGid,
             tilewidth: tileW,
             tileheight: tileH,
             columns: columns,
-            tilecount: tilecount
-          });
+            tilecount: tilecount,
+            imagewidth: img.width,
+            imageheight: img.height
+          };
+          tilesets.push(newTileset);
 
           if (!this.editorScene.textures.exists(cleanName)) {
             this.editorScene.textures.addImage(cleanName, img);
           }
+          this.editorScene.bindTilesetToMap(newTileset);
 
           this.populateTilesetSelect();
           this.switchTileset(tilesets.length - 1);

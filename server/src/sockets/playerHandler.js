@@ -16,11 +16,12 @@ function setupPlayerHandlers(io, socket) {
         return socket.emit('error:msg', { message: 'Personagem não encontrado.' });
       }
 
-      // Safe position check for new map bounds
+      // Safe position check for new map bounds (Always Kanto open world)
+      let targetRoomId = character.roomId === 'kanto' ? 'kanto' : 'kanto';
+      const roomDef = roomManager.getRoomDefinition('kanto');
       let spawnX = character.x;
       let spawnY = character.y;
-      const roomDef = roomManager.getRoomDefinition(character.roomId);
-      if (spawnX < 32 || spawnY < 32 || spawnX > (roomDef.width - 32) || spawnY > (roomDef.height - 32)) {
+      if (character.roomId !== 'kanto' || !spawnX || !spawnY || spawnX < 64 || spawnY < 64 || spawnX > (roomDef.width - 64) || spawnY > (roomDef.height - 64)) {
         spawnX = roomDef.defaultSpawn.x;
         spawnY = roomDef.defaultSpawn.y;
       }
@@ -55,7 +56,7 @@ function setupPlayerHandlers(io, socket) {
         sprite: character.sprite,
         level: character.level || 1,
         exp: character.exp || 0,
-        roomId: character.roomId,
+        roomId: 'kanto',
         x: spawnX,
         y: spawnY,
         direction: character.direction,

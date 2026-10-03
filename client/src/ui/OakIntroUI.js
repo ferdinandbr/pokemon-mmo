@@ -239,7 +239,7 @@ export default class OakIntroUI {
       }
 
       // Transition to Pallet Town region music
-      bgmManager.playForRoom('pallet_town');
+      bgmManager.playForRoom('kanto');
 
       if (typeof this.onComplete === 'function') {
         this.onComplete();

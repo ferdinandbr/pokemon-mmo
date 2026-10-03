@@ -3,17 +3,18 @@ import { ROOMS_CONFIG } from '../maps/roomData';
 import { COLLISION_TYPES, COLLISION_META } from '../maps/collisionConfig';
 
 const LAYER_DEPTHS = {
-  Ground: 10,
-  Paths: 20,
+  Water: 10,
+  Ground: 20,
+  Paths: 25,
   Grass: 30,
-  Water: 40,
-  Shore: 45,
-  Mountain: 50,
-  Mountains: 50,
-  Objects: 60,
-  Buildings: 70,
-  Building: 70,
-  Trees: 80,
+  Shore: 35,
+  Mountain: 38,
+  Mountains: 38,
+  Building: 40,
+  Buildings: 40,
+  Objects: 50,
+  Trees: 60,
+  Tress: 60,
   Collision: 99000,
   Overhead: 1000,
   Arch: 1000
@@ -24,6 +25,7 @@ const COLLISION_LAYERS = [
   'Building',
   'Shore',
   'Trees',
+  'Tress',
   'Water',
   'Mountain',
   'Mountains',
@@ -36,7 +38,7 @@ export default class EditorScene extends Phaser.Scene {
 
     this.map = null;
     this.mapJsonData = null;
-    this.currentMapName = 'pallet_town';
+    this.currentMapName = 'kanto';
 
     // Dynamic tile layers data
     this.tileLayerData = {};  // layerName -> Uint32Array
@@ -74,6 +76,15 @@ export default class EditorScene extends Phaser.Scene {
     this.lastPointerWorldX = 0;
     this.lastPointerWorldY = 0;
 
+    // Interactive Portal Target / Origin Picking State
+    this.isPickingPortalTarget = false;
+    this.isPickingPortalOrigin = false;
+    this.portalPickContext = null;
+    this.onPortalTargetPicked = null;
+    this.pickPointerDownX = 0;
+    this.pickPointerDownY = 0;
+    this.wasDraggingMap = false;
+
     // UI Callback hooks
     this.onCoordsUpdate = null;
     this.onTilePicked = null;
@@ -88,9 +99,9 @@ export default class EditorScene extends Phaser.Scene {
 
   preload() {
     const t = Date.now();
-    this.load.image('Outside1 Spring', '/assets/tilesets/Outside1 Spring_extruded.png');
-    this.load.tilemapTiledJSON('pallet_town_editor', `/assets/maps/pallet_town.json?t=${t}`);
-    this.load.json('pallet_town_raw_json', `/assets/maps/pallet_town.json?t=${t}`);
+    this.load.image('spz3zUx_scaled', `/assets/tilesets/spz3zUx_scaled.png?t=${t}`);
+    this.load.tilemapTiledJSON('kanto_editor', `/assets/maps/kanto.json?t=${t}`);
+    this.load.json('kanto_raw_json', `/assets/maps/kanto.json?t=${t}`);
   }
 
   create() {
@@ -101,9 +112,9 @@ export default class EditorScene extends Phaser.Scene {
     this.collisionGraphics = this.add.graphics().setDepth(89999);
 
     // Initial map setup
-    const initialJson = this.cache.json.get('pallet_town_raw_json');
+    const initialJson = this.cache.json.get('kanto_raw_json');
     if (initialJson) {
-      this.initMapData('pallet_town', initialJson);
+      this.initMapData('kanto', initialJson);
     }
 
     // Disable context menu on canvas so right-click pan works without browser menu
@@ -267,12 +278,16 @@ export default class EditorScene extends Phaser.Scene {
           const imgUrl = t.image.startsWith('/') ? t.image : `/assets/tilesets/${t.image.split('/').pop()}`;
           this.load.image(t.name, imgUrl);
         }
-        const ts = this.map.addTilesetImage(t.name, t.name, 32, 32, 1, 2);
+        const margin = t.margin !== undefined ? t.margin : 0;
+        const spacing = t.spacing !== undefined ? t.spacing : 0;
+        const tileW = t.tileWidth || t.tilewidth || this.map?.tileWidth || 16;
+        const tileH = t.tileHeight || t.tileheight || this.map?.tileHeight || 16;
+        const ts = this.map.addTilesetImage(t.name, t.name, tileW, tileH, margin, spacing);
         if (ts) phaserTilesets.push(ts);
       }
     }
     if (phaserTilesets.length === 0) {
-      const defaultTs = this.map.addTilesetImage('Outside1 Spring', 'Outside1 Spring', 32, 32, 1, 2);
+      const defaultTs = this.map.addTilesetImage('spz3zUx_scaled', 'spz3zUx_scaled', 32, 32, 1, 2);
       if (defaultTs) phaserTilesets.push(defaultTs);
     }
 
@@ -387,6 +402,31 @@ export default class EditorScene extends Phaser.Scene {
     if (this.onMapLoaded) {
       this.onMapLoaded(mapName, this.mapJsonData, this.allTileLayerNames);
     }
+  }
+
+  bindTilesetToMap(t) {
+    if (!this.map) return null;
+    if (!this.textures.exists(t.name)) {
+      const imgUrl = t.image.startsWith('/') ? t.image : `/assets/tilesets/${t.image.split('/').pop()}`;
+      this.load.image(t.name, imgUrl);
+    }
+    const margin = t.margin !== undefined ? t.margin : 0;
+    const spacing = t.spacing !== undefined ? t.spacing : 0;
+    const tileW = t.tileWidth || t.tilewidth || this.map?.tileWidth || 16;
+    const tileH = t.tileHeight || t.tileheight || this.map?.tileHeight || 16;
+    const ts = this.map.addTilesetImage(t.name, t.name, tileW, tileH, margin, spacing);
+    if (ts) {
+      Object.values(this.phaserLayers).forEach(layer => {
+        if (layer) {
+          if (Array.isArray(layer.tileset)) {
+            if (!layer.tileset.includes(ts)) layer.tileset.push(ts);
+          } else if (layer.tileset) {
+            layer.tileset = [layer.tileset, ts];
+          }
+        }
+      });
+    }
+    return ts;
   }
 
   _syncPortalsFromRoomConfig(mapName) {
@@ -749,6 +789,29 @@ export default class EditorScene extends Phaser.Scene {
     }
   }
 
+  startPortalTargetPicking(context) {
+    this.isPickingPortalTarget = true;
+    this.isPickingPortalOrigin = false;
+    this.portalPickContext = context;
+    if (this.sys.game.canvas) this.sys.game.canvas.style.cursor = 'crosshair';
+  }
+
+  startPortalOriginPicking(context) {
+    this.isPickingPortalOrigin = true;
+    this.isPickingPortalTarget = false;
+    this.portalPickContext = context;
+    this.activeTool = 'link';
+    if (this.sys.game.canvas) this.sys.game.canvas.style.cursor = 'crosshair';
+  }
+
+  stopPortalPicking() {
+    this.isPickingPortalTarget = false;
+    this.isPickingPortalOrigin = false;
+    this.portalPickContext = null;
+    if (this.cursorGraphics) this.cursorGraphics.clear();
+    if (this.sys.game.canvas) this.sys.game.canvas.style.cursor = 'crosshair';
+  }
+
   // ─── Cursor & Interaction ─────────────────────────────────────────────────
 
   updateCursor(worldX, worldY) {
@@ -877,6 +940,20 @@ export default class EditorScene extends Phaser.Scene {
       this.cursorGraphics.fillStyle(0xfff176, 0.95);
       this.cursorGraphics.fillCircle(snapX + tileW / 2, snapY + tileH / 2, Math.min(6, tileW / 4));
       return;
+    } else if (this.isPickingPortalTarget) {
+      // Interactive Portal Target Spawn indicator (Bright Emerald / Cyan reticle)
+      this.cursorGraphics.lineStyle(2.5, 0x00e676, 1);
+      this.cursorGraphics.fillStyle(0x00e676, 0.35);
+      this.cursorGraphics.fillRect(snapX, snapY, tileW, tileH);
+      this.cursorGraphics.strokeRect(snapX, snapY, tileW, tileH);
+
+      const cx = snapX + tileW / 2;
+      const cy = snapY + tileH / 2;
+      this.cursorGraphics.lineStyle(2, 0xffffff, 0.95);
+      this.cursorGraphics.strokeCircle(cx, cy, 7);
+      this.cursorGraphics.lineBetween(cx - 10, cy, cx + 10, cy);
+      this.cursorGraphics.lineBetween(cx, cy - 10, cx, cy + 10);
+      return;
     } else if (this.activeTool === 'link') {
       // 1 grid hover indicator for Teleport (Purple)
       this.cursorGraphics.lineStyle(2, 0xba68c8, 1);
@@ -896,6 +973,10 @@ export default class EditorScene extends Phaser.Scene {
   onPointerDown(pointer) {
     if (!this.map) return;
 
+    this.pickPointerDownX = pointer.x;
+    this.pickPointerDownY = pointer.y;
+    this.wasDraggingMap = false;
+
     // Pan with Middle Click, Right Click, Space + Click, or Hand tool
     const isRightClick = pointer.rightButtonDown() || pointer.button === 2 || (pointer.event && (pointer.event.button === 2 || pointer.event.buttons === 2));
     const isMiddleClick = pointer.middleButtonDown() || pointer.button === 1 || (pointer.event && (pointer.event.button === 1 || pointer.event.buttons === 4));
@@ -904,6 +985,7 @@ export default class EditorScene extends Phaser.Scene {
 
     if (isRightClick || isMiddleClick || isSpaceDown || isHandTool) {
       this.isDraggingMap = true;
+      this.wasDraggingMap = true;
       this.dragStartX = pointer.x;
       this.dragStartY = pointer.y;
       this.camStartX = Number.isFinite(this.cameras.main.scrollX) ? this.cameras.main.scrollX : 0;
@@ -986,6 +1068,7 @@ export default class EditorScene extends Phaser.Scene {
     if (!this.map) return;
 
     if (this.isDraggingMap) {
+      this.wasDraggingMap = true;
       const zoom = this.cameras.main.zoom || 1;
       this.cameras.main.scrollX = this.camStartX - (pointer.x - this.dragStartX) / zoom;
       this.cameras.main.scrollY = this.camStartY - (pointer.y - this.dragStartY) / zoom;
@@ -1018,6 +1101,26 @@ export default class EditorScene extends Phaser.Scene {
   onPointerUp(pointer) {
     this.isDraggingMap = false;
     this.isPainting = false;
+
+    const distDownUp = Phaser.Math.Distance.Between(this.pickPointerDownX || 0, this.pickPointerDownY || 0, pointer.x, pointer.y);
+
+    if (this.isPickingPortalTarget) {
+      if (distDownUp < 8 && !this.wasDraggingMap) {
+        const worldPoint = pointer.positionToCamera(this.cameras.main);
+        const tileW = this.map ? this.map.tileWidth : 32;
+        const tileH = this.map ? this.map.tileHeight : 32;
+        const targetX = Math.floor(worldPoint.x / tileW) * tileW;
+        const targetY = Math.floor(worldPoint.y / tileH) * tileH;
+
+        const ctx = this.portalPickContext;
+        this.stopPortalPicking();
+
+        if (this.onPortalTargetPicked) {
+          this.onPortalTargetPicked(targetX, targetY, ctx);
+        }
+        return;
+      }
+    }
 
     if (this.isMarkingPortal && this.portalDragStart) {
       const worldPoint = pointer.positionToCamera(this.cameras.main);
