@@ -3,8 +3,8 @@
 export const PLAYER_VISUAL = Object.freeze({
   scale: 1.0,
   nameY: -30,
-  nameFontSize: '11px',
-  nameStrokeThickness: 2,
+  nameFontSize: '12px',
+  nameStrokeThickness: 3,
   bubbleY: -52,
   bodyWidth: 20,
   bodyHeight: 14,

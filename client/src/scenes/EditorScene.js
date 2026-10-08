@@ -26,7 +26,6 @@ const COLLISION_LAYERS = [
   'Shore',
   'Trees',
   'Tress',
-  'Water',
   'Mountain',
   'Mountains',
   'Collision'
@@ -48,6 +47,9 @@ export default class EditorScene extends Phaser.Scene {
     // Active State
     this.activeTool = 'pencil'; // 'hand', 'link', 'pencil', 'eraser', 'bucket', 'picker', 'object', 'sign'
     this.selectedTileGid = 1;
+    this.selectedTilePattern = null; // { width, height, tiles: 2D array of GIDs }
+    this.lastPaintedTileX = null;
+    this.lastPaintedTileY = null;
     this.selectedCollisionType = COLLISION_TYPES.SOLID;
     this.onCollisionTypePicked = null;
     this.activeLayerName = 'Ground';
@@ -99,7 +101,9 @@ export default class EditorScene extends Phaser.Scene {
 
   preload() {
     const t = Date.now();
-    this.load.image('spz3zUx_scaled', `/assets/tilesets/spz3zUx_scaled.png?t=${t}`);
+    if (!this.textures.exists('spz3zUx_scaled')) {
+      this.load.image('spz3zUx_scaled', `/assets/tilesets/spz3zUx_scaled.png?t=${t}`);
+    }
     this.load.tilemapTiledJSON('kanto_editor', `/assets/maps/kanto.json?t=${t}`);
     this.load.json('kanto_raw_json', `/assets/maps/kanto.json?t=${t}`);
   }
@@ -132,7 +136,7 @@ export default class EditorScene extends Phaser.Scene {
       this.scale.resize(window.innerWidth, window.innerHeight);
       if (this.cameras && this.cameras.main) {
         this.cameras.main.setSize(window.innerWidth, window.innerHeight);
-        this.cameras.main.setBackgroundColor('#090a10');
+        this.cameras.main.setBackgroundColor('#121624');
       }
       this._onResize = () => {
         if (document.body.classList.contains('editor-mode')) {
@@ -240,7 +244,7 @@ export default class EditorScene extends Phaser.Scene {
         mapJson = await staticRes.json();
       }
 
-      this.initMapData(mapName, mapJson);
+      await this.initMapData(mapName, mapJson);
       if (this.onToast) this.onToast(`✅ Mapa '${mapName}' carregado com sucesso!`, 'success');
     } catch (err) {
       console.error('[EditorScene loadMapByName Error]:', err);
@@ -248,7 +252,7 @@ export default class EditorScene extends Phaser.Scene {
     }
   }
 
-  initMapData(mapName, rawJson) {
+  async initMapData(mapName, rawJson) {
     this.currentMapName = mapName;
     this.mapJsonData = JSON.parse(JSON.stringify(rawJson));
     this.selectedObject = null;
@@ -265,6 +269,33 @@ export default class EditorScene extends Phaser.Scene {
     this.phaserLayers = {};
     this.allTileLayerNames = [];
 
+    // Pre-load all tileset images before building tilemap
+    if (this.mapJsonData.tilesets && this.mapJsonData.tilesets.length > 0) {
+      await Promise.all(this.mapJsonData.tilesets.map(t => {
+        return new Promise((resolve) => {
+          if (this.textures.exists(t.name)) {
+            resolve();
+            return;
+          }
+          const filename = t.image.split('/').pop();
+          const imgUrl = `/assets/tilesets/${encodeURIComponent(filename)}`;
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => {
+            if (!this.textures.exists(t.name)) {
+              this.textures.addImage(t.name, img);
+            }
+            resolve();
+          };
+          img.onerror = () => {
+            console.warn(`[EditorScene] Could not preload tileset ${t.name} from ${imgUrl}`);
+            resolve();
+          };
+          img.src = imgUrl;
+        });
+      }));
+    }
+
     // Ensure Phaser has the tilemap JSON in cache
     const cacheKey = `editor_map_${mapName}_${Date.now()}`;
     this.cache.tilemap.add(cacheKey, { format: Phaser.Tilemaps.Formats.TILED_JSON, data: this.mapJsonData });
@@ -274,22 +305,35 @@ export default class EditorScene extends Phaser.Scene {
     const phaserTilesets = [];
     if (this.mapJsonData.tilesets && this.mapJsonData.tilesets.length > 0) {
       for (const t of this.mapJsonData.tilesets) {
-        if (!this.textures.exists(t.name)) {
-          const imgUrl = t.image.startsWith('/') ? t.image : `/assets/tilesets/${t.image.split('/').pop()}`;
-          this.load.image(t.name, imgUrl);
-        }
         const margin = t.margin !== undefined ? t.margin : 0;
         const spacing = t.spacing !== undefined ? t.spacing : 0;
-        const tileW = t.tileWidth || t.tilewidth || this.map?.tileWidth || 16;
-        const tileH = t.tileHeight || t.tileheight || this.map?.tileHeight || 16;
-        const ts = this.map.addTilesetImage(t.name, t.name, tileW, tileH, margin, spacing);
+        const tileW = t.tileWidth || t.tilewidth || this.map?.tileWidth || 32;
+        const tileH = t.tileHeight || t.tileheight || this.map?.tileHeight || 32;
+        const firstGid = t.firstgid || 1;
+        let ts = this.map.getTileset(t.name);
+        if (!ts) {
+          ts = new Phaser.Tilemaps.Tileset(t.name, firstGid, tileW, tileH, margin, spacing);
+          this.map.tilesets.push(ts);
+        }
+        if (this.textures.exists(t.name)) {
+          ts.setImage(this.textures.get(t.name));
+        }
         if (ts) phaserTilesets.push(ts);
       }
     }
     if (phaserTilesets.length === 0) {
-      const defaultTs = this.map.addTilesetImage('spz3zUx_scaled', 'spz3zUx_scaled', 32, 32, 1, 2);
+      let defaultTs = this.map.getTileset('spz3zUx_scaled');
+      if (!defaultTs) {
+        defaultTs = new Phaser.Tilemaps.Tileset('spz3zUx_scaled', 1, 32, 32, 1, 2);
+        this.map.tilesets.push(defaultTs);
+      }
+      if (this.textures.exists('spz3zUx_scaled')) {
+        defaultTs.setImage(this.textures.get('spz3zUx_scaled'));
+      }
       if (defaultTs) phaserTilesets.push(defaultTs);
     }
+
+    this.rebuildMapTilesIndex();
 
     // Discover all tile layers in map JSON
     const width = this.map.width;
@@ -383,7 +427,7 @@ export default class EditorScene extends Phaser.Scene {
     // Setup Camera - Full unconstrained pan & zoom
     this.cameras.main.removeBounds();
     this.cameras.main.setZoom(1.5);
-    this.cameras.main.setBackgroundColor('#090a10');
+    this.cameras.main.setBackgroundColor('#121624');
 
     // Center camera on default spawn or map center (accounting for UI overlay panels)
     const roomDef = ROOMS_CONFIG[mapName];
@@ -404,29 +448,166 @@ export default class EditorScene extends Phaser.Scene {
     }
   }
 
-  bindTilesetToMap(t) {
+  bindTilesetToMap(t, imageSource = null) {
     if (!this.map) return null;
-    if (!this.textures.exists(t.name)) {
-      const imgUrl = t.image.startsWith('/') ? t.image : `/assets/tilesets/${t.image.split('/').pop()}`;
-      this.load.image(t.name, imgUrl);
-    }
     const margin = t.margin !== undefined ? t.margin : 0;
     const spacing = t.spacing !== undefined ? t.spacing : 0;
-    const tileW = t.tileWidth || t.tilewidth || this.map?.tileWidth || 16;
-    const tileH = t.tileHeight || t.tileheight || this.map?.tileHeight || 16;
-    const ts = this.map.addTilesetImage(t.name, t.name, tileW, tileH, margin, spacing);
-    if (ts) {
+    const tileW = t.tileWidth || t.tilewidth || this.map?.tileWidth || 32;
+    const tileH = t.tileHeight || t.tileheight || this.map?.tileHeight || 32;
+    const firstGid = t.firstgid || 1;
+
+    let ts = this.map.getTileset(t.name);
+    const tilecount = t.tilecount || (t.columns * 100) || 4544;
+    if (!ts) {
+      ts = new Phaser.Tilemaps.Tileset(t.name, firstGid, tileW, tileH, margin, spacing, tilecount);
+      ts.total = tilecount;
+      ts.rows = Math.ceil(tilecount / (t.columns || 64));
+      this.map.tilesets.push(ts);
+    } else {
+      ts.firstgid = firstGid;
+      ts.tileWidth = tileW;
+      ts.tileHeight = tileH;
+      ts.tileMargin = margin;
+      ts.tileSpacing = spacing;
+      if (ts.image && ts.image.source && ts.image.source[0] && ts.image.source[0].width) {
+        ts.setTileSize(tileW, tileH);
+        ts.setSpacing(margin, spacing);
+      }
+    }
+
+    ts.columns = t.columns || ts.columns || 64;
+    ts.total = t.tilecount || ts.total || (ts.columns * 100);
+    ts.rows = Math.ceil(ts.total / ts.columns);
+
+    if (this.map && this.map.tilesets) {
+      this.map.tilesets.sort((a, b) => (a.firstgid || 1) - (b.firstgid || 1));
+    }
+
+    const applyTextureAndRefresh = () => {
+      if (this.textures.exists(t.name)) {
+        const texture = this.textures.get(t.name);
+        ts.setImage(texture);
+      }
+      if (t.columns) ts.columns = t.columns;
+      if (t.tilecount) {
+        ts.total = t.tilecount;
+        ts.rows = Math.ceil(t.tilecount / (ts.columns || 64));
+      }
+      if (ts.image && ts.image.source && ts.image.source[0] && ts.image.source[0].width) {
+        ts.setTileSize(tileW, tileH);
+        ts.setSpacing(margin, spacing);
+      }
+      // Keep tilesets strictly sorted by firstgid ascending for Phaser gidMap
+      if (this.map && this.map.tilesets) {
+        this.map.tilesets.sort((a, b) => (a.firstgid || 1) - (b.firstgid || 1));
+      }
+      this.rebuildMapTilesIndex();
       Object.values(this.phaserLayers).forEach(layer => {
         if (layer) {
-          if (Array.isArray(layer.tileset)) {
-            if (!layer.tileset.includes(ts)) layer.tileset.push(ts);
-          } else if (layer.tileset) {
-            layer.tileset = [layer.tileset, ts];
+          layer.gidMap = null;
+          // Tile.tileset is a getter derived from layer.gidMap, so refreshing gidMap is enough
+          if (typeof layer.setTilesets === 'function') {
+            layer.setTilesets(this.map.tilesets);
+          }
+        }
+      });
+    };
+
+    const safeRegisterTexture = (name, src) => {
+      if (this.textures.exists(name)) {
+        const existing = this.textures.get(name);
+        const current = existing?.getSourceImage?.();
+        const sameSize = current && current.width === src.width && current.height === src.height;
+        if (current === src || sameSize) return;
+        this.textures.remove(name);
+      }
+      if (!this.textures.exists(name)) {
+        this.textures.addImage(name, src);
+      }
+    };
+
+    if (imageSource) {
+      safeRegisterTexture(t.name, imageSource);
+      applyTextureAndRefresh();
+    } else if (this.textures.exists(t.name)) {
+      applyTextureAndRefresh();
+    } else if (t.image) {
+      const filename = t.image.split('/').pop();
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        safeRegisterTexture(t.name, img);
+        applyTextureAndRefresh();
+      };
+      img.src = `/assets/tilesets/${encodeURIComponent(filename)}`;
+    }
+
+    if (this.mapJsonData) {
+      if (!Array.isArray(this.mapJsonData.tilesets)) {
+        this.mapJsonData.tilesets = [];
+      }
+      const existing = this.mapJsonData.tilesets.find(item => item.name === t.name);
+      if (!existing) {
+        this.mapJsonData.tilesets.push({
+          name: t.name,
+          image: t.image || `/assets/tilesets/${t.name}.png`,
+          firstgid: firstGid,
+          tilewidth: tileW,
+          tileheight: tileH,
+          columns: t.columns || ts.columns || 64,
+          tilecount: t.tilecount || ts.total || 4544,
+          margin: margin,
+          spacing: spacing
+        });
+      }
+    }
+
+    this.rebuildMapTilesIndex();
+    return ts;
+  }
+
+  rebuildMapTilesIndex() {
+    if (!this.map || !this.map.tilesets) return;
+    this.map.tilesets.sort((a, b) => (a.firstgid || 1) - (b.firstgid || 1));
+
+    if (this.mapJsonData?.tilesets) {
+      this.mapJsonData.tilesets.forEach(jd => {
+        const set = this.map.getTileset(jd.name);
+        if (set) {
+          if (!set.columns || set.columns === 0) set.columns = jd.columns || 64;
+          if (!set.total || set.total === 0) {
+            set.total = jd.tilecount || (set.columns * 100);
+            set.rows = Math.ceil(set.total / set.columns);
           }
         }
       });
     }
-    return ts;
+
+    try {
+      if (typeof Phaser?.Tilemaps?.Parsers?.Tiled?.BuildTilesetIndex === 'function') {
+        this.map.tiles = Phaser.Tilemaps.Parsers.Tiled.BuildTilesetIndex(this.map);
+      }
+    } catch (e) {
+      console.warn('[EditorScene] BuildTilesetIndex fallback:', e);
+    }
+
+    const tiles = Array.isArray(this.map.tiles) ? [...this.map.tiles] : [];
+    for (let i = 0; i < this.map.tilesets.length; i++) {
+      const set = this.map.tilesets[i];
+      const cols = set.columns || 64;
+      const total = set.total || 4544;
+      const m = set.tileMargin || 0;
+      const s = set.tileSpacing || 0;
+      const tw = set.tileWidth || 32;
+      const th = set.tileHeight || 32;
+      for (let t = 0; t < total; t++) {
+        const gid = set.firstgid + t;
+        const col = t % cols;
+        const row = Math.floor(t / cols);
+        tiles[gid] = [m + col * (tw + s), m + row * (th + s), i];
+      }
+    }
+    this.map.tiles = tiles;
   }
 
   _syncPortalsFromRoomConfig(mapName) {
@@ -815,6 +996,7 @@ export default class EditorScene extends Phaser.Scene {
   // ─── Cursor & Interaction ─────────────────────────────────────────────────
 
   updateCursor(worldX, worldY) {
+    if (!this.cursorGraphics) return;
     this.cursorGraphics.clear();
     if (!this.map) return;
 
@@ -907,8 +1089,26 @@ export default class EditorScene extends Phaser.Scene {
       }
       return;
     } else if (this.activeTool === 'pencil') {
-      this.cursorGraphics.lineStyle(2, 0x00ff00, 0.9);
-      this.cursorGraphics.fillStyle(0x00ff00, 0.25);
+      const pW = (this.selectedTilePattern && this.selectedTilePattern.width) || 1;
+      const pH = (this.selectedTilePattern && this.selectedTilePattern.height) || 1;
+      const boxW = pW * tileW;
+      const boxH = pH * tileH;
+
+      this.cursorGraphics.lineStyle(2, 0x00ff00, 0.95);
+      this.cursorGraphics.fillStyle(0x00ff00, 0.22);
+      this.cursorGraphics.fillRect(snapX, snapY, boxW, boxH);
+      this.cursorGraphics.strokeRect(snapX, snapY, boxW, boxH);
+
+      if (pW > 1 || pH > 1) {
+        this.cursorGraphics.lineStyle(1, 0x00ff00, 0.45);
+        for (let c = 1; c < pW; c++) {
+          this.cursorGraphics.lineBetween(snapX + c * tileW, snapY, snapX + c * tileW, snapY + boxH);
+        }
+        for (let r = 1; r < pH; r++) {
+          this.cursorGraphics.lineBetween(snapX, snapY + r * tileH, snapX + boxW, snapY + r * tileH);
+        }
+      }
+      return;
     } else if (this.activeTool === 'eraser') {
       this.cursorGraphics.lineStyle(2, 0xff1744, 0.95);
       this.cursorGraphics.fillStyle(0xff1744, 0.25);
@@ -1059,6 +1259,8 @@ export default class EditorScene extends Phaser.Scene {
         return;
       }
 
+      this.lastPaintedTileX = tileX;
+      this.lastPaintedTileY = tileY;
       this.isPainting = true;
       this.applyToolAt(tileX, tileY, worldPoint.x, worldPoint.y);
     }
@@ -1093,7 +1295,11 @@ export default class EditorScene extends Phaser.Scene {
 
     if (this.isPainting && pointer.leftButtonDown()) {
       if (this.activeTool === 'pencil' || this.activeTool === 'eraser') {
-        this.applyToolAt(tileX, tileY, worldPoint.x, worldPoint.y);
+        if (tileX !== this.lastPaintedTileX || tileY !== this.lastPaintedTileY) {
+          this.lastPaintedTileX = tileX;
+          this.lastPaintedTileY = tileY;
+          this.applyToolAt(tileX, tileY, worldPoint.x, worldPoint.y);
+        }
       }
     }
   }
@@ -1101,6 +1307,8 @@ export default class EditorScene extends Phaser.Scene {
   onPointerUp(pointer) {
     this.isDraggingMap = false;
     this.isPainting = false;
+    this.lastPaintedTileX = null;
+    this.lastPaintedTileY = null;
 
     const distDownUp = Phaser.Math.Distance.Between(this.pickPointerDownX || 0, this.pickPointerDownY || 0, pointer.x, pointer.y);
 
@@ -1215,7 +1423,20 @@ export default class EditorScene extends Phaser.Scene {
     }
 
     if (this.activeTool === 'pencil') {
-      this.setTile(tileX, tileY, this.selectedTileGid, layerName);
+      if (this.selectedTilePattern && (this.selectedTilePattern.width > 1 || this.selectedTilePattern.height > 1)) {
+        const { width: pW, height: pH, tiles } = this.selectedTilePattern;
+        for (let r = 0; r < pH; r++) {
+          for (let c = 0; c < pW; c++) {
+            const targetX = tileX + c;
+            const targetY = tileY + r;
+            if (targetX >= 0 && targetX < this.map.width && targetY >= 0 && targetY < this.map.height) {
+              this.setTile(targetX, targetY, tiles[r][c], layerName);
+            }
+          }
+        }
+      } else {
+        this.setTile(tileX, tileY, this.selectedTileGid, layerName);
+      }
     } else if (this.activeTool === 'eraser') {
       this.setTile(tileX, tileY, 0, layerName);
     } else if (this.activeTool === 'bucket') {
@@ -1267,6 +1488,7 @@ export default class EditorScene extends Phaser.Scene {
 
     if (foundGid && foundGid > 0) {
       this.selectedTileGid = foundGid;
+      this.selectedTilePattern = null;
       if (this.onTilePicked) this.onTilePicked(foundGid, targetLayer);
     } else {
       if (this.onToast) this.onToast(`Nenhum tile encontrado nesta posição (GID 0)`, 'info');
@@ -1283,6 +1505,14 @@ export default class EditorScene extends Phaser.Scene {
     return data[y * this.map.width + x];
   }
 
+  syncLayerDataToMapJson(layerName) {
+    if (!this.mapJsonData || !this.mapJsonData.layers || !this.tileLayerData[layerName]) return;
+    let jsonLayer = this.mapJsonData.layers.find(l => l.name === layerName && l.type === 'tilelayer');
+    if (jsonLayer) {
+      jsonLayer.data = Array.from(this.tileLayerData[layerName]);
+    }
+  }
+
   setTile(x, y, gid, layerName = this.activeLayerName, skipOverlay = false) {
     let data = this.tileLayerData[layerName];
     if (!data) {
@@ -1294,8 +1524,6 @@ export default class EditorScene extends Phaser.Scene {
 
     if (layerName === 'Collision') {
       if (gid === 0) {
-        // Erasing on Collision layer:
-        // Check if there is an underlying collision from tileset layers (Mountain, Trees, Buildings, Water, Shore)
         let hasUnderlyingCollision = false;
         for (const lName of COLLISION_LAYERS) {
           if (lName === 'Collision') continue;
@@ -1307,8 +1535,6 @@ export default class EditorScene extends Phaser.Scene {
         }
 
         if (hasUnderlyingCollision) {
-          // If already WALKABLE_OVERRIDE, toggle back to 0 (restore default layer collision)
-          // Otherwise, set to WALKABLE_OVERRIDE to erase the tileset collision!
           if (data[index] === COLLISION_TYPES.WALKABLE_OVERRIDE) {
             data[index] = 0;
           } else {
@@ -1322,10 +1548,10 @@ export default class EditorScene extends Phaser.Scene {
       }
 
       if (!skipOverlay) this.drawCollisionOverlay();
+      this.syncLayerDataToMapJson(layerName);
       return;
     }
 
-    if (data[index] === gid) return;
     data[index] = gid;
 
     const phaserLayer = this.phaserLayers[layerName];
@@ -1333,9 +1559,45 @@ export default class EditorScene extends Phaser.Scene {
       if (gid === 0) {
         phaserLayer.removeTileAt(x, y);
       } else {
-        phaserLayer.putTileAt(gid, x, y);
+        let targetTs = this.map.tilesets.find(s => gid >= s.firstgid && gid < s.firstgid + (s.total || 4544));
+        if (!targetTs || !targetTs.image || !this.textures.exists(targetTs.name)) {
+          if (this.mapJsonData?.tilesets) {
+            for (const tsData of this.mapJsonData.tilesets) {
+              const start = tsData.firstgid || 1;
+              const count = tsData.tilecount || (tsData.columns * 100);
+              if (gid >= start && gid < start + count) {
+                targetTs = this.bindTilesetToMap(tsData);
+                break;
+              }
+            }
+          }
+        }
+
+        if (!phaserLayer.gidMap || !phaserLayer.gidMap[gid] || !this.map.tiles || !this.map.tiles[gid]) {
+          this.rebuildMapTilesIndex();
+          phaserLayer.gidMap = null;
+          if (typeof phaserLayer.setTilesets === 'function') {
+            phaserLayer.setTilesets(this.map.tilesets);
+          }
+        }
+
+        try {
+          phaserLayer.putTileAt(gid, x, y);
+        } catch (err) {
+          console.warn('[EditorScene] Retrying putTileAt after index rebuild:', err);
+          this.rebuildMapTilesIndex();
+          if (typeof phaserLayer.setTilesets === 'function') {
+            phaserLayer.setTilesets(this.map.tilesets);
+          }
+          try {
+            phaserLayer.putTileAt(gid, x, y);
+          } catch (err2) {
+            console.error('[EditorScene] Failed to putTileAt:', err2);
+          }
+        }
       }
     }
+    this.syncLayerDataToMapJson(layerName);
   }
 
   floodFill(startX, startY, fillGid, layerName = this.activeLayerName) {
@@ -1673,8 +1935,10 @@ export default class EditorScene extends Phaser.Scene {
     }
   }
 
-  setSelectedTile(gid) {
+  setSelectedTile(gid, pattern = null) {
     this.selectedTileGid = gid;
+    this.selectedTilePattern = pattern;
+    this.updateCursor(this.lastPointerWorldX, this.lastPointerWorldY);
   }
 
   toggleGrid() {
@@ -1703,7 +1967,7 @@ export default class EditorScene extends Phaser.Scene {
     }
     if (this.cameras && this.cameras.main) {
       this.cameras.main.setSize(window.innerWidth, window.innerHeight);
-      this.cameras.main.setBackgroundColor('#090a10');
+      this.cameras.main.setBackgroundColor('#121624');
     }
     if (this.sys.game.canvas) {
       this.sys.game.canvas.style.margin = '0px';
@@ -1855,6 +2119,20 @@ export default class EditorScene extends Phaser.Scene {
     const exportMap = JSON.parse(JSON.stringify(this.mapJsonData));
     const width = this.map.width;
     const height = this.map.height;
+
+    // Deduplicate tilesets and keep strictly ordered by firstgid
+    if (Array.isArray(exportMap.tilesets)) {
+      const seen = new Set();
+      const uniqueTs = [];
+      for (const ts of exportMap.tilesets) {
+        if (ts && ts.name && !seen.has(ts.name)) {
+          seen.add(ts.name);
+          uniqueTs.push(ts);
+        }
+      }
+      exportMap.tilesets = uniqueTs;
+      exportMap.tilesets.sort((a, b) => (a.firstgid || 1) - (b.firstgid || 1));
+    }
 
     // Save all tile layers as standard JSON arrays (native Kanto format)
     for (const [layerName, dataArr] of Object.entries(this.tileLayerData)) {

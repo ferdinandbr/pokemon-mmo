@@ -37,7 +37,6 @@ const COLLISION_LAYERS = [
   'Shore',
   'Trees',
   'Tress',
-  'Water',
   'Mountain',
   'Mountains',
   'Collision'
@@ -223,11 +222,23 @@ export default class WorldScene extends Phaser.Scene {
       }
     });
 
-    // Snap player position to exact integer pixels after physics update to eliminate subpixel rendering jitter
-    this.events.on('postupdate', () => {
+    // Snap player & follower positions to exact integer pixels after physics update to eliminate subpixel rendering jitter and camera stutter
+    this.events.on('postupdate', (time, delta) => {
       if (this.localPlayer) {
         this.localPlayer.x = Math.round(this.localPlayer.x);
         this.localPlayer.y = Math.round(this.localPlayer.y);
+
+        if (this.localFollower && this.localFollower.active) {
+          const dt = delta || this.game.loop.delta || 16.666;
+          this.localFollower.updateFollower(
+            this.localPlayer.x,
+            this.localPlayer.y,
+            this.localPlayer.direction,
+            this.localPlayer.isMoving,
+            dt,
+            this.localPlayer.isJumping
+          );
+        }
       }
     });
 
@@ -393,6 +404,15 @@ export default class WorldScene extends Phaser.Scene {
       this.localPlayer.lastY = y;
       this.localPlayer.setDepth(100 + y / 10000);
       this._attachPlayerColliders(this.localPlayer);
+    }
+
+    if (this.localFollower) {
+      const pos = FollowerPokemon.behindPosition(x, y, this.localPlayer?.direction || 'down');
+      this.localFollower.setPosition(pos.x, pos.y);
+      this.localFollower.lastX = pos.x;
+      this.localFollower.lastY = pos.y;
+      this.localFollower.lastOwnerX = x;
+      this.localFollower.lastOwnerY = y;
     }
 
     const w = this.currentMap?.widthInPixels || this.currentRoom.width || 1152;
@@ -583,20 +603,149 @@ export default class WorldScene extends Phaser.Scene {
 
     // ── Bind all tilesets dynamically ──
     const tilesetList = [];
+    if (!this.textures.exists('__tileset_fallback_blank')) {
+      const blankCanvas = document.createElement('canvas');
+      blankCanvas.width = 32;
+      blankCanvas.height = 32;
+      this.textures.addCanvas('__tileset_fallback_blank', blankCanvas);
+    }
+
     if (map.tilesets && map.tilesets.length > 0) {
+      const seenNames = new Set();
+      const uniqueTilesets = [];
+      for (const t of map.tilesets) {
+        if (!seenNames.has(t.name)) {
+          seenNames.add(t.name);
+          uniqueTilesets.push(t);
+        }
+      }
+      map.tilesets = uniqueTilesets;
+      map.tilesets.sort((a, b) => (a.firstgid || 1) - (b.firstgid || 1));
+
       for (const t of map.tilesets) {
         const margin = t.tileMargin !== undefined ? t.tileMargin : (t.margin !== undefined ? t.margin : 0);
         const spacing = t.tileSpacing !== undefined ? t.tileSpacing : (t.spacing !== undefined ? t.spacing : 0);
-        const tileW = t.tileWidth || t.tilewidth || map.tileWidth || 16;
-        const tileH = t.tileHeight || t.tileheight || map.tileHeight || 16;
-        const ts = map.addTilesetImage(t.name, t.name, tileW, tileH, margin, spacing);
-        if (ts) tilesetList.push(ts);
+        const tileW = t.tileWidth || t.tilewidth || map.tileWidth || 32;
+        const tileH = t.tileHeight || t.tileheight || map.tileHeight || 32;
+        const firstGid = t.firstgid || 1;
+        let ts = map.getTileset(t.name);
+        if (!ts) {
+          ts = new Phaser.Tilemaps.Tileset(t.name, firstGid, tileW, tileH, margin, spacing);
+          map.tilesets.push(ts);
+        }
+
+        if (this.textures.exists(t.name)) {
+          const tex = this.textures.get(t.name);
+          if (tex && typeof tex.setFilter === 'function') {
+            tex.setFilter(Phaser.Textures.NEAREST);
+          }
+          ts.setImage(tex);
+          ts.columns = t.columns || ts.columns || 64;
+          ts.total = t.tilecount || ts.total || (ts.columns * 100);
+          ts.rows = Math.ceil(ts.total / ts.columns);
+          ts.tileMargin = t.margin !== undefined ? t.margin : (margin || 0);
+          ts.tileSpacing = t.spacing !== undefined ? t.spacing : (spacing || 0);
+        } else {
+          // Provide fallback canvas texture so WebGL renderer never crashes on null image
+          ts.setImage(this.textures.get('__tileset_fallback_blank'));
+
+          if (t.image) {
+            const filename = t.image.split('/').pop();
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+              let finalSource = img;
+              let cols = t.columns || Math.floor(img.width / tileW) || 1;
+              let count = t.tilecount || (cols * Math.floor(img.height / tileH));
+              if (img.height > 2048 && cols <= 8 && count > 128) {
+                const destCols = 64;
+                const destRows = Math.ceil(count / destCols);
+                const c = document.createElement('canvas');
+                c.width = destCols * tileW;
+                c.height = destRows * tileH;
+                const ctx = c.getContext('2d');
+                for (let idx = 0; idx < count; idx++) {
+                  const sx = (idx % cols) * tileW;
+                  const sy = Math.floor(idx / cols) * tileH;
+                  const dx = (idx % destCols) * tileW;
+                  const dy = Math.floor(idx / destCols) * tileH;
+                  ctx.drawImage(img, sx, sy, tileW, tileH, dx, dy, tileW, tileH);
+                }
+                finalSource = c;
+                cols = destCols;
+              }
+              if (this.textures.exists(t.name)) {
+                this.textures.remove(t.name);
+              }
+              this.textures.addImage(t.name, finalSource);
+              const activeTs = map.getTileset(t.name);
+              if (activeTs) {
+                activeTs.columns = cols;
+                activeTs.total = count;
+                activeTs.rows = Math.ceil(count / cols);
+                activeTs.setImage(this.textures.get(t.name));
+                const rebuildTiles = Array.isArray(map.tiles) ? [...map.tiles] : [];
+                for (let i = 0; i < map.tilesets.length; i++) {
+                  const set = map.tilesets[i];
+                  const setCols = set.columns || 64;
+                  const setTotal = set.total || 4544;
+                  const setM = set.tileMargin || 0;
+                  const setS = set.tileSpacing || 0;
+                  const setTw = set.tileWidth || 32;
+                  const setTh = set.tileHeight || 32;
+                  for (let ti = 0; ti < setTotal; ti++) {
+                    const gid = set.firstgid + ti;
+                    const sc = ti % setCols;
+                    const sr = Math.floor(ti / setCols);
+                    rebuildTiles[gid] = [setM + sc * (setTw + setS), setM + sr * (setTh + setS), i];
+                  }
+                }
+                map.tiles = rebuildTiles;
+                this.mapLayers.forEach(l => {
+                  if (l && typeof l.setTilesets === 'function') l.setTilesets(map.tilesets);
+                });
+              }
+            };
+            img.src = `/assets/tilesets/${encodeURIComponent(filename)}?t=${Date.now()}`;
+          }
+        }
+        if (ts && !tilesetList.includes(ts)) tilesetList.push(ts);
       }
     }
     if (tilesetList.length === 0) {
       const defaultTs = map.addTilesetImage('spz3zUx_scaled', 'spz3zUx_scaled', 32, 32, 1, 2);
       if (defaultTs) tilesetList.push(defaultTs);
     }
+
+    // Sort tilesets by firstgid
+    map.tilesets.sort((a, b) => (a.firstgid || 1) - (b.firstgid || 1));
+
+    try {
+      if (typeof Phaser?.Tilemaps?.Parsers?.Tiled?.BuildTilesetIndex === 'function') {
+        map.tiles = Phaser.Tilemaps.Parsers.Tiled.BuildTilesetIndex(map);
+      }
+    } catch (err) {
+      console.warn('[WorldScene] BuildTilesetIndex error:', err);
+    }
+
+    // Complete index builder ensuring all secondary tilesets are mapped
+    const tiles = Array.isArray(map.tiles) ? [...map.tiles] : [];
+    for (let i = 0; i < map.tilesets.length; i++) {
+      const set = map.tilesets[i];
+      const cols = set.columns || 64;
+      const total = set.total || 4544;
+      const m = set.tileMargin || 0;
+      const s = set.tileSpacing || 0;
+      const tw = set.tileWidth || 32;
+      const th = set.tileHeight || 32;
+      for (let t = 0; t < total; t++) {
+        const gid = set.firstgid + t;
+        const col = t % cols;
+        const row = Math.floor(t / cols);
+        tiles[gid] = [m + col * (tw + s), m + row * (th + s), i];
+      }
+    }
+    map.tiles = tiles;
 
     // ── Build all tile layers in defined stack order ──
     if (map.layers && map.layers.length > 0) {
@@ -971,21 +1120,7 @@ export default class WorldScene extends Phaser.Scene {
       100 + this.localPlayer.y / 10000
     );
 
-    // -------------------------------------------------------------------------
-    // LOCAL FOLLOWER
-    // -------------------------------------------------------------------------
-
-    if (this.localFollower) {
-
-      this.localFollower.updateFollower(
-        this.localPlayer.x,
-        this.localPlayer.y,
-        this.localPlayer.direction,
-        this.localPlayer.isMoving,
-        delta,
-        this.localPlayer.isJumping
-      );
-    }
+    // (Local follower is updated in 'postupdate' after physics step for perfect frame synchronization)
 
     // -------------------------------------------------------------------------
     // REMOTE PLAYERS

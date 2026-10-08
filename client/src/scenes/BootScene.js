@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { PRESET_TILESETS } from '../maps/tilesetsConfig';
 
 export default class BootScene extends Phaser.Scene {
   constructor() {
@@ -27,6 +28,13 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('spz3zUx_scaled', `/assets/tilesets/spz3zUx_scaled.png?t=${timestamp}`);
     this.load.image('tall_grass_overlay', `/assets/tilesets/tall_grass_overlay.png?t=${timestamp}`);
     this.load.image('grass_leaf', `/assets/tilesets/grass_leaf.png?t=${timestamp}`);
+
+    // Preload all preset tilesets for seamless WorldScene & custom maps
+    PRESET_TILESETS.forEach(p => {
+      if (!this.textures.exists(p.name)) {
+        this.load.image(p.name, `/assets/tilesets/${encodeURIComponent(p.file)}?t=${timestamp}`);
+      }
+    });
 
     // ── Flower animation frames (authentic FireRed / Gen 3 sway) ──
     for (let f = 0; f <= 4; f++) {

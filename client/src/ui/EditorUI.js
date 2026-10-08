@@ -2,34 +2,77 @@ import DialogueBox from './DialogueBox';
 import { ROOMS_CONFIG } from '../maps/roomData';
 import { COLLISION_TYPES, COLLISION_META } from '../maps/collisionConfig';
 import NodeGraphUI from './NodeGraphUI';
+import { PRESET_TILESETS } from '../maps/tilesetsConfig';
 
-export const PRESET_TILESETS = [
-  { name: 'Outside4 Winter', file: 'Outside4 Winter.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 4544, imagewidth: 256, imageheight: 18176 },
-  { name: 'Outside1 Spring', file: 'Outside1 Spring.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 4544, imagewidth: 256, imageheight: 18176 },
-  { name: 'Outside2 Summer', file: 'Outside2 Summer.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 4544, imagewidth: 256, imageheight: 18176 },
-  { name: 'Outside3 Autumn', file: 'Outside3 Autumn.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 4544, imagewidth: 256, imageheight: 18176 },
-  { name: 'Outside', file: 'Outside.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 4016, imagewidth: 256, imageheight: 16064 },
-  { name: 'spz3zUx_scaled', file: 'spz3zUx_scaled.png', tilewidth: 32, tileheight: 32, columns: 64, tilecount: 1689, imagewidth: 2176, imageheight: 918, margin: 1, spacing: 2 },
-  { name: 'Caves', file: 'Caves.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 800, imagewidth: 256, imageheight: 3200 },
-  { name: 'Dungeon cave', file: 'Dungeon cave.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 152, imagewidth: 256, imageheight: 608 },
-  { name: 'Dungeon forest', file: 'Dungeon forest.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 160, imagewidth: 256, imageheight: 640 },
-  { name: 'Factory interior', file: 'Factory interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 224, imagewidth: 256, imageheight: 896 },
-  { name: 'Game Corner interior', file: 'Game Corner interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 240, imagewidth: 256, imageheight: 960 },
-  { name: 'Graveyard tower interior', file: 'Graveyard tower interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 152, imagewidth: 256, imageheight: 608 },
-  { name: 'Gyms interior', file: 'Gyms interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 1264, imagewidth: 256, imageheight: 5056 },
-  { name: 'Interior general', file: 'Interior general.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 2120, imagewidth: 256, imageheight: 8480 },
-  { name: 'Mansion interior', file: 'Mansion interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 232, imagewidth: 256, imageheight: 928 },
-  { name: 'Mart interior', file: 'Mart interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 144, imagewidth: 256, imageheight: 576 },
-  { name: 'Multiplayer rooms', file: 'Multiplayer rooms.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 344, imagewidth: 256, imageheight: 1376 },
-  { name: 'Museum interior', file: 'Museum interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 184, imagewidth: 256, imageheight: 736 },
-  { name: 'Poke Centre interior', file: 'Poke Centre interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 320, imagewidth: 256, imageheight: 1280 },
-  { name: 'Ruins interior', file: 'Ruins interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 128, imagewidth: 256, imageheight: 512 },
-  { name: 'Trainer Tower interior', file: 'Trainer Tower interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 440, imagewidth: 256, imageheight: 1760 },
-  { name: 'Underground path', file: 'Underground path.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 72, imagewidth: 256, imageheight: 288 },
-  { name: 'Underwater', file: 'Underwater.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 112, imagewidth: 256, imageheight: 448 },
-  { name: 'Bike shop interior', file: 'Bike shop interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 176, imagewidth: 256, imageheight: 704 },
-  { name: 'Boat', file: 'Boat.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 648, imagewidth: 256, imageheight: 2592 }
-];
+export { PRESET_TILESETS };
+
+export function isImageReady(img) {
+  if (!img) return false;
+  if (img instanceof HTMLCanvasElement || img.tagName === 'CANVAS') {
+    return img.width > 0 && img.height > 0;
+  }
+  return !!(img.complete && (img.naturalWidth > 0 || img.width > 0));
+}
+
+/**
+ * Normalizes any tileset image so that oversized strips (e.g. 8 cols, height > 2048)
+ * are repacked into a 64-column grid (2048px width) compatible with WebGL texture limits.
+ */
+export function normalizeTilesetImage(img, tileW = 32, tileH = 32, targetCols = 64, margin = 0, spacing = 0) {
+  // Extruded atlases (margin/spacing) must keep their layout: same formula Phaser uses
+  if (margin > 0 || spacing > 0) {
+    const cols = Math.max(1, Math.floor((img.width - margin * 2 + spacing) / (tileW + spacing)));
+    const rows = Math.max(1, Math.floor((img.height - margin * 2 + spacing) / (tileH + spacing)));
+    return {
+      imageSource: img,
+      columns: cols,
+      tilecount: cols * rows,
+      imagewidth: img.width,
+      imageheight: img.height
+    };
+  }
+
+  const currentCols = Math.floor(img.width / tileW) || 1;
+  const currentRows = Math.floor(img.height / tileH) || 1;
+  const totalTiles = currentCols * currentRows;
+
+  // Safe WebGL boundaries: max width 2048, max height 2500
+  if (img.height <= 2500 && img.width <= 2500 && (currentCols >= 16 || totalTiles <= 128)) {
+    return {
+      imageSource: img,
+      columns: currentCols,
+      tilecount: totalTiles,
+      imagewidth: img.width,
+      imageheight: img.height
+    };
+  }
+
+  const destCols = targetCols;
+  const destRows = Math.ceil(totalTiles / destCols);
+  const destW = destCols * tileW;
+  const destH = destRows * tileH;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = destW;
+  canvas.height = destH;
+  const ctx = canvas.getContext('2d');
+
+  for (let t = 0; t < totalTiles; t++) {
+    const sx = (t % currentCols) * tileW;
+    const sy = Math.floor(t / currentCols) * tileH;
+    const dx = (t % destCols) * tileW;
+    const dy = Math.floor(t / destCols) * tileH;
+    ctx.drawImage(img, sx, sy, tileW, tileH, dx, dy, tileW, tileH);
+  }
+
+  return {
+    imageSource: canvas,
+    columns: destCols,
+    tilecount: totalTiles,
+    imagewidth: destW,
+    imageheight: destH
+  };
+}
 
 /**
  * EditorUI – Modern HTML/CSS overlay and control system for the Phaser Map Editor.
@@ -52,6 +95,17 @@ export default class EditorUI {
     this.columns = 64;
     this.tileSize = 32;
     this.totalTiles = 3881;
+
+    // Multi-tile selection state
+    this.selectedPattern = null; // { width, height, tiles: 2D array, minCol, maxCol, minRow, maxRow }
+    this.isSelectingTileset = false;
+    this.selectStartCol = 0;
+    this.selectStartRow = 0;
+    this.selectEndCol = 0;
+    this.selectEndRow = 0;
+    this.availableTilesetFiles = [];
+    this.showPaletteGrid = true;
+    this.paletteZoom = 1;
 
     this.allMapsList = this._getDefaultMapsList();
     this.activeSidebarTab = 'layers'; // 'layers', 'portals', 'signs'
@@ -420,11 +474,35 @@ export default class EditorUI {
             </div>
 
             <div class="tile-preview-container">
-              <canvas id="active-tile-preview" width="36" height="36"></canvas>
+              <canvas id="active-tile-preview" width="48" height="48" style="width:48px; height:48px;"></canvas>
               <div class="tile-info">
                 <div>GID Selecionado: <strong id="info-gid">1</strong></div>
                 <div>Posição: <span id="info-gid-coords">Coluna 0, Linha 0</span></div>
               </div>
+            </div>
+
+            <!-- Visual Tile Matcher: Correspondências no Outside -->
+            <div id="tile-similarity-container" class="tile-similarity-container">
+              <div class="similarity-header">
+                <span>✨ Correspondências no Outside</span>
+                <button id="btn-find-similar-tiles" class="editor-btn xsmall gold" title="Buscar correspondências visuais nos tilesets Outside">🔍 Buscar</button>
+              </div>
+              <div id="similar-tiles-list" class="similar-tiles-list">
+                <small class="similarity-placeholder">Use o conta-gotas no mapa para ver tiles correspondentes no Outside</small>
+              </div>
+            </div>
+
+            <div class="tileset-palette-controls" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; font-size:11px;">
+              <div style="display:flex; gap:4px; align-items:center;">
+                <button id="btn-palette-zoom-out" class="editor-btn small" title="Reduzir zoom da paleta" style="padding:2px 7px; height:24px;">-</button>
+                <button id="btn-palette-zoom-100" class="editor-btn small active" title="Tamanho original 100%" style="padding:2px 7px; height:24px;">100%</button>
+                <button id="btn-palette-zoom-in" class="editor-btn small" title="Aumentar zoom da paleta" style="padding:2px 7px; height:24px;">+</button>
+                <button id="btn-palette-fit-width" class="editor-btn small" title="Ajustar à largura do painel" style="padding:2px 7px; height:24px;">Ajustar</button>
+              </div>
+              <button id="btn-palette-grid-toggle" class="editor-btn small active" title="Alternar grade visual nos tiles" style="padding:2px 7px; height:24px; display:inline-flex; align-items:center; gap:4px;">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line></svg>
+                <span>Grade</span>
+              </button>
             </div>
 
             <!-- Tileset Canvas Container -->
@@ -659,8 +737,7 @@ export default class EditorUI {
       if (zoomEl) zoomEl.textContent = `${Math.round(zoom * 100)}%`;
     };
 
-    this.editorScene.onTilePicked = (gid, layerName) => {
-      // 1. Switch to layers tab so the tileset viewer is visible
+    this.editorScene.onTilePicked = async (gid, layerName) => {
       if (this.activeSidebarTab !== 'layers') {
         this.switchSidebarTab('layers');
       }
@@ -669,26 +746,41 @@ export default class EditorUI {
         this._selectLayer(layerName);
       }
 
-      // 2. Locate tileset that contains this gid
-      const tilesets = this.editorScene.mapJsonData?.tilesets || [];
-      let foundTilesetIdx = -1;
-      for (let i = 0; i < tilesets.length; i++) {
-        const t = tilesets[i];
-        const endGid = (t.firstgid || 1) + (t.tilecount || 10000);
-        if (gid >= t.firstgid && gid < endGid) {
-          foundTilesetIdx = i;
-          break;
+      // Check if user currently has an Outside tileset active
+      const activeName = (this.activeTileset?.name || '').toLowerCase();
+      const isOutsideActive = activeName.includes('outside') || activeName.includes('spring') || activeName.includes('summer') || activeName.includes('autumn') || activeName.includes('winter');
+
+      // Check if the picked tile belongs to the currently active tileset
+      const mapTilesets = this.editorScene.mapJsonData?.tilesets || [];
+      const pickedTileset = mapTilesets.find(t => {
+        const start = t.firstgid || 1;
+        const count = t.tilecount || (t.columns * 100);
+        return gid >= start && gid < start + count;
+      });
+
+      const isSameTileset = pickedTileset && this.activeTileset && (pickedTileset.name === this.activeTileset.name);
+
+      if (isOutsideActive && !isSameTileset) {
+        // STAY in active Outside tileset, find and select matching tile inside it!
+        this.showToast(`🔍 Buscando correspondente em '${this.activeTileset.name}'...`, 'info');
+        const bestMatchGid = await this.findSimilarOutsideTiles(gid, this.activeTileset);
+        if (bestMatchGid) {
+          this.setTileGid(bestMatchGid);
+          this.scrollToTileInPalette(bestMatchGid);
+          this.showToast(`✨ Tile Outside correspondente selecionado! (GID ${bestMatchGid})`, 'success');
         }
-      }
-
-      if (foundTilesetIdx >= 0) {
-        this.switchTileset(foundTilesetIdx, gid);
       } else {
-        this.setTileGid(gid);
-        this.scrollToTileInPalette(gid);
+        // Standard Eyedropper: switch to exact original tile & tileset
+        const foundIdx = mapTilesets.findIndex(t => t.name === (pickedTileset?.name));
+        if (foundIdx >= 0) {
+          this.switchTileset(foundIdx, gid);
+        } else {
+          this.setTileGid(gid);
+          this.scrollToTileInPalette(gid);
+        }
+        this.findSimilarOutsideTiles(gid);
+        this.showToast(`🎯 Tile GID ${gid} copiado da camada "${layerName || 'Ativa'}"!`, 'success');
       }
-
-      this.showToast(`🎯 Tile GID ${gid} copiado da camada "${layerName || 'Ativa'}"!`, 'success');
     };
 
     this.editorScene.onObjectDeleted = (obj) => {
@@ -718,6 +810,7 @@ export default class EditorUI {
     this.editorScene.onMapLoaded = (mapName, mapJsonData, layerNames) => {
       this.renderLayersList(layerNames);
       this.populateTilesetSelect();
+      this.switchTileset(0);
       this.renderPortalsList();
       this.renderSignsList();
 
@@ -892,6 +985,9 @@ export default class EditorUI {
       } else if (val.startsWith('lib:')) {
         const presetName = val.replace('lib:', '');
         this.addLibraryTileset(presetName);
+      } else if (val.startsWith('file:')) {
+        const fileName = val.replace('file:', '');
+        this.addFileTileset(fileName);
       }
     });
 
@@ -910,6 +1006,9 @@ export default class EditorUI {
 
     // Top Action Buttons
     document.getElementById('btn-editor-save')?.addEventListener('click', () => this.saveMap());
+    document.getElementById('btn-find-similar-tiles')?.addEventListener('click', () => {
+      if (this.activeGid) this.findSimilarOutsideTiles(this.activeGid);
+    });
     document.getElementById('btn-editor-reload')?.addEventListener('click', () => {
       if (confirm('Recarregar mapa atual? Alterações não salvas serão perdidas.')) {
         this.editorScene.loadMapByName(this.editorScene.currentMapName);
@@ -917,11 +1016,36 @@ export default class EditorUI {
     });
     document.getElementById('btn-editor-exit')?.addEventListener('click', () => this.hide());
 
-    // Tileset Canvas Click: PRESERVE ACTIVE TOOL
-    this.tilesetCanvas.addEventListener('click', (e) => {
+    // Palette Zoom & Grid Listeners
+    document.getElementById('btn-palette-zoom-in')?.addEventListener('click', () => {
+      const nextZoom = this.paletteZoom === 'fit' ? 1.25 : Math.min(3, Math.round(((this.paletteZoom || 1) + 0.25) * 100) / 100);
+      this.setPaletteZoom(nextZoom);
+    });
+    document.getElementById('btn-palette-zoom-out')?.addEventListener('click', () => {
+      const nextZoom = this.paletteZoom === 'fit' ? 0.75 : Math.max(0.25, Math.round(((this.paletteZoom || 1) - 0.25) * 100) / 100);
+      this.setPaletteZoom(nextZoom);
+    });
+    document.getElementById('btn-palette-zoom-100')?.addEventListener('click', () => {
+      this.setPaletteZoom(1);
+    });
+    document.getElementById('btn-palette-fit-width')?.addEventListener('click', () => {
+      this.setPaletteZoom(this.paletteZoom === 'fit' ? 1 : 'fit');
+    });
+    document.getElementById('btn-palette-grid-toggle')?.addEventListener('click', (e) => {
+      this.showPaletteGrid = !this.showPaletteGrid;
+      e.currentTarget.classList.toggle('active', this.showPaletteGrid);
+      this.drawTilesetPalette();
+    });
+
+
+    // Tileset Canvas: Support single-click AND drag-to-select multiple tiles (like Tiled!)
+    this.tilesetCanvas.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
       const rect = this.tilesetCanvas.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      const clickY = e.clientY - rect.top;
+      const scaleX = rect.width > 0 ? (this.tilesetCanvas.width / rect.width) : 1;
+      const scaleY = rect.height > 0 ? (this.tilesetCanvas.height / rect.height) : 1;
+      const clickX = (e.clientX - rect.left) * scaleX;
+      const clickY = (e.clientY - rect.top) * scaleY;
 
       const margin = this.activeTileset?.margin || 0;
       const spacing = this.activeTileset?.spacing || 0;
@@ -931,14 +1055,50 @@ export default class EditorUI {
       const col = Math.floor((clickX - margin) / (tileW + spacing));
       const row = Math.floor((clickY - margin) / (tileH + spacing));
 
-      if (col < 0 || col >= this.columns || row < 0) return;
+      const maxRow = Math.ceil(this.totalTiles / this.columns);
+      if (col < 0 || col >= this.columns || row < 0 || row >= maxRow) return;
 
-      const firstGid = this.activeTileset ? this.activeTileset.firstgid : 1;
-      const gid = firstGid + (row * this.columns) + col;
-      this.setTileGid(gid);
-      // Only switch to pencil if currently using sign, link or object
-      if (['sign', 'link', 'object'].includes(this.editorScene.activeTool)) {
-        this.selectTool('pencil');
+      this.isSelectingTileset = true;
+      this.selectStartCol = col;
+      this.selectStartRow = row;
+      this.selectEndCol = col;
+      this.selectEndRow = row;
+
+      this.updateTilesetSelection();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!this.isSelectingTileset || !this.tilesetCanvas) return;
+      const rect = this.tilesetCanvas.getBoundingClientRect();
+      const scaleX = rect.width > 0 ? (this.tilesetCanvas.width / rect.width) : 1;
+      const scaleY = rect.height > 0 ? (this.tilesetCanvas.height / rect.height) : 1;
+      const clickX = (e.clientX - rect.left) * scaleX;
+      const clickY = (e.clientY - rect.top) * scaleY;
+
+      const margin = this.activeTileset?.margin || 0;
+      const spacing = this.activeTileset?.spacing || 0;
+      const tileW = this.activeTileset?.tilewidth || this.tileSize || 32;
+      const tileH = this.activeTileset?.tileheight || this.tileSize || 32;
+
+      const maxRow = Math.max(1, Math.ceil(this.totalTiles / this.columns));
+      const col = Math.max(0, Math.min(this.columns - 1, Math.floor((clickX - margin) / (tileW + spacing))));
+      const row = Math.max(0, Math.min(maxRow - 1, Math.floor((clickY - margin) / (tileH + spacing))));
+
+      if (col !== this.selectEndCol || row !== this.selectEndRow) {
+        this.selectEndCol = col;
+        this.selectEndRow = row;
+        this.updateTilesetSelection();
+      }
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      if (this.isSelectingTileset) {
+        this.isSelectingTileset = false;
+        this.updateTilesetSelection();
+        // Automatically switch to pencil tool if on non-painting tool
+        if (['sign', 'link', 'object'].includes(this.editorScene.activeTool)) {
+          this.selectTool('pencil');
+        }
       }
     });
 
@@ -1109,8 +1269,20 @@ export default class EditorUI {
     } catch (err) {
       console.warn('[EditorUI fetchMapsList Warning]:', err);
     }
+    try {
+      const resTs = await fetch('/api/admin/map/tilesets');
+      if (resTs.ok) {
+        const dataTs = await resTs.json();
+        if (dataTs && Array.isArray(dataTs.tilesets)) {
+          this.availableTilesetFiles = dataTs.tilesets;
+        }
+      }
+    } catch (err) {
+      console.warn('[EditorUI fetchTilesets Warning]:', err);
+    }
     this.populateMapSelect();
     this.populatePortalTargetSelect();
+    this.populateTilesetSelect();
   }
 
   populateMapSelect() {
@@ -1842,11 +2014,76 @@ export default class EditorUI {
 
   setTileGid(gid) {
     this.activeGid = gid;
-    this.editorScene.setSelectedTile(gid);
-    this.updateTilePreview(gid);
+    const firstGid = this.activeTileset ? this.activeTileset.firstgid : 1;
+    const localId = Math.max(0, gid - firstGid);
+    const col = localId % this.columns;
+    const row = Math.floor(localId / this.columns);
+
+    this.selectStartCol = col;
+    this.selectStartRow = row;
+    this.selectEndCol = col;
+    this.selectEndRow = row;
+
+    this.selectedPattern = {
+      width: 1,
+      height: 1,
+      tiles: [[gid]],
+      minCol: col,
+      maxCol: col,
+      minRow: row,
+      maxRow: row
+    };
+
+    if (this.editorScene) {
+      this.editorScene.setSelectedTile(gid, this.selectedPattern);
+    }
+    this.highlightTilesetSelection();
+    this.updateTilePreviewMulti(this.selectedPattern);
 
     const gidEl = document.getElementById('editor-gid-indicator');
     if (gidEl) gidEl.textContent = `GID: ${gid}`;
+  }
+
+  updateTilesetSelection() {
+    const minCol = Math.min(this.selectStartCol, this.selectEndCol);
+    const maxCol = Math.max(this.selectStartCol, this.selectEndCol);
+    const minRow = Math.min(this.selectStartRow, this.selectEndRow);
+    const maxRow = Math.max(this.selectStartRow, this.selectEndRow);
+
+    const width = maxCol - minCol + 1;
+    const height = maxRow - minRow + 1;
+    const firstGid = this.activeTileset ? this.activeTileset.firstgid : 1;
+
+    const tiles = [];
+    for (let r = 0; r < height; r++) {
+      const rowTiles = [];
+      for (let c = 0; c < width; c++) {
+        const tileCol = minCol + c;
+        const tileRow = minRow + r;
+        const gid = firstGid + (tileRow * this.columns) + tileCol;
+        rowTiles.push(gid);
+      }
+      tiles.push(rowTiles);
+    }
+
+    const primaryGid = tiles[0][0];
+    this.activeGid = primaryGid;
+    this.selectedPattern = {
+      width,
+      height,
+      tiles,
+      minCol,
+      maxCol,
+      minRow,
+      maxRow
+    };
+
+    if (this.editorScene) {
+      this.editorScene.setSelectedTile(primaryGid, this.selectedPattern);
+    }
+
+    this.highlightTilesetSelection();
+    this.updateTilePreviewMulti(this.selectedPattern);
   }
 
   populateTilesetSelect() {
@@ -1886,6 +2123,25 @@ export default class EditorUI {
       select.appendChild(libGroup);
     }
 
+    if (this.availableTilesetFiles && this.availableTilesetFiles.length > 0) {
+      const otherFiles = this.availableTilesetFiles.filter(file => {
+        const name = file.replace(/\.png$/i, '');
+        return !mapTilesetNames.has(name) && !PRESET_TILESETS.some(p => p.file === file || p.name === name);
+      });
+
+      if (otherFiles.length > 0) {
+        const fileGroup = document.createElement('optgroup');
+        fileGroup.label = '📁 Outros Arquivos PNG...';
+        otherFiles.forEach(file => {
+          const opt = document.createElement('option');
+          opt.value = `file:${file}`;
+          opt.textContent = `+ ${file}`;
+          fileGroup.appendChild(opt);
+        });
+        select.appendChild(fileGroup);
+      }
+    }
+
     if (tilesets.length > 0 && !this.activeTileset) {
       this.activeTileset = tilesets[0];
     }
@@ -1906,6 +2162,59 @@ export default class EditorUI {
     this.addLibraryTileset(name);
   }
 
+  addFileTileset(fileName) {
+    const cleanName = fileName.replace(/\.png$/i, '');
+    const preset = PRESET_TILESETS.find(p => p.file === fileName || p.name === cleanName);
+    if (preset) {
+      this.addLibraryTileset(preset.name);
+      return;
+    }
+
+    const tilesets = this.editorScene.mapJsonData.tilesets || [];
+    let maxGid = 1;
+    tilesets.forEach(t => {
+      const count = t.tilecount || (t.columns * 100);
+      const endGid = (t.firstgid || 1) + count;
+      if (endGid > maxGid) maxGid = endGid;
+    });
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const tileW = 32;
+      const tileH = 32;
+      const normalized = normalizeTilesetImage(img, tileW, tileH, 64);
+      const newTileset = {
+        name: cleanName,
+        image: '/assets/tilesets/' + fileName,
+        firstgid: maxGid,
+        tilewidth: tileW,
+        tileheight: tileH,
+        columns: normalized.columns,
+        tilecount: normalized.tilecount,
+        imagewidth: normalized.imagewidth,
+        imageheight: normalized.imageheight,
+        margin: 0,
+        spacing: 0
+      };
+      tilesets.push(newTileset);
+      if (this.editorScene?.textures) {
+        if (this.editorScene.textures.exists(cleanName)) {
+          this.editorScene.textures.remove(cleanName);
+        }
+        this.editorScene.textures.addImage(cleanName, normalized.imageSource);
+      }
+      this.editorScene.bindTilesetToMap(newTileset, normalized.imageSource);
+      this.populateTilesetSelect();
+      this.switchTileset(tilesets.length - 1);
+      this.showToast(`✅ Tileset '${cleanName}' adicionado! (GID inicial: ${maxGid})`, 'success');
+    };
+    img.onerror = () => {
+      this.showToast(`❌ Falha ao carregar imagem: ${fileName}`, 'error');
+    };
+    img.src = `/assets/tilesets/${encodeURIComponent(fileName)}`;
+  }
+
   addLibraryTileset(presetName) {
     const preset = PRESET_TILESETS.find(p => p.name === presetName);
     if (!preset) {
@@ -1913,14 +2222,22 @@ export default class EditorUI {
       return;
     }
 
-    if (!this.editorScene.mapJsonData.tilesets) {
+    if (!this.editorScene.mapJsonData) {
       this.editorScene.mapJsonData.tilesets = [];
     }
 
     const tilesets = this.editorScene.mapJsonData.tilesets;
+    const existingIndex = tilesets.findIndex(t => t.name === preset.name);
+    if (existingIndex >= 0) {
+      this.switchTileset(existingIndex);
+      this.showToast(`Tileset '${preset.name}' já está no mapa.`, 'info');
+      return;
+    }
+
     let maxGid = 1;
     tilesets.forEach(t => {
-      const endGid = (t.firstgid || 1) + (t.tilecount || 0);
+      const count = t.tilecount || (t.columns * 100);
+      const endGid = (t.firstgid || 1) + count;
       if (endGid > maxGid) maxGid = endGid;
     });
 
@@ -1934,14 +2251,14 @@ export default class EditorUI {
       tilecount: preset.tilecount,
       imagewidth: preset.imagewidth,
       imageheight: preset.imageheight,
-      margin: 0,
-      spacing: 0
+      margin: preset.margin || 0,
+      spacing: preset.spacing || 0
     };
 
     tilesets.push(newTileset);
-    this.editorScene.bindTilesetToMap(newTileset);
     this.populateTilesetSelect();
-    this.switchTileset(tilesets.length - 1);
+    const newIdx = tilesets.length - 1;
+    this.switchTileset(newIdx);
     this.showToast(`✅ Tileset '${preset.name}' adicionado ao mapa! (GID inicial: ${maxGid})`, 'success');
   }
 
@@ -1954,28 +2271,78 @@ export default class EditorUI {
 
     this.columns = this.activeTileset.columns || 16;
     this.tileSize = this.activeTileset.tilewidth || 32;
-    this.totalTiles = this.activeTileset.tilecount || 1000;
+    this.totalTiles = this.activeTileset.tilecount || (this.columns * 100);
 
     const selectEl = document.getElementById('editor-tileset-select');
     if (selectEl) {
       selectEl.value = `map:${idx}`;
     }
 
+    // Reset multi-tile pattern on switch
+    this.selectedPattern = null;
+
     const onReady = () => {
+      const tw = this.activeTileset.tilewidth || 32;
+      const th = this.activeTileset.tileheight || 32;
+      const normalized = normalizeTilesetImage(
+        this.tilesetImage, tw, th, 64,
+        this.activeTileset.margin || 0,
+        this.activeTileset.spacing || 0
+      );
+      if (normalized.imageSource !== this.tilesetImage) {
+        this.tilesetImage = normalized.imageSource;
+      }
+      if (this.tilesetImage) {
+        this.tilesetImage.tilesetKey = filename;
+      }
+
+      this.activeTileset.columns = normalized.columns;
+      this.activeTileset.tilecount = normalized.tilecount;
+      this.activeTileset.imagewidth = normalized.imagewidth;
+      this.activeTileset.imageheight = normalized.imageheight;
+      this.columns = normalized.columns;
+      this.totalTiles = normalized.tilecount;
+
+      // Ensure texture is registered/updated and tileset is bound to map safely
+      if (this.editorScene) {
+        this.editorScene.bindTilesetToMap(this.activeTileset, this.tilesetImage);
+      }
+
       this.drawTilesetPalette();
-      const gidToFocus = targetGid !== null ? targetGid : (this.activeGid || this.activeTileset.firstgid);
+
+      // Ensure gidToFocus belongs to the CURRENT tileset
+      const firstGid = this.activeTileset.firstgid || 1;
+      const count = this.activeTileset.tilecount || (this.columns * 100);
+      let gidToFocus;
+      if (targetGid !== null && targetGid >= firstGid && targetGid < firstGid + count) {
+        gidToFocus = targetGid;
+      } else if (this.activeGid >= firstGid && this.activeGid < firstGid + count) {
+        gidToFocus = this.activeGid;
+      } else {
+        gidToFocus = firstGid;
+      }
+
       this.setTileGid(gidToFocus);
       this.scrollToTileInPalette(gidToFocus);
     };
 
-    if (this.tilesetImage && this.tilesetImage.src.endsWith(filename) && this.tilesetImage.complete) {
+    const encodedFilename = encodeURIComponent(filename);
+    const targetSrc = `/assets/tilesets/${encodedFilename}`;
+
+    if (isImageReady(this.tilesetImage) && (this.tilesetImage.tilesetKey === filename || (this.tilesetImage.src && this.tilesetImage.src.includes(encodedFilename)))) {
       onReady();
     } else {
-      this.tilesetImage = new Image();
-      this.tilesetImage.src = `/assets/tilesets/${filename}?t=${Date.now()}`;
-      this.tilesetImage.onload = () => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        img.tilesetKey = filename;
+        this.tilesetImage = img;
         onReady();
       };
+      img.onerror = () => {
+        this.showToast(`❌ Erro ao carregar tileset: ${filename}`, 'error');
+      };
+      img.src = `${targetSrc}?t=${Date.now()}`;
     }
   }
 
@@ -2003,8 +2370,7 @@ export default class EditorUI {
         img.onload = () => {
           const tileW = 32;
           const tileH = 32;
-          const columns = Math.floor(img.width / tileW);
-          const tilecount = columns * Math.floor(img.height / tileH);
+          const normalized = normalizeTilesetImage(img, tileW, tileH, 64);
 
           const tilesets = this.editorScene.mapJsonData.tilesets || [];
           let maxGid = 1;
@@ -2019,17 +2385,20 @@ export default class EditorUI {
             firstgid: maxGid,
             tilewidth: tileW,
             tileheight: tileH,
-            columns: columns,
-            tilecount: tilecount,
-            imagewidth: img.width,
-            imageheight: img.height
+            columns: normalized.columns,
+            tilecount: normalized.tilecount,
+            imagewidth: normalized.imagewidth,
+            imageheight: normalized.imageheight,
+            margin: 0,
+            spacing: 0
           };
           tilesets.push(newTileset);
 
-          if (!this.editorScene.textures.exists(cleanName)) {
-            this.editorScene.textures.addImage(cleanName, img);
+          if (this.editorScene.textures.exists(cleanName)) {
+            this.editorScene.textures.remove(cleanName);
           }
-          this.editorScene.bindTilesetToMap(newTileset);
+          this.editorScene.textures.addImage(cleanName, normalized.imageSource);
+          this.editorScene.bindTilesetToMap(newTileset, normalized.imageSource);
 
           this.populateTilesetSelect();
           this.switchTileset(tilesets.length - 1);
@@ -2042,70 +2411,175 @@ export default class EditorUI {
     reader.readAsDataURL(file);
   }
 
+    setPaletteZoom(zoom) {
+    this.paletteZoom = zoom;
+    if (!this.tilesetCanvas) return;
+
+    if (zoom === 'fit') {
+      this.tilesetCanvas.style.width = '100%';
+      this.tilesetCanvas.style.height = 'auto';
+    } else {
+      const w = Math.round(this.tilesetCanvas.width * zoom);
+      const h = Math.round(this.tilesetCanvas.height * zoom);
+      this.tilesetCanvas.style.width = `${w}px`;
+      this.tilesetCanvas.style.height = `${h}px`;
+    }
+
+    document.querySelectorAll('.tileset-palette-controls .editor-btn').forEach(b => {
+      if (b.id !== 'btn-palette-grid-toggle') b.classList.remove('active');
+    });
+    if (zoom === 1) document.getElementById('btn-palette-zoom-100')?.classList.add('active');
+    else if (zoom === 'fit') document.getElementById('btn-palette-fit-width')?.classList.add('active');
+  }
+
   drawTilesetPalette() {
-    if (!this.tilesetImage.complete) return;
+    if (!isImageReady(this.tilesetImage)) return;
     this.tilesetCanvas.width = this.tilesetImage.width;
     this.tilesetCanvas.height = this.tilesetImage.height;
     this.tilesetCtx.drawImage(this.tilesetImage, 0, 0);
-    this.highlightTilesetGid(this.activeGid);
+
+    if (this.showPaletteGrid) {
+      const margin = this.activeTileset?.margin || 0;
+      const spacing = this.activeTileset?.spacing || 0;
+      const tileW = this.activeTileset?.tilewidth || this.tileSize || 32;
+      const tileH = this.activeTileset?.tileheight || this.tileSize || 32;
+      const maxRows = Math.ceil(this.totalTiles / this.columns);
+
+      this.tilesetCtx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      this.tilesetCtx.lineWidth = 1;
+
+      for (let c = 0; c <= this.columns; c++) {
+        const lx = margin + c * (tileW + spacing);
+        this.tilesetCtx.beginPath();
+        this.tilesetCtx.moveTo(lx, margin);
+        this.tilesetCtx.lineTo(lx, margin + maxRows * (tileH + spacing));
+        this.tilesetCtx.stroke();
+      }
+      for (let r = 0; r <= maxRows; r++) {
+        const ly = margin + r * (tileH + spacing);
+        this.tilesetCtx.beginPath();
+        this.tilesetCtx.moveTo(margin, ly);
+        this.tilesetCtx.lineTo(margin + this.columns * (tileW + spacing), ly);
+        this.tilesetCtx.stroke();
+      }
+    }
+
+    this.highlightTilesetSelection();
+    if (this.paletteZoom) {
+      this.setPaletteZoom(this.paletteZoom);
+    }
   }
 
   highlightTilesetGid(gid) {
-    if (!this.tilesetImage.complete) return;
+    this.setTileGid(gid);
+  }
+
+  highlightTilesetSelection() {
+    if (!isImageReady(this.tilesetImage)) return;
     this.tilesetCtx.drawImage(this.tilesetImage, 0, 0);
 
-    const firstGid = this.activeTileset ? this.activeTileset.firstgid : 1;
-    const localId = gid - firstGid;
-    if (localId < 0) return;
+    const pattern = this.selectedPattern;
+    if (!pattern) return;
+
+    const minCol = pattern.minCol;
+    const minRow = pattern.minRow;
+    const width = pattern.width;
+    const height = pattern.height;
 
     const margin = this.activeTileset?.margin || 0;
     const spacing = this.activeTileset?.spacing || 0;
     const tileW = this.activeTileset?.tilewidth || this.tileSize || 32;
     const tileH = this.activeTileset?.tileheight || this.tileSize || 32;
 
-    const col = localId % this.columns;
-    const row = Math.floor(localId / this.columns);
-    const x = margin + col * (tileW + spacing);
-    const y = margin + row * (tileH + spacing);
+    const boxX = margin + minCol * (tileW + spacing);
+    const boxY = margin + minRow * (tileH + spacing);
+    const boxW = width * tileW + (width - 1) * spacing;
+    const boxH = height * tileH + (height - 1) * spacing;
 
     // Glowing vibrant cyan and gold box
+    this.tilesetCtx.fillStyle = 'rgba(0, 229, 255, 0.35)';
+    this.tilesetCtx.fillRect(boxX, boxY, boxW, boxH);
+
     this.tilesetCtx.strokeStyle = '#ffd700';
     this.tilesetCtx.lineWidth = 3;
-    this.tilesetCtx.strokeRect(x - 1, y - 1, tileW + 2, tileH + 2);
+    this.tilesetCtx.strokeRect(boxX - 1, boxY - 1, boxW + 2, boxH + 2);
+
     this.tilesetCtx.strokeStyle = '#00e5ff';
     this.tilesetCtx.lineWidth = 1.5;
-    this.tilesetCtx.strokeRect(x, y, tileW, tileH);
-    this.tilesetCtx.fillStyle = 'rgba(0, 229, 255, 0.35)';
-    this.tilesetCtx.fillRect(x, y, tileW, tileH);
+    this.tilesetCtx.strokeRect(boxX, boxY, boxW, boxH);
+
+    // Subtle inner grid lines for multi-selection
+    if (width > 1 || height > 1) {
+      this.tilesetCtx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+      this.tilesetCtx.lineWidth = 1;
+      for (let c = 1; c < width; c++) {
+        const lx = boxX + c * (tileW + spacing);
+        this.tilesetCtx.beginPath();
+        this.tilesetCtx.moveTo(lx, boxY);
+        this.tilesetCtx.lineTo(lx, boxY + boxH);
+        this.tilesetCtx.stroke();
+      }
+      for (let r = 1; r < height; r++) {
+        const ly = boxY + r * (tileH + spacing);
+        this.tilesetCtx.beginPath();
+        this.tilesetCtx.moveTo(boxX, ly);
+        this.tilesetCtx.lineTo(boxX + boxW, ly);
+        this.tilesetCtx.stroke();
+      }
+    }
   }
 
-  updateTilePreview(gid) {
-    this.highlightTilesetGid(gid);
+  updateTilePreviewMulti(pattern) {
     const previewCanvas = document.getElementById('active-tile-preview');
-    if (!previewCanvas || !this.tilesetImage.complete) return;
+    if (!previewCanvas || !isImageReady(this.tilesetImage)) return;
 
     const ctx = previewCanvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
-    ctx.clearRect(0, 0, 36, 36);
-
-    const firstGid = this.activeTileset ? this.activeTileset.firstgid : 1;
-    const localId = gid - firstGid;
-    if (localId < 0) return;
+    ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
 
     const margin = this.activeTileset?.margin || 0;
     const spacing = this.activeTileset?.spacing || 0;
     const tileW = this.activeTileset?.tilewidth || this.tileSize || 32;
     const tileH = this.activeTileset?.tileheight || this.tileSize || 32;
 
-    const col = localId % this.columns;
-    const row = Math.floor(localId / this.columns);
-    const srcX = margin + col * (tileW + spacing);
-    const srcY = margin + row * (tileH + spacing);
+    const srcX = margin + pattern.minCol * (tileW + spacing);
+    const srcY = margin + pattern.minRow * (tileH + spacing);
+    const srcW = pattern.width * tileW + (pattern.width - 1) * spacing;
+    const srcH = pattern.height * tileH + (pattern.height - 1) * spacing;
 
-    ctx.drawImage(this.tilesetImage, srcX, srcY, tileW, tileH, 0, 0, 36, 36);
-    document.getElementById('selected-tile-preview-badge').textContent = `GID: ${gid}`;
-    document.getElementById('info-gid').textContent = gid;
-    document.getElementById('info-gid-coords').textContent = `Col ${col}, Linha ${row}`;
+    const canvasW = previewCanvas.width;
+    const canvasH = previewCanvas.height;
+    const scale = Math.min(canvasW / srcW, canvasH / srcH, 1);
+    const destW = Math.round(srcW * scale);
+    const destH = Math.round(srcH * scale);
+    const destX = Math.round((canvasW - destW) / 2);
+    const destY = Math.round((canvasH - destH) / 2);
+
+    ctx.drawImage(this.tilesetImage, srcX, srcY, srcW, srcH, destX, destY, destW, destH);
+
+    const primaryGid = pattern.tiles[0][0];
+    const totalCount = pattern.width * pattern.height;
+    const badgeText = totalCount > 1 ? `GID: ${primaryGid} (${pattern.width}x${pattern.height})` : `GID: ${primaryGid}`;
+
+    const previewBadge = document.getElementById('selected-tile-preview-badge');
+    if (previewBadge) previewBadge.textContent = badgeText;
+
+    const infoGid = document.getElementById('info-gid');
+    if (infoGid) infoGid.textContent = totalCount > 1 ? `${primaryGid} (${totalCount} tiles)` : primaryGid;
+
+    const infoCoords = document.getElementById('info-gid-coords');
+    if (infoCoords) {
+      infoCoords.textContent = totalCount > 1
+        ? `${pattern.width}x${pattern.height} (${totalCount} tiles)`
+        : `Col ${pattern.minCol}, Linha ${pattern.minRow}`;
+    }
+
+    const gidIndicator = document.getElementById('editor-gid-indicator');
+    if (gidIndicator) gidIndicator.textContent = badgeText;
+  }
+
+  updateTilePreview(gid) {
+    this.setTileGid(gid);
   }
 
   scrollToTileInPalette(gid) {
@@ -2141,10 +2615,234 @@ export default class EditorUI {
       behavior: 'smooth'
     });
 
-    this.highlightTilesetGid(gid);
+    this.highlightTilesetSelection();
   }
 
   // ─── Save Map ─────────────────────────────────────────────────────────────
+
+  // ─── Visual Tile Matcher / Outside Similarity Engine ────────────────────
+
+  _ensureImageLoaded(url) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = url;
+    });
+  }
+
+  getTileSignature(canvas, ctx, srcX, srcY, tileW = 32, tileH = 32) {
+    let imgData;
+    try {
+      imgData = ctx.getImageData(srcX, srcY, tileW, tileH);
+    } catch (e) {
+      return new Float32Array(64);
+    }
+
+    const data = imgData.data;
+    const gridSize = 4;
+    const blockW = Math.floor(tileW / gridSize);
+    const blockH = Math.floor(tileH / gridSize);
+    const vec = new Float32Array(gridSize * gridSize * 4);
+
+    let vecIdx = 0;
+    for (let gy = 0; gy < gridSize; gy++) {
+      for (let gx = 0; gx < gridSize; gx++) {
+        let sumR = 0, sumG = 0, sumB = 0, sumA = 0, count = 0;
+        const startX = gx * blockW;
+        const startY = gy * blockH;
+
+        for (let py = 0; py < blockH; py++) {
+          for (let px = 0; px < blockW; px++) {
+            const pixelIdx = ((startY + py) * tileW + (startX + px)) * 4;
+            sumR += data[pixelIdx];
+            sumG += data[pixelIdx + 1];
+            sumB += data[pixelIdx + 2];
+            sumA += data[pixelIdx + 3];
+            count++;
+          }
+        }
+
+        vec[vecIdx++] = sumR / Math.max(1, count);
+        vec[vecIdx++] = sumG / Math.max(1, count);
+        vec[vecIdx++] = sumB / Math.max(1, count);
+        vec[vecIdx++] = sumA / Math.max(1, count);
+      }
+    }
+    return vec;
+  }
+
+  calcVectorDistance(v1, v2) {
+    let diffSq = 0;
+    for (let i = 0; i < v1.length; i++) {
+      const d = v1[i] - v2[i];
+      diffSq += d * d;
+    }
+    return Math.sqrt(diffSq);
+  }
+
+  async findSimilarOutsideTiles(gid, targetTilesetObj = null) {
+    if (!gid || gid <= 0) return null;
+    const listEl = document.getElementById('similar-tiles-list');
+    if (listEl) {
+      listEl.innerHTML = '<small class="similarity-placeholder" style="color:#00e5ff;">🔍 Buscando tiles correspondentes no Outside...</small>';
+    }
+
+    try {
+      const mapTilesets = this.editorScene?.mapJsonData?.tilesets || [];
+      const srcTileset = mapTilesets.find(t => {
+        const start = t.firstgid || 1;
+        const count = t.tilecount || (t.columns * 100);
+        return gid >= start && gid < start + count;
+      }) || this.activeTileset;
+
+      if (!srcTileset) return null;
+
+      const firstGid = srcTileset.firstgid || 1;
+      const localId = gid - firstGid;
+      const cols = srcTileset.columns || 64;
+      const tileW = srcTileset.tilewidth || 32;
+      const tileH = srcTileset.tileheight || 32;
+      const margin = srcTileset.margin || 0;
+      const spacing = srcTileset.spacing || 0;
+
+      const col = localId % cols;
+      const row = Math.floor(localId / cols);
+      const srcX = margin + col * (tileW + spacing);
+      const srcY = margin + row * (tileH + spacing);
+
+      const srcFile = (srcTileset.image || srcTileset.name + '.png').split('/').pop();
+      const srcImg = await this._ensureImageLoaded('/assets/tilesets/' + encodeURIComponent(srcFile));
+      if (!srcImg) return null;
+
+      const helperCanvas = document.createElement('canvas');
+      helperCanvas.width = tileW;
+      helperCanvas.height = tileH;
+      const helperCtx = helperCanvas.getContext('2d');
+      helperCtx.drawImage(srcImg, srcX, srcY, tileW, tileH, 0, 0, tileW, tileH);
+
+      const srcVec = this.getTileSignature(helperCanvas, helperCtx, 0, 0, tileW, tileH);
+
+      // Determine target Outside preset to search
+      let targetPreset = null;
+      if (targetTilesetObj) {
+        const targetName = targetTilesetObj.name;
+        targetPreset = PRESET_TILESETS.find(p => p.name === targetName || p.file.replace(/\.png$/i, '') === targetName);
+      }
+      if (!targetPreset) {
+        const isCurrentOutside = this.activeTileset && (
+          this.activeTileset.name.toLowerCase().includes('outside') ||
+          this.activeTileset.name.toLowerCase().includes('spring') ||
+          this.activeTileset.name.toLowerCase().includes('summer') ||
+          this.activeTileset.name.toLowerCase().includes('autumn') ||
+          this.activeTileset.name.toLowerCase().includes('winter')
+        );
+        if (isCurrentOutside) {
+          targetPreset = PRESET_TILESETS.find(p => p.name === this.activeTileset.name);
+        }
+      }
+      if (!targetPreset) {
+        targetPreset = PRESET_TILESETS.find(p => p.name.includes('Outside1 Spring'))
+          || PRESET_TILESETS.find(p => p.name.includes('Outside'))
+          || PRESET_TILESETS[0];
+      }
+
+      const targetImg = await this._ensureImageLoaded('/assets/tilesets/' + encodeURIComponent(targetPreset.file));
+      if (!targetImg) return null;
+
+      const tCols = targetPreset.columns || 64;
+      const tTileCount = targetPreset.tilecount || 4000;
+      const tMargin = targetPreset.margin || 0;
+      const tSpacing = targetPreset.spacing || 0;
+
+      const targetCanvas = document.createElement('canvas');
+      targetCanvas.width = targetImg.width;
+      targetCanvas.height = targetImg.height;
+      const targetCtx = targetCanvas.getContext('2d');
+      targetCtx.drawImage(targetImg, 0, 0);
+
+      if (!this.tileSignaturesCache) this.tileSignaturesCache = new Map();
+      const cacheKey = targetPreset.name;
+
+      let targetSignatures = this.tileSignaturesCache.get(cacheKey);
+      if (!targetSignatures) {
+        targetSignatures = [];
+        for (let i = 0; i < tTileCount; i++) {
+          const tc = i % tCols;
+          const tr = Math.floor(i / tCols);
+          const tx = tMargin + tc * (tileW + tSpacing);
+          const ty = tMargin + tr * (tileH + tSpacing);
+          if (tx + tileW <= targetImg.width && ty + tileH <= targetImg.height) {
+            const vec = this.getTileSignature(targetCanvas, targetCtx, tx, ty, tileW, tileH);
+            targetSignatures.push({ localId: i, col: tc, row: tr, tx, ty, vec });
+          }
+        }
+        this.tileSignaturesCache.set(cacheKey, targetSignatures);
+      }
+
+      const matches = [];
+      const maxDist = Math.sqrt(16 * 4 * 255 * 255);
+
+      for (const item of targetSignatures) {
+        const dist = this.calcVectorDistance(srcVec, item.vec);
+        const matchPct = Math.max(0, Math.round(100 * (1 - dist / maxDist)));
+        matches.push({ ...item, dist, matchPct });
+      }
+
+      matches.sort((a, b) => a.dist - b.dist);
+      const topMatches = matches.slice(0, 8);
+
+      if (!listEl) return null;
+      listEl.innerHTML = '';
+
+      this.addLibraryTileset(targetPreset.name);
+      const currentMapTilesets = this.editorScene?.mapJsonData?.tilesets || [];
+      const boundIdx = currentMapTilesets.findIndex(t => t.name === targetPreset.name);
+      const targetFirstGid = boundIdx >= 0 ? (currentMapTilesets[boundIdx].firstgid || 1) : 1;
+
+      topMatches.forEach((match, idx) => {
+        const card = document.createElement('div');
+        card.className = 'similar-tile-card';
+        card.title = `Correspondência #${idx + 1} (${match.matchPct}% de similaridade no ${targetPreset.name})`;
+
+        const thumbCanvas = document.createElement('canvas');
+        thumbCanvas.width = 36;
+        thumbCanvas.height = 36;
+        const thumbCtx = thumbCanvas.getContext('2d');
+        thumbCtx.imageSmoothingEnabled = false;
+        thumbCtx.drawImage(targetImg, match.tx, match.ty, tileW, tileH, 0, 0, 36, 36);
+        card.appendChild(thumbCanvas);
+
+        const badge = document.createElement('div');
+        badge.className = 'similar-tile-badge';
+        badge.textContent = `${match.matchPct}%`;
+        card.appendChild(badge);
+
+        card.addEventListener('click', () => {
+          if (boundIdx >= 0) {
+            const targetGid = targetFirstGid + match.localId;
+            this.switchTileset(boundIdx, targetGid);
+            this.showToast(`✨ Tile Outside similar selecionado! (GID ${targetGid} - ${match.matchPct}%)`, 'success');
+          }
+        });
+
+        listEl.appendChild(card);
+      });
+
+      if (topMatches.length > 0) {
+        return targetFirstGid + topMatches[0].localId;
+      }
+      return null;
+
+    } catch (err) {
+      console.warn('[TileMatcher Error]:', err);
+      if (listEl) {
+        listEl.innerHTML = '<small class="similarity-placeholder">Sem correspondências encontradas</small>';
+      }
+      return null;
+    }
+  }
 
   async saveMap() {
     const saveBtn = document.getElementById('btn-editor-save');
