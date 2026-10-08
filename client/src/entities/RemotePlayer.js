@@ -34,15 +34,16 @@ export default class RemotePlayer extends Phaser.GameObjects.Container {
     this.add(this.sprite);
 
     // 3. Name Tag
-    const nameColor = this.gender === 'female' ? '#ff80ab' : '#90caf9';
+    const nameColor = this.gender === 'female' ? '#f472b6' : '#7dd3fc';
     this.nameTag = scene.add.text(0, PLAYER_VISUAL.nameY, this.name, {
-      fontFamily: "'PokemonBW', 'Outfit', sans-serif",
+      fontFamily: "'Outfit', 'Roboto', sans-serif",
       fontSize: PLAYER_VISUAL.nameFontSize,
       fontWeight: '700',
       color: nameColor,
-      stroke: '#000000',
+      stroke: '#0f172a',
       strokeThickness: PLAYER_VISUAL.nameStrokeThickness,
-      align: 'center'
+      align: 'center',
+      resolution: 3
     }).setOrigin(0.5, 0.5);
     this.add(this.nameTag);
 

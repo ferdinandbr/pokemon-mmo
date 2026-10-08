@@ -244,6 +244,44 @@ function setupChatHandlers(io, socket) {
         }
       }
 
+      // Command: /tp or /teleport (Teleports player to coordinates or predefined cities)
+      if (lower.startsWith('/tp') || lower.startsWith('/teleport')) {
+        const parts = message.split(' ').filter(p => p.trim().length > 0);
+        if (parts.length >= 2) {
+          let targetX = null;
+          let targetY = null;
+
+          if (parts[1].toLowerCase() === 'pallet' || parts[1].toLowerCase() === 'pallet_town') {
+            targetX = 2016;
+            targetY = 8608;
+          } else if (parts.length >= 3 && !isNaN(parseInt(parts[1])) && !isNaN(parseInt(parts[2]))) {
+            targetX = parseInt(parts[1]);
+            targetY = parseInt(parts[2]);
+          }
+
+          if (targetX !== null && targetY !== null) {
+            player.x = targetX;
+            player.y = targetY;
+            
+            // Notify player to teleport
+            socket.emit('player:teleport', { x: targetX, y: targetY, room: player.roomId });
+            
+            return socket.emit('chat:message', {
+              channel: 'system',
+              sender: 'Sistema',
+              text: `✨ Teleportado para [${targetX}, ${targetY}]!`,
+              timestamp: new Date().toISOString()
+            });
+          }
+        }
+        return socket.emit('chat:message', {
+          channel: 'system',
+          sender: 'Sistema',
+          text: 'Uso correto: /tp <x> <y> ou /tp pallet',
+          timestamp: new Date().toISOString()
+        });
+      }
+
       const weatherMap = {
         '/chuva': 'rain', '/rain': 'rain',
         '/tempestade': 'storm', '/storm': 'storm',

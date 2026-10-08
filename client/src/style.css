@@ -2103,12 +2103,35 @@ body.editor-mode #game-container canvas {
 
 .tileset-picker-toolbar {
   display: flex;
+  flex-direction: column;
   gap: 6px;
   margin-bottom: 7px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.tileset-picker-toolbar-buttons {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+
+.tileset-picker-toolbar-buttons .editor-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 6px;
+  font-size: 11px;
+  height: 30px;
+  box-sizing: border-box;
+  white-space: nowrap;
 }
 
 .small-select {
-  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
   padding: 4px 8px;
   height: 30px;
   font-size: 11px;
@@ -8678,6 +8701,158 @@ body.is-dragging-item .bag-slot * {
   78% { opacity: 1; }
   100% { opacity: 0; transform: translate(-50%, -18px) scale(1); }
 }
+
+/* Interactive Portal Picker Banner */
+.portal-picker-bar {
+  position: absolute;
+  top: 54px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2000;
+  background: rgba(15, 23, 42, 0.94);
+  border: 1px solid #38bdf8;
+  border-radius: 8px;
+  padding: 8px 16px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), 0 0 15px rgba(56, 189, 248, 0.3);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  color: #f8fafc;
+  transition: all 0.2s ease;
+  pointer-events: auto;
+}
+
+.portal-picker-bar.hidden {
+  display: none !important;
+}
+
+.portal-picker-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.portal-picker-badge {
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+  color: #ffffff;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Visual Tile Similarity / Outside Matcher */
+.tile-similarity-container {
+  margin: 10px 0;
+  padding: 10px;
+  background: rgba(10, 14, 24, 0.95);
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  border-radius: 8px;
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.similarity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 11px;
+  font-weight: 700;
+  color: #00e5ff;
+  letter-spacing: 0.3px;
+  gap: 8px;
+}
+
+.similarity-header span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.similarity-header .editor-btn {
+  flex-shrink: 0;
+  font-size: 10px !important;
+  padding: 2px 8px !important;
+  height: 22px !important;
+}
+
+.similar-tiles-list {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px 2px;
+  min-height: 48px;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.similar-tiles-list::-webkit-scrollbar {
+  height: 4px;
+}
+
+.similar-tiles-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 229, 255, 0.4);
+  border-radius: 2px;
+}
+
+.similarity-placeholder {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+  line-height: 1.3;
+}
+
+.similar-tile-card {
+  position: relative;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  background: #060810;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.similar-tile-card:hover {
+  border-color: #00e5ff;
+  transform: translateY(-2px);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.6);
+}
+
+.similar-tile-badge {
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+  background: rgba(0, 229, 255, 0.95);
+  color: #000;
+  font-size: 8px;
+  font-weight: 800;
+  padding: 0px 3px;
+  border-top-left-radius: 4px;
+  line-height: 1.1;
+}
+
+
 
 
 

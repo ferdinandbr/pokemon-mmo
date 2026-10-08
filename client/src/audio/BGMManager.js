@@ -1,6 +1,7 @@
 import WebAudioTinySynth from 'webaudio-tinysynth';
 
 const REGION_BGM_MAP = {
+  'kanto': '/assets/audio/bgm/begin.mid',
   // Cidades & Vilas
   'pallet_town': '/assets/audio/bgm/begin.mid',
   'viridian_city': '/assets/audio/bgm/018-Field01.mid',

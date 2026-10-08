@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { PRESET_TILESETS } from '../maps/tilesetsConfig';
 
 export default class BootScene extends Phaser.Scene {
   constructor() {
@@ -22,28 +23,25 @@ export default class BootScene extends Phaser.Scene {
       frameHeight: 48
     });
 
-    // ── Tiled map & tileset ──
+    // ── Tiled map & tilesets ──
     const timestamp = Date.now();
-    this.load.image('Outside1 Spring', `/assets/tilesets/Outside1 Spring_extruded.png?t=${timestamp}`);
+    this.load.image('spz3zUx_scaled', `/assets/tilesets/spz3zUx_scaled.png?t=${timestamp}`);
     this.load.image('tall_grass_overlay', `/assets/tilesets/tall_grass_overlay.png?t=${timestamp}`);
     this.load.image('grass_leaf', `/assets/tilesets/grass_leaf.png?t=${timestamp}`);
+
+    // Preload all preset tilesets for seamless WorldScene & custom maps
+    PRESET_TILESETS.forEach(p => {
+      if (!this.textures.exists(p.name)) {
+        this.load.image(p.name, `/assets/tilesets/${encodeURIComponent(p.file)}?t=${timestamp}`);
+      }
+    });
 
     // ── Flower animation frames (authentic FireRed / Gen 3 sway) ──
     for (let f = 0; f <= 4; f++) {
       this.load.image(`anim_flower_${f}`, `/assets/tilesets/anim/flower/frame_${f}.png?t=${timestamp}`);
     }
 
-    const kantoMaps = [
-      'pallet_town', 'viridian_city', 'pewter_city', 'cerulean_city',
-      'vermilion_city', 'lavender_town', 'celadon_city', 'saffron_city',
-      'fuchsia_city', 'cinnabar_island', 'indigo_plateau',
-      'route_1', 'route_2', 'route_3', 'route_4', 'route_5',
-      'route_6', 'route_7', 'route_8', 'route_9', 'route_10', 'route_11'
-    ];
-
-    for (const mapKey of kantoMaps) {
-      this.load.tilemapTiledJSON(mapKey, `/assets/maps/${mapKey}.json?t=${timestamp}`);
-    }
+    this.load.tilemapTiledJSON('kanto', `/assets/maps/kanto.json?t=${timestamp}`);
 
     // ── Pokémon Overworld Spritesheets (151 Gen 1, normal & shiny, 64×64 per frame) ──
     for (let id = 1; id <= 151; id++) {

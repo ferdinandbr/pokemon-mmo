@@ -18,7 +18,7 @@ export default class FlowerAnimationManager {
   }
 
   _init() {
-    const texture = this.scene.textures.get('Outside1 Spring');
+    const candidateKeys = ['Outside1 Spring', 'spz3zUx_scaled', 'Outside2 Summer', 'Outside3 Autumn', 'Outside4 Winter']; const foundKey = candidateKeys.find(k => this.scene.textures.exists(k)); const texture = foundKey ? this.scene.textures.get(foundKey) : null;
     if (!texture || !texture.source || !texture.source[0]) {
       return;
     }
@@ -105,7 +105,7 @@ export default class FlowerAnimationManager {
     this.lastFrameTime = time;
     this.frameIndex = (this.frameIndex + 1) % this.totalFrames;
 
-    const texture = this.scene.textures.get('Outside1 Spring');
+    const candidateKeys = ['Outside1 Spring', 'spz3zUx_scaled', 'Outside2 Summer', 'Outside3 Autumn', 'Outside4 Winter']; const foundKey = candidateKeys.find(k => this.scene.textures.exists(k)); const texture = foundKey ? this.scene.textures.get(foundKey) : null;
     if (!texture || !texture.source || !texture.source[0]) return;
 
     const source = texture.source[0];

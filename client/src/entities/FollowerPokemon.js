@@ -643,10 +643,30 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
     }
 
     /**
-     * Mudança de direção: atualiza facing limpo sem squash deformador
+     * Mudança de direção: suaviza visualmente com micro squash & stretch
      */
     if (direction !== this.direction) {
       this.direction = direction;
+
+      // Micro-tween elástico para amortecer a troca súbita de lado ("troca seca")
+      if (this.scene?.tweens && this.sprite) {
+        this.scene.tweens.killTweensOf(this.sprite);
+        this.sprite.setScale(
+          FollowerPokemon.SPRITE_SCALE * 0.85,
+          FollowerPokemon.SPRITE_SCALE * 1.15
+        );
+        this.scene.tweens.add({
+          targets: this.sprite,
+          scaleX: FollowerPokemon.SPRITE_SCALE,
+          scaleY: FollowerPokemon.SPRITE_SCALE,
+          duration: 120,
+          ease: 'Quad.easeOut'
+        });
+      }
+
+      this.stepToggle = false;
+      this.distanceAccumulator = 0;
+
       this.setPokemonFrame(
         FollowerPokemon.idleFrame(direction)
       );
@@ -658,19 +678,22 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
      * ---------------------------------------------------------
      */
 
+    const curOwnerX = Math.round(ownerX);
+    const curOwnerY = Math.round(ownerY);
+
     if (this.lastOwnerX === undefined) {
-      this.lastOwnerX = ownerX;
-      this.lastOwnerY = ownerY;
+      this.lastOwnerX = curOwnerX;
+      this.lastOwnerY = curOwnerY;
     }
 
-    const playerDx = ownerX - this.lastOwnerX;
-    const playerDy = ownerY - this.lastOwnerY;
-    this.lastOwnerX = ownerX;
-    this.lastOwnerY = ownerY;
+    const playerDx = curOwnerX - this.lastOwnerX;
+    const playerDy = curOwnerY - this.lastOwnerY;
+    this.lastOwnerX = curOwnerX;
+    this.lastOwnerY = curOwnerY;
 
     const target = this.getValidTarget(
-      ownerX,
-      ownerY,
+      curOwnerX,
+      curOwnerY,
       direction
     );
 
@@ -681,20 +704,20 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
       this.x = target.x;
       this.y = target.y;
     } else {
-      // 1. Move junto com o player de forma contínua (elimina 100% da trepidação de arredondamento)
+      // 1. Acompanha o deslocamento exato do jogador para eliminar qualquer atraso/trepidação durante a caminhada
       this.x += playerDx;
       this.y += playerDy;
 
-      // 2. Interpola suavemente o reposicionamento lateral durante curvas
+      // 2. Interpola suavemente o reposicionamento lateral (viradas de direção / contorno)
       const diffX = target.x - this.x;
       const diffY = target.y - this.y;
       const remainingDist = Math.hypot(diffX, diffY);
 
-      if (remainingDist <= 0.05) {
+      if (remainingDist <= 0.5) {
         this.x = target.x;
         this.y = target.y;
       } else {
-        const factor = 1 - Math.exp(-14 * (delta / 1000));
+        const factor = Math.min(1, 1 - Math.exp(-10 * (delta / 1000)));
         this.x += diffX * factor;
         this.y += diffY * factor;
       }
@@ -715,11 +738,16 @@ export default class FollowerPokemon extends Phaser.GameObjects.Container {
     this.isMoving = isMoving;
 
     if (!isMoving) {
-      this.distanceAccumulator = 0;
-      this.stepToggle = false;
-
+      // Per user request: mantém o buddy se movimentando/dando passos mesmo com o player parado
+      this.distanceAccumulator += delta * 0.06;
+      if (this.distanceAccumulator >= FollowerPokemon.STEP_INTERVAL) {
+        this.distanceAccumulator -= FollowerPokemon.STEP_INTERVAL;
+        this.stepToggle = !this.stepToggle;
+      }
       this.setPokemonFrame(
-        FollowerPokemon.idleFrame(this.direction)
+        this.stepToggle
+          ? FollowerPokemon.stepFrame(this.direction)
+          : FollowerPokemon.idleFrame(this.direction)
       );
 
       this.setDepth(100 + this.y / 10000);

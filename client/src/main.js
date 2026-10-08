@@ -122,7 +122,7 @@ function checkRoute() {
     const hashPart = window.location.hash.includes('?') ? window.location.hash.split('?')[1] : '';
     const params = new URLSearchParams(hashPart || window.location.search);
     const targetMap = params.get('map');
-    if (targetMap && targetMap !== 'pallet_town') {
+    if (targetMap && targetMap !== 'kanto') {
       setTimeout(() => {
         editorSceneInstance?.loadMapByName(targetMap);
       }, 200);

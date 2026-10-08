@@ -14,17 +14,18 @@ import FollowerPokemon from '../entities/FollowerPokemon';
 import bgmManager from '../audio/BGMManager';
 
 const LAYER_DEPTHS = {
-  Ground: 10,
-  Paths: 20,
+  Water: 10,
+  Ground: 20,
+  Paths: 25,
   Grass: 30,
-  Water: 40,
-  Shore: 45,
-  Mountain: 50,
-  Mountains: 50,
-  Objects: 60,
-  Buildings: 70,
-  Building: 70,
-  Trees: 80,
+  Shore: 35,
+  Mountain: 38,
+  Mountains: 38,
+  Building: 40,
+  Buildings: 40,
+  Objects: 50,
+  Trees: 60,
+  Tress: 60,
   Collision: 90000,
   Overhead: 1000,
   Arch: 1000
@@ -35,7 +36,7 @@ const COLLISION_LAYERS = [
   'Building',
   'Shore',
   'Trees',
-  'Water',
+  'Tress',
   'Mountain',
   'Mountains',
   'Collision'
@@ -46,7 +47,7 @@ export default class WorldScene extends Phaser.Scene {
   constructor() {
     super({ key: 'WorldScene' });
 
-    this.currentRoom = ROOMS_CONFIG.pallet_town;
+    this.currentRoom = ROOMS_CONFIG.kanto;
     this.localPlayer = null;
     this.localFollower = null;
     this.remotePlayers = new Map(); // socketId -> RemotePlayer
@@ -221,11 +222,23 @@ export default class WorldScene extends Phaser.Scene {
       }
     });
 
-    // Snap player position to exact integer pixels after physics update to eliminate subpixel rendering jitter
-    this.events.on('postupdate', () => {
+    // Snap player & follower positions to exact integer pixels after physics update to eliminate subpixel rendering jitter and camera stutter
+    this.events.on('postupdate', (time, delta) => {
       if (this.localPlayer) {
         this.localPlayer.x = Math.round(this.localPlayer.x);
         this.localPlayer.y = Math.round(this.localPlayer.y);
+
+        if (this.localFollower && this.localFollower.active) {
+          const dt = delta || this.game.loop.delta || 16.666;
+          this.localFollower.updateFollower(
+            this.localPlayer.x,
+            this.localPlayer.y,
+            this.localPlayer.direction,
+            this.localPlayer.isMoving,
+            dt,
+            this.localPlayer.isJumping
+          );
+        }
       }
     });
 
@@ -260,9 +273,10 @@ export default class WorldScene extends Phaser.Scene {
     this.stepsSinceLastBattle = 0;
     this.battleExitCooldownUntil = (this.time?.now || 0) + 3000;
     if (this.localPlayer) {
+      const tileSize = this.currentMap?.tileWidth || 16;
       this.lastBattleTile = {
-        tx: Math.floor(this.localPlayer.x / 32),
-        ty: Math.floor((this.localPlayer.y + 19) / 32)
+        tx: Math.floor(this.localPlayer.x / tileSize),
+        ty: Math.floor((this.localPlayer.y + 19) / tileSize)
       };
     } else {
       this.lastBattleTile = null;
@@ -278,8 +292,9 @@ export default class WorldScene extends Phaser.Scene {
     const nowMs = this.time?.now || 0;
     if (nowMs < (this.battleExitCooldownUntil || 0)) return;
     if (this.localPlayer && this.lastBattleTile) {
-      const tx = Math.floor(this.localPlayer.x / 32);
-      const ty = Math.floor((this.localPlayer.y + 19) / 32);
+      const tileSize = this.currentMap?.tileWidth || 16;
+      const tx = Math.floor(this.localPlayer.x / tileSize);
+      const ty = Math.floor((this.localPlayer.y + 19) / tileSize);
       if (tx === this.lastBattleTile.tx && ty === this.lastBattleTile.ty) return;
       this.lastBattleTile = null;
     }
@@ -317,18 +332,30 @@ export default class WorldScene extends Phaser.Scene {
 
   onPlayerInit(data) {
     const { self, room, players } = data;
-    const roomId = room?.id || self?.roomId || 'pallet_town';
-    this.currentRoom = ROOMS_CONFIG[roomId] || room || ROOMS_CONFIG.pallet_town;
+    const targetRoomId = self.roomId || room?.id || 'kanto';
+    this.currentRoom = ROOMS_CONFIG[targetRoomId] || ROOMS_CONFIG.kanto;
 
     this.buildMap();
 
+    let startX = Number(self.x);
+    let startY = Number(self.y);
+    const mapW = this.currentMap?.widthInPixels || this.currentRoom.width || 13056;
+    const mapH = this.currentMap?.heightInPixels || this.currentRoom.height || 12800;
+
+    if (isNaN(startX) || isNaN(startY) || startX < 16 || startY < 16 || startX > mapW - 16 || startY > mapH - 16) {
+      startX = this.currentRoom.defaultSpawn?.x || 2016;
+      startY = this.currentRoom.defaultSpawn?.y || 8608;
+      self.x = startX;
+      self.y = startY;
+    }
+
     if (this.localPlayer) this.localPlayer.destroy();
-    this.localPlayer = new LocalPlayer(this, self.x, self.y, self);
-    this.localPlayer.setDepth(100 + self.y / 10000);
+    this.localPlayer = new LocalPlayer(this, startX, startY, self);
+    this.localPlayer.setDepth(100 + startY / 10000);
     this._attachPlayerColliders(this.localPlayer);
 
-    const w = this.currentMap?.widthInPixels || this.currentRoom.width || 1152;
-    const h = this.currentMap?.heightInPixels || this.currentRoom.height || 640;
+    const w = this.currentMap?.widthInPixels || this.currentRoom.width || 13056;
+    const h = this.currentMap?.heightInPixels || this.currentRoom.height || 12800;
     this.cameras.main.setBounds(0, 0, w, h);
     this.cameras.main.startFollow(this.localPlayer, true, 1, 1);
     this.cameras.main.roundPixels = true;
@@ -343,7 +370,7 @@ export default class WorldScene extends Phaser.Scene {
     this._clearRemotePlayers();
     for (const p of players) this._addRemotePlayer(p);
 
-    this._updateHUD(this.currentRoom.name || room.name, self.name, data.money, self);
+    this._updateHUD(this.currentZone || 'Pallet Town', self.name, data.money, self);
 
     // Apply authoritative server world state (weather & day/night)
     if (data.worldState) {
@@ -355,14 +382,14 @@ export default class WorldScene extends Phaser.Scene {
 
     // Play regional background music if intro already completed
     if (data.hasCompletedIntro !== false) {
-      bgmManager.playForRoom(roomId);
+      bgmManager.playForRoom(targetRoomId);
     }
   }
 
   onRoomChanged(data) {
     const { room, players, x, y } = data;
-    const roomId = room?.id || 'pallet_town';
-    this.currentRoom = ROOMS_CONFIG[roomId] || room || ROOMS_CONFIG.pallet_town;
+    const roomId = room?.id || 'kanto';
+    this.currentRoom = ROOMS_CONFIG[roomId] || room || ROOMS_CONFIG.kanto;
 
     this.buildMap();
     bgmManager.playForRoom(roomId);
@@ -377,6 +404,15 @@ export default class WorldScene extends Phaser.Scene {
       this.localPlayer.lastY = y;
       this.localPlayer.setDepth(100 + y / 10000);
       this._attachPlayerColliders(this.localPlayer);
+    }
+
+    if (this.localFollower) {
+      const pos = FollowerPokemon.behindPosition(x, y, this.localPlayer?.direction || 'down');
+      this.localFollower.setPosition(pos.x, pos.y);
+      this.localFollower.lastX = pos.x;
+      this.localFollower.lastY = pos.y;
+      this.localFollower.lastOwnerX = x;
+      this.localFollower.lastOwnerY = y;
     }
 
     const w = this.currentMap?.widthInPixels || this.currentRoom.width || 1152;
@@ -559,7 +595,7 @@ export default class WorldScene extends Phaser.Scene {
     }
 
     // ── Create Tiled map ──
-    const mapKey = this.currentRoom?.tilemapKey || this.currentRoom?.id || 'pallet_town';
+    const mapKey = (this.currentRoom?.tilemapKey && this.cache.tilemap.has(this.currentRoom.tilemapKey)) ? this.currentRoom.tilemapKey : 'kanto';
     const map = this.make.tilemap({ key: mapKey });
     this.currentMap = map;
 
@@ -567,16 +603,149 @@ export default class WorldScene extends Phaser.Scene {
 
     // ── Bind all tilesets dynamically ──
     const tilesetList = [];
+    if (!this.textures.exists('__tileset_fallback_blank')) {
+      const blankCanvas = document.createElement('canvas');
+      blankCanvas.width = 32;
+      blankCanvas.height = 32;
+      this.textures.addCanvas('__tileset_fallback_blank', blankCanvas);
+    }
+
     if (map.tilesets && map.tilesets.length > 0) {
+      const seenNames = new Set();
+      const uniqueTilesets = [];
       for (const t of map.tilesets) {
-        const ts = map.addTilesetImage(t.name, t.name, 32, 32, 1, 2);
-        if (ts) tilesetList.push(ts);
+        if (!seenNames.has(t.name)) {
+          seenNames.add(t.name);
+          uniqueTilesets.push(t);
+        }
+      }
+      map.tilesets = uniqueTilesets;
+      map.tilesets.sort((a, b) => (a.firstgid || 1) - (b.firstgid || 1));
+
+      for (const t of map.tilesets) {
+        const margin = t.tileMargin !== undefined ? t.tileMargin : (t.margin !== undefined ? t.margin : 0);
+        const spacing = t.tileSpacing !== undefined ? t.tileSpacing : (t.spacing !== undefined ? t.spacing : 0);
+        const tileW = t.tileWidth || t.tilewidth || map.tileWidth || 32;
+        const tileH = t.tileHeight || t.tileheight || map.tileHeight || 32;
+        const firstGid = t.firstgid || 1;
+        let ts = map.getTileset(t.name);
+        if (!ts) {
+          ts = new Phaser.Tilemaps.Tileset(t.name, firstGid, tileW, tileH, margin, spacing);
+          map.tilesets.push(ts);
+        }
+
+        if (this.textures.exists(t.name)) {
+          const tex = this.textures.get(t.name);
+          if (tex && typeof tex.setFilter === 'function') {
+            tex.setFilter(Phaser.Textures.NEAREST);
+          }
+          ts.setImage(tex);
+          ts.columns = t.columns || ts.columns || 64;
+          ts.total = t.tilecount || ts.total || (ts.columns * 100);
+          ts.rows = Math.ceil(ts.total / ts.columns);
+          ts.tileMargin = t.margin !== undefined ? t.margin : (margin || 0);
+          ts.tileSpacing = t.spacing !== undefined ? t.spacing : (spacing || 0);
+        } else {
+          // Provide fallback canvas texture so WebGL renderer never crashes on null image
+          ts.setImage(this.textures.get('__tileset_fallback_blank'));
+
+          if (t.image) {
+            const filename = t.image.split('/').pop();
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+              let finalSource = img;
+              let cols = t.columns || Math.floor(img.width / tileW) || 1;
+              let count = t.tilecount || (cols * Math.floor(img.height / tileH));
+              if (img.height > 2048 && cols <= 8 && count > 128) {
+                const destCols = 64;
+                const destRows = Math.ceil(count / destCols);
+                const c = document.createElement('canvas');
+                c.width = destCols * tileW;
+                c.height = destRows * tileH;
+                const ctx = c.getContext('2d');
+                for (let idx = 0; idx < count; idx++) {
+                  const sx = (idx % cols) * tileW;
+                  const sy = Math.floor(idx / cols) * tileH;
+                  const dx = (idx % destCols) * tileW;
+                  const dy = Math.floor(idx / destCols) * tileH;
+                  ctx.drawImage(img, sx, sy, tileW, tileH, dx, dy, tileW, tileH);
+                }
+                finalSource = c;
+                cols = destCols;
+              }
+              if (this.textures.exists(t.name)) {
+                this.textures.remove(t.name);
+              }
+              this.textures.addImage(t.name, finalSource);
+              const activeTs = map.getTileset(t.name);
+              if (activeTs) {
+                activeTs.columns = cols;
+                activeTs.total = count;
+                activeTs.rows = Math.ceil(count / cols);
+                activeTs.setImage(this.textures.get(t.name));
+                const rebuildTiles = Array.isArray(map.tiles) ? [...map.tiles] : [];
+                for (let i = 0; i < map.tilesets.length; i++) {
+                  const set = map.tilesets[i];
+                  const setCols = set.columns || 64;
+                  const setTotal = set.total || 4544;
+                  const setM = set.tileMargin || 0;
+                  const setS = set.tileSpacing || 0;
+                  const setTw = set.tileWidth || 32;
+                  const setTh = set.tileHeight || 32;
+                  for (let ti = 0; ti < setTotal; ti++) {
+                    const gid = set.firstgid + ti;
+                    const sc = ti % setCols;
+                    const sr = Math.floor(ti / setCols);
+                    rebuildTiles[gid] = [setM + sc * (setTw + setS), setM + sr * (setTh + setS), i];
+                  }
+                }
+                map.tiles = rebuildTiles;
+                this.mapLayers.forEach(l => {
+                  if (l && typeof l.setTilesets === 'function') l.setTilesets(map.tilesets);
+                });
+              }
+            };
+            img.src = `/assets/tilesets/${encodeURIComponent(filename)}?t=${Date.now()}`;
+          }
+        }
+        if (ts && !tilesetList.includes(ts)) tilesetList.push(ts);
       }
     }
     if (tilesetList.length === 0) {
-      const defaultTs = map.addTilesetImage('Outside1 Spring', 'Outside1 Spring', 32, 32, 1, 2);
+      const defaultTs = map.addTilesetImage('spz3zUx_scaled', 'spz3zUx_scaled', 32, 32, 1, 2);
       if (defaultTs) tilesetList.push(defaultTs);
     }
+
+    // Sort tilesets by firstgid
+    map.tilesets.sort((a, b) => (a.firstgid || 1) - (b.firstgid || 1));
+
+    try {
+      if (typeof Phaser?.Tilemaps?.Parsers?.Tiled?.BuildTilesetIndex === 'function') {
+        map.tiles = Phaser.Tilemaps.Parsers.Tiled.BuildTilesetIndex(map);
+      }
+    } catch (err) {
+      console.warn('[WorldScene] BuildTilesetIndex error:', err);
+    }
+
+    // Complete index builder ensuring all secondary tilesets are mapped
+    const tiles = Array.isArray(map.tiles) ? [...map.tiles] : [];
+    for (let i = 0; i < map.tilesets.length; i++) {
+      const set = map.tilesets[i];
+      const cols = set.columns || 64;
+      const total = set.total || 4544;
+      const m = set.tileMargin || 0;
+      const s = set.tileSpacing || 0;
+      const tw = set.tileWidth || 32;
+      const th = set.tileHeight || 32;
+      for (let t = 0; t < total; t++) {
+        const gid = set.firstgid + t;
+        const col = t % cols;
+        const row = Math.floor(t / cols);
+        tiles[gid] = [m + col * (tw + s), m + row * (th + s), i];
+      }
+    }
+    map.tiles = tiles;
 
     // ── Build all tile layers in defined stack order ──
     if (map.layers && map.layers.length > 0) {
@@ -922,13 +1091,9 @@ export default class WorldScene extends Phaser.Scene {
     // LOCAL PLAYER COORDINATES
     // -------------------------------------------------------------------------
 
-    const tx = Math.floor(
-      this.localPlayer.x / 32
-    );
-
-    const ty = Math.floor(
-      this.localPlayer.y / 32
-    );
+    const tileSize = this.currentMap?.tileWidth || 16;
+    const tx = Math.floor(this.localPlayer.x / tileSize);
+    const ty = Math.floor(this.localPlayer.y / tileSize);
 
     if (
       this._lastCoordX !== tx ||
@@ -955,21 +1120,7 @@ export default class WorldScene extends Phaser.Scene {
       100 + this.localPlayer.y / 10000
     );
 
-    // -------------------------------------------------------------------------
-    // LOCAL FOLLOWER
-    // -------------------------------------------------------------------------
-
-    if (this.localFollower) {
-
-      this.localFollower.updateFollower(
-        this.localPlayer.x,
-        this.localPlayer.y,
-        this.localPlayer.direction,
-        this.localPlayer.isMoving,
-        delta,
-        this.localPlayer.isJumping
-      );
-    }
+    // (Local follower is updated in 'postupdate' after physics step for perfect frame synchronization)
 
     // -------------------------------------------------------------------------
     // REMOTE PLAYERS
@@ -1107,17 +1258,10 @@ export default class WorldScene extends Phaser.Scene {
           )
         ) {
 
-          if (
-            this.currentZone !==
-            zone.name
-          ) {
-
-            this.currentZone =
-              zone.name;
-
-            this._updateHUD(
-              zone.name
-            );
+          if (this.currentZone !== zone.name) {
+            this.currentZone = zone.name;
+            this._updateHUD(zone.name);
+            this._showZoneBanner(zone.name);
           }
 
           break;
@@ -1272,4 +1416,32 @@ export default class WorldScene extends Phaser.Scene {
       canopyLayer.x = sway;
     }
   }
+
+  _showZoneBanner(zoneName) {
+    if (!zoneName) return;
+    let el = document.getElementById('zone-banner-notification');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'zone-banner-notification';
+      el.style.cssText = 'position:fixed;top:24px;left:50%;transform:translateX(-50%) translateY(-20px);background:linear-gradient(135deg,rgba(20,24,33,0.95),rgba(15,18,25,0.98));border:2px solid rgba(255,215,0,0.8);border-radius:24px;padding:8px 24px;color:#ffffff;font-family:Outfit,sans-serif;font-size:16px;font-weight:700;letter-spacing:1px;box-shadow:0 8px 24px rgba(0,0,0,0.6),0 0 16px rgba(255,215,0,0.3);pointer-events:none;z-index:99999;opacity:0;transition:all 0.4s cubic-bezier(0.16,1,0.3,1);display:flex;align-items:center;gap:10px;';
+      document.body.appendChild(el);
+    }
+    el.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffd700" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+        <circle cx="12" cy="10" r="3"></circle>
+      </svg>
+      <span>${zoneName}</span>
+    `;
+    requestAnimationFrame(() => {
+      el.style.opacity = '1';
+      el.style.transform = 'translateX(-50%) translateY(0)';
+    });
+    if (this._zoneBannerTimeout) clearTimeout(this._zoneBannerTimeout);
+    this._zoneBannerTimeout = setTimeout(() => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateX(-50%) translateY(-20px)';
+    }, 3200);
+  }
 }
+

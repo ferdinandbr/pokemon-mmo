@@ -31,9 +31,9 @@ async function createCharacter({ userId, name, gender, sprite }) {
       name: trimmedName,
       gender: charGender,
       sprite: charSprite,
-      roomId: 'pallet_town',
-      x: 560,
-      y: 272,
+      roomId: 'kanto',
+      x: 2016,
+      y: 8608,
       direction: 'down',
       money: 5000,
       hasCompletedIntro: false
