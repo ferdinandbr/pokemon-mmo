@@ -26,5 +26,6 @@ export const PRESET_TILESETS = [
   { name: 'Underground path', file: 'Underground path.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 72, imagewidth: 256, imageheight: 288 },
   { name: 'Underwater', file: 'Underwater.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 112, imagewidth: 256, imageheight: 448 },
   { name: 'Bike shop interior', file: 'Bike shop interior.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 80, imagewidth: 256, imageheight: 320 },
-  { name: 'Boat', file: 'Boat.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 480, imagewidth: 256, imageheight: 1920 }
+  { name: 'Boat', file: 'Boat.png', tilewidth: 32, tileheight: 32, columns: 8, tilecount: 480, imagewidth: 256, imageheight: 1920 },
+  { name: 'pallet_interiors', file: 'pallet_interiors.png', tilewidth: 32, tileheight: 32, columns: 16, tilecount: 472, imagewidth: 544, imageheight: 1020, margin: 1, spacing: 2 }
 ];

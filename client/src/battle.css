@@ -128,8 +128,41 @@
 /* (real size is set inline by JS to match the rendered sprite) */
 
 .battle-trainer-wrap {
-  bottom: 10% !important;
-  left: 12% !important;
+  position: absolute !important;
+  bottom: 0px !important;
+  left: 20px !important;
+  width: 420px !important;
+  height: 420px !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: flex-end !important;
+  z-index: 20 !important;
+  pointer-events: none !important;
+}
+
+.battle-trainer-sprite {
+  position: relative !important;
+  z-index: 2 !important;
+  width: 440px !important;
+  height: 440px !important;
+  background-size: 500% 100% !important;
+  background-repeat: no-repeat !important;
+  image-rendering: pixelated !important;
+  filter: drop-shadow(0 16px 26px rgba(0, 0, 0, 0.6)) !important;
+}
+
+.battle-trainer-shadow {
+  position: absolute !important;
+  bottom: 12px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 220px !important;
+  height: 44px !important;
+  border-radius: 50% !important;
+  background: radial-gradient(ellipse at center, rgba(12, 26, 16, 0.72) 0%, rgba(12, 26, 16, 0.4) 50%, transparent 75%) !important;
+  filter: blur(2px) !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
 }
 
 .battle-intro-ball {
@@ -166,13 +199,17 @@
 }
 
 .swsh-databox.swsh-enemy-hud.databox-hidden-right {
-  transform: translateX(140%) scale(1.15);
-  opacity: 0;
+  transform: translateX(160%) scale(1.15) !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 .swsh-databox.swsh-enemy-hud.databox-slide-in {
-  transform: translateX(0) scale(1.15);
-  opacity: 1;
+  transform: translateX(0) scale(1.15) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
 }
 
 /* Player Databox: Bottom Left — raised above the taller command bar */
@@ -185,13 +222,17 @@
 }
 
 .swsh-databox.swsh-player-hud.databox-hidden-left {
-  transform: translateX(-140%) scale(1.15);
-  opacity: 0;
+  transform: translateX(-160%) scale(1.15) !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 .swsh-databox.swsh-player-hud.databox-slide-in {
-  transform: translateX(0) scale(1.15);
-  opacity: 1;
+  transform: translateX(0) scale(1.15) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
 }
 
 /* ---------- Name / Level Row ---------- */
@@ -1893,24 +1934,33 @@
 /* ─── 10. SWITCH POKÉBALL ARC ────────────────────────────────────────────── */
 @keyframes ballSwitchArcAnim {
   0% {
-    transform: translate(-140px, 90px) scale(0.65);
+    transform: translate(-170px, 120px) scale(0.7) rotate(0deg);
     opacity: 0;
   }
   15% {
     opacity: 1;
+    transform: translate(-125px, 20px) scale(0.9) rotate(150deg);
   }
-  50% {
-    transform: translate(-40px, -50px) scale(1.15);
+  45% {
+    transform: translate(-70px, -70px) scale(1.15) rotate(380deg);
+    opacity: 1;
+  }
+  70% {
+    transform: translate(-25px, -35px) scale(1.22) rotate(580deg);
+    opacity: 1;
+  }
+  88% {
+    transform: translate(5px, 5px) scale(1.25) rotate(680deg);
     opacity: 1;
   }
   100% {
-    transform: translate(25px, 0px) scale(1.25);
+    transform: translate(0px, 0px) scale(1.25) rotate(720deg);
     opacity: 1;
   }
 }
 
 .battle-intro-ball.ball-switch-arc {
-  animation: ballSwitchArcAnim 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards !important;
+  animation: ballSwitchArcAnim 0.48s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards !important;
 }
 
 /* ─── 11. DATABOX STATUS BADGES (PSN, PAR, BRN, SLP, FRZ) ─────────────────── */

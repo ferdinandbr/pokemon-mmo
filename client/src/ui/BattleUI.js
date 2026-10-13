@@ -75,7 +75,7 @@ export default class BattleUI {
           <div class="battle-bg" id="battle-bg"></div>
 
           <!-- Opponent Databox (Top Right - Custom Pixel HUD) -->
-          <div class="swsh-databox swsh-enemy-hud hud pixel" id="battle-enemy-databox">
+          <div class="swsh-databox swsh-enemy-hud hud pixel databox-hidden-right" id="battle-enemy-databox">
             <div class="name-row">
               <div class="name-group">
                 <span class="name" id="enemy-name">Milcery</span>
@@ -152,7 +152,7 @@ export default class BattleUI {
           </div>
 
           <!-- Player Databox (Bottom Left - Custom Pixel HUD) -->
-          <div class="swsh-databox swsh-player-hud hud pixel" id="battle-player-databox">
+          <div class="swsh-databox swsh-player-hud hud pixel databox-hidden-left" id="battle-player-databox">
             <div class="name-row">
               <div class="name-group">
                 <span class="name" id="player-name">Rillaboom</span>
@@ -625,10 +625,22 @@ export default class BattleUI {
       gw.appendChild(this.container);
     }
 
-    // Hide ALL overworld HUDs while in battle
+    // Hide ALL overworld HUDs and force close overworld dialogue while in battle
+    if (this.worldScene?.dialogueBox) {
+      this.worldScene.dialogueBox.close();
+    }
+    const overworldDlg = document.getElementById('fr-dialogue-box');
+    if (overworldDlg) {
+      overworldDlg.classList.add('hidden');
+    }
     document.getElementById('hud-quick-bar')?.classList.add('hidden');
     document.getElementById('hud')?.classList.add('hidden');
     document.getElementById('overworld-party-hud')?.classList.add('hidden');
+
+    this.enemyDataboxEl?.classList.remove('databox-slide-in');
+    this.enemyDataboxEl?.classList.add('databox-hidden-right');
+    this.playerDataboxEl?.classList.remove('databox-slide-in');
+    this.playerDataboxEl?.classList.add('databox-hidden-left');
 
     this.container.classList.remove('hidden');
 
@@ -686,6 +698,11 @@ export default class BattleUI {
       this.enemySprite.style.opacity = '1';
     }
 
+    this.enemyDataboxEl?.classList.remove('databox-slide-in');
+    this.enemyDataboxEl?.classList.add('databox-hidden-right');
+    this.playerDataboxEl?.classList.remove('databox-slide-in');
+    this.playerDataboxEl?.classList.add('databox-hidden-left');
+
     // Restore ALL overworld HUDs
     document.getElementById('hud-quick-bar')?.classList.remove('hidden');
     document.getElementById('hud')?.classList.remove('hidden');
@@ -702,6 +719,20 @@ export default class BattleUI {
     try {
       this.worldScene?.checkLocalBuddyState?.();
     } catch (e) { }
+
+    if (this.worldScene) {
+      this.worldScene.isTransitioning = false;
+    }
+
+    if (this._lastBattleOutcome) {
+      const outcome = this._lastBattleOutcome;
+      this._lastBattleOutcome = null;
+      try {
+        this.worldScene?.onBattleFinished?.(outcome);
+      } catch (e) {
+        console.warn('[BattleUI] Erro em onBattleFinished:', e);
+      }
+    }
   }
 
   // ─── TRAINER & INTRO ANIMATIONS ─────────────────────────────────────────────
@@ -747,7 +778,9 @@ export default class BattleUI {
     // Drop stale silhouette from a previous battle (ellipse fallback shows meanwhile)
     if (this.enemyShadowEl) this.enemyShadowEl.style.backgroundImage = 'none';
     if (this.playerShadowEl) this.playerShadowEl.style.backgroundImage = 'none';
+    this.enemyDataboxEl?.classList.remove('databox-slide-in');
     this.enemyDataboxEl?.classList.add('databox-hidden-right');
+    this.playerDataboxEl?.classList.remove('databox-slide-in');
     this.playerDataboxEl?.classList.add('databox-hidden-left');
     this.dialogueBoxEl?.classList.add('full-width-dialogue');
     this.actionPanelEl?.classList.add('hidden');
@@ -781,8 +814,22 @@ export default class BattleUI {
     sfxManager.playCry(wildSpeciesId);
 
     // Initial message
-    await this.typeTextAsync(`Um ${String(wildName).toUpperCase()} selvagem apareceu!`);
-    await this.wait(1000);
+    const isTrainer = Boolean(battleData?.isTrainer || this.battleState?.isTrainer);
+    const trainerName = battleData?.trainerName || this.battleState?.trainerName || 'Treinador';
+
+    if (isTrainer) {
+      await this.typeTextAsync(`${String(trainerName).toUpperCase()} quer batalhar!`);
+      await this.wait(800);
+      await this.typeTextAsync(`${String(trainerName).toUpperCase()} enviou ${String(wildName).toUpperCase()}!`);
+      await this.wait(800);
+    } else {
+      await this.typeTextAsync(`Um ${String(wildName).toUpperCase()} selvagem apareceu!`);
+      await this.wait(1000);
+    }
+
+    // Databox do oponente desliza para a tela após sua apresentação
+    this.enemyDataboxEl?.classList.remove('databox-hidden-right');
+    this.enemyDataboxEl?.classList.add('databox-slide-in');
 
     // 2. Trainer throw speech & animation
     await this.typeTextAsync(`Vai, ${String(playerName).toUpperCase()}!`);
@@ -862,10 +909,8 @@ export default class BattleUI {
       this.playerSprite.className = 'battle-sprite player-sprite';
     }
 
-    // 5. Databoxes slide in from offscreen
+    // 5. HUD do Pokémon do jogador desliza para a tela após a pokébola abrir e o pokémon entrar
     sfxManager.play('GUI menu open.ogg', 0.5);
-    this.enemyDataboxEl?.classList.remove('databox-hidden-right');
-    this.enemyDataboxEl?.classList.add('databox-slide-in');
     this.playerDataboxEl?.classList.remove('databox-hidden-left');
     this.playerDataboxEl?.classList.add('databox-slide-in');
     await this.wait(400);
@@ -2259,10 +2304,28 @@ export default class BattleUI {
             await this.typeTextAsync(`${nm} ganhou ${pend.amount} pontos de EXP!`);
             await this.wait(650);
           }
+          if (ev.isTrainer || this.battleState?.isTrainer) {
+            const trainerDlg = ev.trainerDialogue || (ev.winner === 'player' || ev.reason === 'victory' ? this.battleState?.winDialogue : this.battleState?.lossDialogue);
+            if (trainerDlg) {
+              const tName = ev.trainerName || this.battleState?.trainerName || 'Adversário';
+              await this.typeTextAsync(`${tName}: "${trainerDlg}"`);
+              await this.wait(1200);
+            }
+          }
+
           if ((ev.winner === 'player' || ev.reason === 'victory') && ev.reason !== 'catch') {
             sfxManager.playVictory(bgmManager);
           }
           await this.wait(800);
+
+          this._lastBattleOutcome = {
+            isTrainer: Boolean(ev.isTrainer || this.battleState?.isTrainer),
+            winner: ev.winner || (ev.reason === 'victory' ? 'player' : 'opponent'),
+            trainerName: ev.trainerName || this.battleState?.trainerName,
+            trainerDialogue: ev.trainerDialogue || (ev.winner === 'player' || ev.reason === 'victory' ? this.battleState?.winDialogue : this.battleState?.lossDialogue),
+            npc: this.worldScene?.currentBattleNpc
+          };
+
           this.close();
           this._notifyPartyXpGains();
           return;
@@ -2386,7 +2449,7 @@ export default class BattleUI {
     // 2. Play throw sound & start parabolic throw flight
     sfxManager.playThrow();
     this.captureBallEl.classList.add('ball-capture-throw');
-    await this.wait(650);
+    await this.wait(700);
 
     // 3. Ball pops open right in front of Pokémon
     if (this.captureBallGraphic) {

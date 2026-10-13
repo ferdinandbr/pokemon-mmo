@@ -39,9 +39,32 @@ export default class AuthUI {
     }
   }
 
+  setLoading(form, isLoading, buttonText) {
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const inputs = form.querySelectorAll('input, button');
+
+    if (isLoading) {
+      this.isSubmitting = true;
+      inputs.forEach(input => input.setAttribute('disabled', 'true'));
+      if (submitBtn) {
+        submitBtn.dataset.originalText = submitBtn.dataset.originalText || submitBtn.innerText;
+        submitBtn.innerHTML = `<span class="btn-spinner"></span> ${buttonText}`;
+      }
+    } else {
+      this.isSubmitting = false;
+      inputs.forEach(input => input.removeAttribute('disabled'));
+      if (submitBtn) {
+        submitBtn.innerText = buttonText || submitBtn.dataset.originalText || 'Enviar';
+      }
+    }
+  }
+
   async handleLogin(e) {
-    e.preventDefault();
+    if (e) e.preventDefault();
+    if (this.isSubmitting) return;
+
     this.loginError.innerText = '';
+    this.setLoading(this.formLogin, true, 'Entrando...');
 
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
@@ -60,16 +83,21 @@ export default class AuthUI {
 
       this.token = data.token;
       localStorage.setItem('pokemmo_token', this.token);
+      this.setLoading(this.formLogin, false, 'Acessar Conta');
       this.hide();
       this.onAuthSuccess(data.user, this.token);
     } catch (err) {
+      this.setLoading(this.formLogin, false, 'Acessar Conta');
       this.loginError.innerText = err.message;
     }
   }
 
   async handleRegister(e) {
-    e.preventDefault();
+    if (e) e.preventDefault();
+    if (this.isSubmitting) return;
+
     this.regError.innerText = '';
+    this.setLoading(this.formRegister, true, 'Criando Conta...');
 
     const name = document.getElementById('reg-name').value;
     const email = document.getElementById('reg-email').value;
@@ -89,9 +117,11 @@ export default class AuthUI {
 
       this.token = data.token;
       localStorage.setItem('pokemmo_token', this.token);
+      this.setLoading(this.formRegister, false, 'Criar Minha Conta');
       this.hide();
       this.onAuthSuccess(data.user, this.token);
     } catch (err) {
+      this.setLoading(this.formRegister, false, 'Criar Minha Conta');
       this.regError.innerText = err.message;
     }
   }

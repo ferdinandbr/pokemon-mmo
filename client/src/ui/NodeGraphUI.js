@@ -105,21 +105,21 @@ export default class NodeGraphUI {
         </div>
 
         <div class="nodegraph-tools">
-          <input type="text" id="nodegraph-search" class="nodegraph-search-input" placeholder="🔍 Buscar mapa..." />
+          <input type="text" id="nodegraph-search" class="nodegraph-search-input" placeholder="Buscar mapa..." />
           <button id="btn-nodegraph-auto-layout" class="nodegraph-btn" title="Organizar mapas geograficamente em grade contígua">
-            ⚡ Auto-Organizar
+            Auto-Organizar
           </button>
           <button id="btn-nodegraph-center" class="nodegraph-btn" title="Centralizar visualização nos mapas">
-            🎯 Centralizar
+            Centralizar
           </button>
           <button id="btn-nodegraph-new-portal" class="nodegraph-btn gold" title="Criar nova conexão entre dois mapas">
-            ➕ Nova Conexão
+            Nova Conexão
           </button>
         </div>
 
         <div class="nodegraph-nav-modes">
           <button id="btn-nodegraph-back-editor" class="nodegraph-btn primary">
-            🗺️ Voltar ao Tile Editor
+            Voltar ao Tile Editor
           </button>
         </div>
       </div>

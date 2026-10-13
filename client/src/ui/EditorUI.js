@@ -3,8 +3,63 @@ import { ROOMS_CONFIG } from '../maps/roomData';
 import { COLLISION_TYPES, COLLISION_META } from '../maps/collisionConfig';
 import NodeGraphUI from './NodeGraphUI';
 import { PRESET_TILESETS } from '../maps/tilesetsConfig';
+import { NPC_SPRITES, NPC_TYPES, DEFAULT_MART_ITEMS } from '../maps/npcConfig';
 
 export { PRESET_TILESETS };
+
+export const KANTO_POKEMON_LIST = [
+  { id: 1, name: "Bulbasaur" }, { id: 2, name: "Ivysaur" }, { id: 3, name: "Venusaur" },
+  { id: 4, name: "Charmander" }, { id: 5, name: "Charmeleon" }, { id: 6, name: "Charizard" },
+  { id: 7, name: "Squirtle" }, { id: 8, name: "Wartortle" }, { id: 9, name: "Blastoise" },
+  { id: 10, name: "Caterpie" }, { id: 11, name: "Metapod" }, { id: 12, name: "Butterfree" },
+  { id: 13, name: "Weedle" }, { id: 14, name: "Kakuna" }, { id: 15, name: "Beedrill" },
+  { id: 16, name: "Pidgey" }, { id: 17, name: "Pidgeotto" }, { id: 18, name: "Pidgeot" },
+  { id: 19, name: "Rattata" }, { id: 20, name: "Raticate" }, { id: 21, name: "Spearow" },
+  { id: 22, name: "Fearow" }, { id: 23, name: "Ekans" }, { id: 24, name: "Arbok" },
+  { id: 25, name: "Pikachu" }, { id: 26, name: "Raichu" }, { id: 27, name: "Sandshrew" },
+  { id: 28, name: "Sandslash" }, { id: 29, name: "Nidoran♀" }, { id: 30, name: "Nidorina" },
+  { id: 31, name: "Nidoqueen" }, { id: 32, name: "Nidoran♂" }, { id: 33, name: "Nidorino" },
+  { id: 34, name: "Nidoking" }, { id: 35, name: "Clefairy" }, { id: 36, name: "Clefable" },
+  { id: 37, name: "Vulpix" }, { id: 38, name: "Ninetales" }, { id: 39, name: "Jigglypuff" },
+  { id: 40, name: "Wigglytuff" }, { id: 41, name: "Zubat" }, { id: 42, name: "Golbat" },
+  { id: 43, name: "Oddish" }, { id: 44, name: "Gloom" }, { id: 45, name: "Vileplume" },
+  { id: 46, name: "Paras" }, { id: 47, name: "Parasect" }, { id: 48, name: "Venonat" },
+  { id: 49, name: "Venomoth" }, { id: 50, name: "Diglett" }, { id: 51, name: "Dugtrio" },
+  { id: 52, name: "Meowth" }, { id: 53, name: "Persian" }, { id: 54, name: "Psyduck" },
+  { id: 55, name: "Golduck" }, { id: 56, name: "Mankey" }, { id: 57, name: "Primeape" },
+  { id: 58, name: "Growlithe" }, { id: 59, name: "Arcanine" }, { id: 60, name: "Poliwag" },
+  { id: 61, name: "Poliwhirl" }, { id: 62, name: "Poliwrath" }, { id: 63, name: "Abra" },
+  { id: 64, name: "Kadabra" }, { id: 65, name: "Alakazam" }, { id: 66, name: "Machop" },
+  { id: 67, name: "Machoke" }, { id: 68, name: "Machamp" }, { id: 69, name: "Bellsprout" },
+  { id: 70, name: "Weepinbell" }, { id: 71, name: "Victreebel" }, { id: 72, name: "Tentacool" },
+  { id: 73, name: "Tentacruel" }, { id: 74, name: "Geodude" }, { id: 75, name: "Graveler" },
+  { id: 76, name: "Golem" }, { id: 77, name: "Ponyta" }, { id: 78, name: "Rapidash" },
+  { id: 79, name: "Slowpoke" }, { id: 80, name: "Slowbro" }, { id: 81, name: "Magnemite" },
+  { id: 82, name: "Magneton" }, { id: 83, name: "Farfetch'd" }, { id: 84, name: "Doduo" },
+  { id: 85, name: "Dodrio" }, { id: 86, name: "Seel" }, { id: 87, name: "Dewgong" },
+  { id: 88, name: "Grimer" }, { id: 89, name: "Muk" }, { id: 90, name: "Shellder" },
+  { id: 91, name: "Cloyster" }, { id: 92, name: "Gastly" }, { id: 93, name: "Haunter" },
+  { id: 94, name: "Gengar" }, { id: 95, name: "Onix" }, { id: 96, name: "Drowzee" },
+  { id: 97, name: "Hypno" }, { id: 98, name: "Krabby" }, { id: 99, name: "Kingler" },
+  { id: 100, name: "Voltorb" }, { id: 101, name: "Electrode" }, { id: 102, name: "Exeggcute" },
+  { id: 103, name: "Exeggutor" }, { id: 104, name: "Cubone" }, { id: 105, name: "Marowak" },
+  { id: 106, name: "Hitmonlee" }, { id: 107, name: "Hitmonchan" }, { id: 108, name: "Lickitung" },
+  { id: 109, name: "Koffing" }, { id: 110, name: "Weezing" }, { id: 111, name: "Rhyhorn" },
+  { id: 112, name: "Rhydon" }, { id: 113, name: "Chansey" }, { id: 114, name: "Tangela" },
+  { id: 115, name: "Kangaskhan" }, { id: 116, name: "Horsea" }, { id: 117, name: "Seadra" },
+  { id: 118, name: "Goldeen" }, { id: 119, name: "Seaking" }, { id: 120, name: "Staryu" },
+  { id: 121, name: "Starmie" }, { id: 122, name: "Mr. Mime" }, { id: 123, name: "Scyther" },
+  { id: 124, name: "Jynx" }, { id: 125, name: "Electabuzz" }, { id: 126, name: "Magmar" },
+  { id: 127, name: "Pinsir" }, { id: 128, name: "Tauros" }, { id: 129, name: "Magikarp" },
+  { id: 130, name: "Gyarados" }, { id: 131, name: "Lapras" }, { id: 132, name: "Ditto" },
+  { id: 133, name: "Eevee" }, { id: 134, name: "Vaporeon" }, { id: 135, name: "Jolteon" },
+  { id: 136, name: "Flareon" }, { id: 137, name: "Porygon" }, { id: 138, name: "Omanyte" },
+  { id: 139, name: "Omastar" }, { id: 140, name: "Kabuto" }, { id: 141, name: "Kabutops" },
+  { id: 142, name: "Aerodactyl" }, { id: 143, name: "Snorlax" }, { id: 144, name: "Articuno" },
+  { id: 145, name: "Zapdos" }, { id: 146, name: "Moltres" }, { id: 147, name: "Dratini" },
+  { id: 148, name: "Dragonair" }, { id: 149, name: "Dragonite" }, { id: 150, name: "Mewtwo" },
+  { id: 151, name: "Mew" }
+];
 
 export function isImageReady(img) {
   if (!img) return false;
@@ -114,8 +169,10 @@ export default class EditorUI {
     this.populateMapSelect();
     this.populatePortalTargetSelect();
     this.nodeGraphUI = new NodeGraphUI(this, this.editorScene);
+    this.databaseSpecies = KANTO_POKEMON_LIST;
     this.bindEvents();
     this.fetchMapsList();
+    this.fetchSpeciesList();
   }
 
   _getDefaultMapsList() {
@@ -292,6 +349,28 @@ export default class EditorUI {
           </svg>
         </button>
 
+        <button id="tool-zone" class="editor-tool-btn" data-tooltip="Desenhar Zona / Região de Cidade ou Rota (Z)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 2"></rect>
+            <path d="M3 9h18"></path>
+          </svg>
+        </button>
+
+        <button id="tool-spawn" class="editor-tool-btn" data-tooltip="Desenhar Área de Spawn de Pokémon (P)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="M3 12h18"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </button>
+
+        <button id="tool-npc" class="editor-tool-btn" data-tooltip="Posicionar / Editar NPC (N)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </button>
+
         <div class="tool-divider"></div>
 
         <button id="tool-zoomin" class="editor-tool-btn" data-tooltip="Aproximar Zoom (+)">
@@ -358,6 +437,15 @@ export default class EditorUI {
           <button id="tab-btn-signs" class="sidebar-tab-btn" style="display:inline-flex; align-items:center; justify-content:center; gap:5px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 6h14v8H5z"></path><path d="M12 14v7"></path></svg>
             <span>Placas</span>
+          </button>
+          <button id="tab-btn-zones" class="sidebar-tab-btn" style="display:inline-flex; align-items:center; justify-content:center; gap:4px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 2"></rect><path d="M3 9h18"></path></svg>
+            <span>Zonas</span>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:1px; opacity:0.8;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <button id="tab-btn-npcs" class="sidebar-tab-btn" style="display:inline-flex; align-items:center; justify-content:center; gap:4px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <span>NPCs</span>
           </button>
         </div>
 
@@ -527,7 +615,7 @@ export default class EditorUI {
             </div>
             <p style="font-size: 11px; color: var(--fr-text-muted); margin-bottom: 8px;">Conectam esta sala às outras cidades e rotas de Kanto.</p>
 
-            <div id="editor-portals-list" style="max-height: 480px; overflow-y: auto;">
+            <div id="editor-portals-list" class="zones-scroll-list">
               <!-- Dynamically populated -->
             </div>
           </div>
@@ -548,7 +636,85 @@ export default class EditorUI {
             </div>
             <p style="font-size: 11px; color: var(--fr-text-muted); margin-bottom: 8px;">Placas e objetos interativos com diálogo estilo FireRed.</p>
 
-            <div id="editor-signs-list" style="max-height: 480px; overflow-y: auto;">
+            <div id="editor-signs-list" class="zones-scroll-list">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 4: Zonas Manager (Cidades, Rotas & Spawns) -->
+        <div id="tab-content-zones" class="tab-content hidden">
+          <!-- Category Dropdown Selector -->
+          <div class="sidebar-section" style="padding: 10px 12px; background: rgba(15, 23, 42, 0.7); border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3); margin-bottom: 8px; flex-shrink: 0;">
+            <label style="font-size: 10px; font-weight: 800; color: var(--fr-gold); text-transform: uppercase; display: flex; align-items: center; gap: 6px; margin-bottom: 6px; letter-spacing: 0.5px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon></svg>
+              <span>MODO DE ZONA</span>
+            </label>
+            <select id="editor-zones-subtab-select" class="form-input" style="font-weight: 700; background: #1e293b; border: 1px solid #3b82f6; color: #fff; padding: 7px 10px; font-size: 12px; cursor: pointer; border-radius: 6px; width: 100%;">
+              <option value="cities">Cidades & Rotas (Bounding Boxes)</option>
+              <option value="spawns">Spawns de Pokémon (Áreas Pokéstop)</option>
+            </select>
+          </div>
+
+          <!-- SUB-VIEW 1: Cities & Routes Bounding Boxes -->
+          <div id="zones-subview-cities" class="zones-subview">
+            <div class="sidebar-section">
+              <div class="section-header">
+                <div class="section-title-group">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 2"></rect><path d="M3 9h18"></path></svg>
+                  <h3>ZONAS & CIDADES</h3>
+                </div>
+                <button id="btn-add-new-zone" class="editor-btn small gold" style="height: 28px; padding: 2px 8px; font-size: 11px; display:inline-flex; align-items:center; gap:4px;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                  <span>Nova Zona</span>
+                </button>
+              </div>
+              <p style="font-size: 11px; color: var(--fr-text-muted); margin-bottom: 8px;">Delimitadores de cidade e rota com status de desenvolvimento e notas.</p>
+
+              <div id="editor-zones-list" class="zones-scroll-list">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+          </div>
+
+          <!-- SUB-VIEW 2: Pokemon Spawns Manager -->
+          <div id="zones-subview-spawns" class="zones-subview hidden">
+            <div class="sidebar-section">
+              <div class="section-header">
+                <div class="section-title-group">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                  <h3>SPAWNS POKÉMON (POKESTOP.IO)</h3>
+                </div>
+                <button id="btn-add-new-spawn" class="editor-btn small gold" style="height: 28px; padding: 2px 8px; font-size: 11px; display:inline-flex; align-items:center; gap:4px;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                  <span>Nova Área</span>
+                </button>
+              </div>
+              <p style="font-size: 11px; color: var(--fr-text-muted); margin-bottom: 8px;">Áreas de encontro com espécies, chances, IVs, shiny e climas estilo Pokéstop.</p>
+
+              <div id="editor-spawns-list" class="zones-scroll-list">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 5: NPCs Manager -->
+        <div id="tab-content-npcs" class="tab-content hidden">
+          <div class="sidebar-section">
+            <div class="section-header">
+              <div class="section-title-group">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                <h3>NPCS DO MAPA ATIVO</h3>
+              </div>
+              <button id="btn-add-new-npc" class="editor-btn small gold" style="height: 28px; padding: 2px 8px; font-size: 11px; display:inline-flex; align-items:center; gap:4px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>Novo NPC</span>
+              </button>
+            </div>
+            <p style="font-size: 11px; color: var(--fr-text-muted); margin-bottom: 8px;">NPCs de conversa, batalha, Poké Mart e Prof. Carvalho.</p>
+
+            <div id="editor-npcs-list" class="zones-scroll-list">
               <!-- Dynamically populated -->
             </div>
           </div>
@@ -556,82 +722,91 @@ export default class EditorUI {
       </div>
 
       <!-- Portal Inspector / Edit Modal -->
-      <div id="editor-portal-modal" class="editor-modal hidden">
+      <div id="editor-portal-modal" class="editor-modal hidden" style="max-width: 440px;">
         <div class="modal-header">
           <div class="modal-title">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 20V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16"></path><path d="M14 12v.01"></path></svg>
-            <h4>CONFIGURAR PORTAL</h4>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2.2"><path d="M18 20V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16"></path><path d="M14 12v.01"></path><circle cx="6" cy="12" r="3"></circle><line x1="9" y1="12" x2="15" y2="12"></line></svg>
+            <h4>CONEXÃO DE PORTAIS (BIDIRECIONAL)</h4>
           </div>
           <button id="btn-close-portal-modal" class="close-btn">✕</button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body" style="gap: 12px;">
           <div class="form-group">
-            <label>Rótulo do Portal</label>
-            <input type="text" id="portal-prop-label" class="form-input" placeholder="Ex: Entrada Rota 1" />
-          </div>
-          <div class="form-group">
-            <label>Mapa de Destino</label>
-            <select id="portal-prop-target-room" class="form-input editor-map-select"></select>
+            <label>Nome / Rótulo da Conexão</label>
+            <input type="text" id="portal-prop-label" class="form-input" placeholder="Ex: Entrada Laboratório do Carvalho" />
           </div>
 
-          <!-- SPAWN DESTINO ROW + PICK BUTTON -->
-          <div class="form-row" style="align-items: flex-end; gap: 6px;">
-            <div class="form-group" style="flex:1;">
-              <label>Spawn X (px)</label>
-              <input type="number" id="portal-prop-target-x" class="form-input" />
+          <!-- LADO A: ORIGEM -->
+          <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px; padding: 10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+              <span style="font-size: 11px; font-weight: 700; color: #c084fc; display:flex; align-items:center; gap:4px;">
+                <span>📍 PARTE A (MAPA DE ORIGEM)</span>
+              </span>
+              <span id="portal-origin-map-badge" class="badge" style="background: rgba(168, 85, 247, 0.25); color: #e9d5ff; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 4px;">kanto</span>
             </div>
-            <div class="form-group" style="flex:1;">
-              <label>Spawn Y (px)</label>
-              <input type="number" id="portal-prop-target-y" class="form-input" />
+
+            <div class="form-row" style="gap: 6px; align-items: flex-end;">
+              <div class="form-group" style="flex:1;">
+                <label style="font-size: 10px;">Gatilho X</label>
+                <input type="number" id="portal-prop-x" class="form-input" style="height: 28px; font-size: 11px;" />
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label style="font-size: 10px;">Gatilho Y</label>
+                <input type="number" id="portal-prop-y" class="form-input" style="height: 28px; font-size: 11px;" />
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label style="font-size: 10px;">Largura (W)</label>
+                <input type="number" id="portal-prop-w" class="form-input" style="height: 28px; font-size: 11px;" />
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label style="font-size: 10px;">Altura (H)</label>
+                <input type="number" id="portal-prop-h" class="form-input" style="height: 28px; font-size: 11px;" />
+              </div>
+              <button id="btn-portal-pick-origin" class="editor-btn small secondary" style="height: 28px; padding: 0 8px; white-space:nowrap;" title="Redesenhar a área da origem neste mapa">
+                ✏️
+              </button>
             </div>
-            <button id="btn-portal-pick-target" class="editor-btn small gold" style="height: 34px; padding: 0 10px; display:inline-flex; align-items:center; gap:4px; font-weight: 600;" title="Carrega o mapa de destino para você clicar no local exato do spawn">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-              <span>Marcar Destino</span>
+          </div>
+
+          <!-- LADO B: DESTINO -->
+          <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 8px; padding: 10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+              <span style="font-size: 11px; font-weight: 700; color: #34d399; display:flex; align-items:center; gap:4px;">
+                <span>🎯 PARTE B (MAPA DE DESTINO)</span>
+              </span>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 8px;">
+              <label style="font-size: 10px;">Selecione o Mapa de Destino</label>
+              <select id="portal-prop-target-room" class="form-input editor-map-select" style="height: 32px; font-size: 12px;"></select>
+            </div>
+
+            <!-- Botão de Ação Primário: Desenhar Destino no Mapa -->
+            <button id="btn-portal-draw-target" class="editor-btn primary" style="width: 100%; height: 38px; display:flex; align-items:center; justify-content:center; gap: 6px; font-weight: 600; background: linear-gradient(135deg, #059669, #10b981); border:none; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); cursor: pointer;" title="Carrega o mapa de destino para você desenhar onde o jogador deve chegar e voltar">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg>
+              <span>Desenhar Destino no Mapa ➔</span>
             </button>
-          </div>
 
-          <!-- GATILHO ORIGEM ROW + RE-MARK BUTTON -->
-          <div class="form-row" style="align-items: flex-end; gap: 6px;">
-            <div class="form-group" style="flex:1;">
-              <label>Gatilho X (px)</label>
-              <input type="number" id="portal-prop-x" class="form-input" />
-            </div>
-            <div class="form-group" style="flex:1;">
-              <label>Gatilho Y (px)</label>
-              <input type="number" id="portal-prop-y" class="form-input" />
-            </div>
-            <button id="btn-portal-pick-origin" class="editor-btn small secondary" style="height: 34px; padding: 0 10px; display:inline-flex; align-items:center; gap:4px;" title="Re-desenhar o retângulo do portal no mapa de origem">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><path d="M9 3v18"></path><path d="M15 3v18"></path></svg>
-              <span>Marcar Origem</span>
-            </button>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>Largura (W)</label>
-              <input type="number" id="portal-prop-w" class="form-input" />
-            </div>
-            <div class="form-group">
-              <label>Altura (H)</label>
-              <input type="number" id="portal-prop-h" class="form-input" />
+            <!-- Coordenadas informativas de Destino -->
+            <div class="form-row" style="gap: 6px; margin-top: 8px;">
+              <div class="form-group" style="flex:1;">
+                <label style="font-size: 10px;">Spawn Chegada X</label>
+                <input type="number" id="portal-prop-target-x" class="form-input" style="height: 28px; font-size: 11px;" />
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label style="font-size: 10px;">Spawn Chegada Y</label>
+                <input type="number" id="portal-prop-target-y" class="form-input" style="height: 28px; font-size: 11px;" />
+              </div>
             </div>
           </div>
 
-          <!-- AUTOMATIC TWO-WAY CONNECT CHECKBOX -->
-          <div style="margin: 8px 0 12px 0; background: rgba(15, 23, 42, 0.6); padding: 8px 10px; border-radius: 6px; border: 1px solid rgba(251, 191, 36, 0.3);">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 11px; margin: 0; color: #ffecb3;">
-              <input type="checkbox" id="portal-prop-create-return" checked style="accent-color: #f59e0b;" />
-              <span>Criar portal de retorno automático (Destino ➔ Origem)</span>
-            </label>
-          </div>
-
-          <div class="modal-actions">
-            <button id="btn-portal-jump" class="editor-btn small secondary" title="Carrega o mapa de destino no editor para navegar" style="display:inline-flex; align-items:center; gap:4px;">
+          <div class="modal-actions" style="margin-top: 4px;">
+            <button id="btn-portal-jump" class="editor-btn small secondary" title="Abrir o mapa de destino no editor" style="display:inline-flex; align-items:center; gap:4px;">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-              <span>Ver Destino</span>
+              <span>Ir ao Mapa</span>
             </button>
-            <button id="btn-save-portal" class="editor-btn small primary">Salvar Portal</button>
-            <button id="btn-delete-portal" class="editor-btn small danger">Excluir</button>
+            <button id="btn-save-portal" class="editor-btn small primary">Salvar Conexão</button>
+            <button id="btn-delete-portal" class="editor-btn small danger">Excluir Conexão</button>
           </div>
         </div>
       </div>
@@ -709,6 +884,452 @@ export default class EditorUI {
         </div>
       </div>
 
+      <!-- Zone / City Box Inspector Modal -->
+      <div id="editor-zone-modal" class="editor-modal hidden" style="width: 540px; max-width: 95vw;">
+        <div class="modal-header">
+          <div class="modal-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 2"></rect><path d="M3 9h18"></path></svg>
+            <h4>CONFIGURAR REGIONAL / ZONA DO MAPA</h4>
+          </div>
+          <button id="btn-close-zone-modal" class="close-btn">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group" style="flex:2;">
+              <label>Nome da Zona / Cidade</label>
+              <input type="text" id="zone-prop-name" class="form-input" placeholder="Ex: Pallet Town, Route 1" />
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label>Tipo</label>
+              <select id="zone-prop-type" class="form-input">
+                <option value="city">Cidade</option>
+                <option value="route">Rota</option>
+                <option value="cave">Caverna</option>
+                <option value="building">Edifício</option>
+                <option value="other">Outro</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="flex:2;">
+              <label>Status</label>
+              <select id="zone-prop-status" class="form-input" style="font-weight: 600;">
+                <option value="completed" style="color:#00e676;">Concluído</option>
+                <option value="pending" selected style="color:#ffb300;">Pendente</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label>Cor da Linha</label>
+              <input type="color" id="zone-prop-color" class="form-input" value="#00e5ff" style="height:34px; padding:2px; cursor:pointer;" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Mensagem Informativa da Equipe (Note Badge)</label>
+            <textarea id="zone-prop-note" class="form-input text-area" rows="3" placeholder="Ex: Área com NPCs e eventos validados."></textarea>
+          </div>
+
+          <div class="form-row" style="align-items: flex-end; gap: 6px;">
+            <div class="form-group" style="flex:1;">
+              <label>X (px)</label>
+              <input type="number" id="zone-prop-x" class="form-input" />
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label>Y (px)</label>
+              <input type="number" id="zone-prop-y" class="form-input" />
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label>Largura (W)</label>
+              <input type="number" id="zone-prop-w" class="form-input" />
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label>Altura (H)</label>
+              <input type="number" id="zone-prop-h" class="form-input" />
+            </div>
+            <button id="btn-zone-pick-origin" class="editor-btn small gold" style="height: 34px; padding: 0 10px; display:inline-flex; align-items:center; gap:4px; font-weight:600;" title="Redesenhar o retângulo da zona clicando e arrastando no mapa">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 2"></rect><path d="M9 3v18"></path></svg>
+              <span>Redesenhar</span>
+            </button>
+          </div>
+
+          <div class="modal-actions" style="margin-top: 14px;">
+            <button id="btn-save-zone" class="editor-btn small primary" style="flex: 2;">Salvar Zona</button>
+            <button id="btn-delete-zone" class="editor-btn small danger" style="flex: 1;">Excluir</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pokemon Spawn Area Inspector Modal (Pokestop.io Style - Tabbed & Database Search) -->
+      <div id="editor-spawn-modal" class="editor-modal hidden" style="width: 1020px; max-width: 96vw; max-height: 92vh; display: flex; flex-direction: column;">
+        <div class="modal-header">
+          <div class="modal-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            <h4>CONFIGURAÇÃO DE SPAWNS POKÉMON (PERSISTENTE NO BANCO DE DADOS)</h4>
+          </div>
+          <button id="btn-close-spawn-modal" class="close-btn">✕</button>
+        </div>
+
+        <!-- TABS NAV -->
+        <div class="spawn-modal-tabs">
+          <button type="button" id="tab-btn-spawn-map" class="spawn-nav-tab-btn active">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>
+            <span>1. Configuração da Área & Mapa</span>
+          </button>
+          <button type="button" id="tab-btn-spawn-pokemon" class="spawn-nav-tab-btn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 1 10 10H2A10 10 0 0 1 12 2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            <span>2. Pokémons Spawnados & Probabilidades</span>
+            <span id="spawn-tab-count-badge" class="spawn-badge-count">1</span>
+          </button>
+        </div>
+
+        <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 2px;">
+          <!-- TAB 1: ÁREA & MAPA -->
+          <div id="tab-pane-spawn-map" class="spawn-tab-pane">
+            <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 16px; margin-bottom: 14px;">
+              <h5 style="margin: 0 0 12px 0; font-size: 12px; color: var(--fr-gold); display: flex; align-items: center; gap: 6px; letter-spacing: 0.5px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                <span>DADOS GERAIS DA ÁREA DE ENCONTRO</span>
+              </h5>
+              <div class="form-row">
+                <div class="form-group" style="flex: 2;">
+                  <label>Nome da Área de Spawn</label>
+                  <input type="text" id="spawn-prop-name" class="form-input" placeholder="Ex: Rota 1 - Grama Alta Principal" />
+                </div>
+                <div class="form-group" style="flex: 1.2;">
+                  <label>Método de Encontro</label>
+                  <select id="spawn-prop-type" class="form-input">
+                    <option value="grass">Grama Alta (Walking)</option>
+                    <option value="water">Água (Surf)</option>
+                    <option value="fishing">Pesca (Rod)</option>
+                    <option value="cave">Caverna / Rocha</option>
+                  </select>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                  <label>Taxa Base % (Chance / Passo)</label>
+                  <div class="custom-stepper-wrap" style="width: 100%;">
+                    <input type="number" id="spawn-prop-rate" class="form-input" min="1" max="100" value="10" />
+                    <div class="custom-stepper-controls">
+                      <button type="button" class="stepper-btn btn-step-up" tabindex="-1" title="Aumentar">
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"/></svg>
+                      </button>
+                      <button type="button" class="stepper-btn btn-step-down" tabindex="-1" title="Diminuir">
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 16px; margin-bottom: 14px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h5 style="margin: 0; font-size: 12px; color: var(--fr-gold); display: flex; align-items: center; gap: 6px; letter-spacing: 0.5px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+                  <span>DELIMITAÇÃO GEOMÉTRICA (COORDENADAS NO MAPA)</span>
+                </h5>
+                <span id="spawn-tile-summary" style="font-size: 11px; color: #94a3b8; font-weight: 600;"></span>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Posição X (px)</label>
+                  <div class="custom-stepper-wrap" style="width: 100%;">
+                    <input type="number" id="spawn-prop-x" class="form-input" />
+                    <div class="custom-stepper-controls">
+                      <button type="button" class="stepper-btn btn-step-up" tabindex="-1"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"/></svg></button>
+                      <button type="button" class="stepper-btn btn-step-down" tabindex="-1"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg></button>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Posição Y (px)</label>
+                  <div class="custom-stepper-wrap" style="width: 100%;">
+                    <input type="number" id="spawn-prop-y" class="form-input" />
+                    <div class="custom-stepper-controls">
+                      <button type="button" class="stepper-btn btn-step-up" tabindex="-1"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"/></svg></button>
+                      <button type="button" class="stepper-btn btn-step-down" tabindex="-1"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg></button>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Largura W (px)</label>
+                  <div class="custom-stepper-wrap" style="width: 100%;">
+                    <input type="number" id="spawn-prop-w" class="form-input" />
+                    <div class="custom-stepper-controls">
+                      <button type="button" class="stepper-btn btn-step-up" tabindex="-1"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"/></svg></button>
+                      <button type="button" class="stepper-btn btn-step-down" tabindex="-1"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg></button>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Altura H (px)</label>
+                  <div class="custom-stepper-wrap" style="width: 100%;">
+                    <input type="number" id="spawn-prop-h" class="form-input" />
+                    <div class="custom-stepper-controls">
+                      <button type="button" class="stepper-btn btn-step-up" tabindex="-1"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"/></svg></button>
+                      <button type="button" class="stepper-btn btn-step-down" tabindex="-1"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 10px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px; padding: 10px 14px; margin-top: 10px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" style="flex-shrink: 0;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                <span style="font-size: 11px; color: #cbd5e1; line-height: 1.4;">
+                  <strong>Regra de Spawns Restritos:</strong> Encontros selvagens <em>somente</em> acontecem enquanto o jogador caminha dentro deste retângulo delimitado. Gramas altas fora de qualquer área de spawn não geram encontros.
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: POKÉMONS SPAWNADOS -->
+          <div id="tab-pane-spawn-pokemon" class="spawn-tab-pane hidden">
+            <!-- TOOLBAR: BUSCA DO BANCO & ADICIONAR -->
+            <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 14px; margin-bottom: 12px;">
+              <!-- BARRA DE CÓPIA DE CONFIGURAÇÃO DE ZONA EXISTENTE -->
+              <div class="spawn-copy-zone-bar" style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 290px;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2.2" style="flex-shrink: 0;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  <label for="spawn-copy-source-select" style="font-size: 11px; font-weight: 750; color: #94a3b8; white-space: nowrap; margin: 0;">Copiar de Zona Existente:</label>
+                  <select id="spawn-copy-source-select" class="form-input" style="height: 36px; font-size: 11.5px; padding: 4px 10px; border-radius: 6px; flex: 1; min-width: 180px; background: rgba(15,23,42,0.9); border: 1px solid rgba(59,130,246,0.3); color: #fff;">
+                    <option value="">-- Selecione uma zona para copiar a config --</option>
+                  </select>
+                </div>
+                <button type="button" id="btn-apply-copy-zone" class="editor-btn small secondary" style="height: 36px; padding: 0 14px; font-size: 11px; display: inline-flex; align-items: center; gap: 6px; font-weight: 700;" title="Substitui os Pokémons e probabilidades atuais pelos da zona selecionada">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+                  <span>Copiar Configuração</span>
+                </button>
+              </div>
+
+              <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px;">
+                <!-- SEARCH BOX COM BUSCA DO BANCO -->
+                <div style="position: relative; flex: 1; min-width: 280px;">
+                  <div style="display: flex; align-items: center; position: relative;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.2" style="position: absolute; left: 12px; pointer-events: none;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input type="text" id="spawn-pokemon-search" class="form-input" placeholder="Buscar Pokémon do banco por nome ou nº (ex: Pikachu, #025, Char)..." style="padding-left: 36px; font-size: 12px; height: 38px; border-radius: 8px;" />
+                    <button type="button" id="btn-clear-spawn-search" style="position: absolute; right: 10px; background: none; border: none; color: #64748b; cursor: pointer; display: none;" title="Limpar busca">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                  </div>
+                  <!-- POPUP DE AUTOCOMPLETE COM POKÉMONS DO BANCO -->
+                  <div id="spawn-search-autocomplete" class="spawn-autocomplete-dropdown hidden"></div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <button type="button" id="btn-normalize-spawn-weights" class="editor-btn small" style="background: rgba(30, 41, 59, 0.9); border: 1px solid rgba(255,255,255,0.15); color: #cbd5e1; height: 38px; padding: 0 14px; font-size: 11px; display: inline-flex; align-items: center; gap: 6px;" title="Ajusta proporcionalmente cada um dos 4 horários (Manhã, Tarde, Noite, Madrugada) para somarem 100%">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path><path d="M7 21h10"></path><path d="M12 3v18"></path><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"></path></svg>
+                    <span>Normalizar Horários (100%)</span>
+                  </button>
+                  <button type="button" id="btn-add-spawn-pokemon-row" class="editor-btn small gold" style="height: 38px; padding: 0 16px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    <span>Adicionar Pokémon</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- BARRA DE DISTRIBUIÇÃO PERCENTUAL POR HORÁRIO (4 TURNOS) -->
+              <div class="spawn-turn-summary-card">
+                <div class="spawn-turn-header-row">
+                  <div class="spawn-turn-title">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    <span>DISTRIBUIÇÃO DE PROBABILIDADE POR TURNO:</span>
+                  </div>
+                  <div id="spawn-distribution-status" class="spawn-dist-status-wrap"></div>
+                </div>
+
+                <div class="spawn-period-tabs">
+                  <button type="button" class="spawn-period-tab-btn active" id="btn-period-morning">
+                    <svg class="period-icon morning" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v6"></path><path d="M4.93 10.93l4.24 4.24"></path><path d="M2 18h20"></path><path d="M20 18a8 8 0 0 0-16 0"></path><path d="M19.07 10.93l-4.24 4.24"></path></svg>
+                    <span class="period-name">Manhã</span>
+                    <span class="period-hours">06h–12h</span>
+                    <span id="badge-total-morning" class="period-pill-pct">(0%)</span>
+                  </button>
+                  <button type="button" class="spawn-period-tab-btn" id="btn-period-afternoon">
+                    <svg class="period-icon afternoon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path></svg>
+                    <span class="period-name">Tarde</span>
+                    <span class="period-hours">12h–18h</span>
+                    <span id="badge-total-afternoon" class="period-pill-pct">(0%)</span>
+                  </button>
+                  <button type="button" class="spawn-period-tab-btn" id="btn-period-night">
+                    <svg class="period-icon night" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                    <span class="period-name">Noite</span>
+                    <span class="period-hours">18h–00h</span>
+                    <span id="badge-total-night" class="period-pill-pct">(0%)</span>
+                  </button>
+                  <button type="button" class="spawn-period-tab-btn" id="btn-period-dawn">
+                    <svg class="period-icon dawn" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>
+                    <span class="period-name">Madrugada</span>
+                    <span class="period-hours">00h–06h</span>
+                    <span id="badge-total-dawn" class="period-pill-pct">(0%)</span>
+                  </button>
+                </div>
+                <!-- Barra horizontal dinâmica -->
+                <div id="spawn-probability-bar" class="spawn-prob-bar-container"></div>
+              </div>
+            </div>
+
+            <!-- LISTAGEM DE POKÉMONS SPAWNADOS (CARD INSPECTOR) -->
+            <div style="padding: 2px 0;">
+              <div id="spawn-pokemon-cards-container" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- Cards populados dinamicamente -->
+              </div>
+              <div id="spawn-pokemon-empty-msg" class="hidden" style="text-align: center; padding: 40px 10px; color: #64748b; font-size: 12px; background: rgba(15,23,42,0.5); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.1);">
+                Nenhum Pokémon configurado nesta área de spawn. Digite o nome na busca acima ou clique em "Adicionar Pokémon".
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 14px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; gap: 10px;">
+          <button id="btn-save-spawn" class="editor-btn small primary" style="flex: 2; height: 38px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+            <span>Salvar Área de Spawn</span>
+          </button>
+          <button id="btn-delete-spawn" class="editor-btn small danger" style="flex: 1; height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            <span>Excluir</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- NPC Inspector / Edit Modal -->
+      <div id="editor-npc-modal" class="editor-modal hidden" style="max-width: 480px; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header">
+          <div class="modal-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <h4 id="npc-modal-heading">CONFIGURAR NPC</h4>
+          </div>
+          <button id="btn-close-npc-modal" class="close-btn">✕</button>
+        </div>
+        <div class="modal-body" style="gap: 12px;">
+          <!-- Row 1: Name and Sprite Preview -->
+          <div style="display:flex; gap:12px; align-items:center;">
+            <div style="width:52px; height:52px; background:#0b1120; border:2px solid #38bdf8; border-radius:8px; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0;">
+              <div id="npc-prop-sprite-preview" style="width:32px; height:48px; background-size:128px 192px; background-position:0 0; image-rendering:pixelated;"></div>
+            </div>
+            <div style="flex:1;">
+              <label style="font-size:11px; font-weight:700; color:#94a3b8; display:block; margin-bottom:4px;">Nome do NPC</label>
+              <input type="text" id="npc-prop-name" class="form-input" placeholder="Ex: Professor Carvalho" style="height:34px; font-weight:700;" />
+            </div>
+          </div>
+
+          <!-- Row 2: Sprite Sheet Selector -->
+          <div class="form-group">
+            <label style="font-size:11px; font-weight:700; color:#94a3b8; margin-bottom:4px;">Aparência / Spritesheet</label>
+            <select id="npc-prop-sprite" class="form-input" style="height:34px; font-weight:600;">
+              <!-- Dynamically filled with NPC_SPRITES -->
+            </select>
+          </div>
+
+          <!-- Row 3: NPC Type and Direction -->
+          <div class="form-row" style="gap: 8px;">
+            <div class="form-group" style="flex: 1.3;">
+              <label style="font-size:11px; font-weight:700; color:#94a3b8; margin-bottom:4px;">Tipo de NPC</label>
+              <select id="npc-prop-type" class="form-input" style="height:34px; font-weight:700;">
+                <option value="dialogue">💬 Diálogo (Conversa)</option>
+                <option value="battle">⚔️ Batalha (Treinador/Bandido)</option>
+                <option value="shop">🛒 Loja (Poké Mart)</option>
+                <option value="starter_oak">🎓 Prof. Carvalho (Inicial)</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex: 0.9;">
+              <label style="font-size:11px; font-weight:700; color:#94a3b8; margin-bottom:4px;">Direção Inicial</label>
+              <select id="npc-prop-direction" class="form-input" style="height:34px;">
+                <option value="down">Baixo (Frente)</option>
+                <option value="up">Cima (Costas)</option>
+                <option value="left">Esquerda</option>
+                <option value="right">Direita</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- SECTION: Dialogue -->
+          <div id="npc-section-dialogue" class="form-group">
+            <label id="npc-dialogue-label" style="font-size:11px; font-weight:700; color:#94a3b8; margin-bottom:4px;">Frases de Diálogo (Uma por linha)</label>
+            <textarea id="npc-prop-dialogue" class="form-input" rows="3" style="resize:vertical; font-size:12px; line-height:1.4;" placeholder="Ex: Olá, treinador!\nSeja bem-vindo ao mundo Pokémon!"></textarea>
+          </div>
+
+          <!-- SECTION: Battle Config -->
+          <div id="npc-section-battle" class="form-group hidden" style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:8px; padding:10px; gap:8px; display:flex; flex-direction:column;">
+            <span style="font-size:11px; font-weight:800; color:#f87171;">⚔️ CONFIGURAÇÃO DE BATALHA</span>
+            
+            <div class="form-row" style="gap:8px;">
+              <div class="form-group" style="flex:1;">
+                <label style="font-size:10px;">Alcance Visão (Grids)</label>
+                <input type="number" id="npc-prop-vision" class="form-input" style="height:28px;" value="3" min="0" max="10" />
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label style="font-size:10px;">Recompensa ($)</label>
+                <input type="number" id="npc-prop-reward" class="form-input" style="height:28px;" value="200" min="0" />
+              </div>
+            </div>
+
+            <div class="form-row" style="gap:8px;">
+              <div class="form-group" style="flex:1;">
+                <label style="font-size:10px;">Recompensa EXP</label>
+                <input type="number" id="npc-prop-reward-exp" class="form-input" style="height:28px;" value="150" min="0" />
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label style="font-size:10px;">Cooldown Revanche (s)</label>
+                <input type="number" id="npc-prop-cooldown" class="form-input" style="height:28px;" value="300" min="0" title="Tempo em segundos (Ex: 300 = 5 min)" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label style="font-size:10px;">Diálogo ao Vencer Jogador</label>
+              <input type="text" id="npc-prop-loss-dlg" class="form-input" style="height:28px;" placeholder="Haha! Ainda precisa treinar mais!" />
+            </div>
+            <div class="form-group">
+              <label style="font-size:10px;">Diálogo ao Ser Derrotado</label>
+              <input type="text" id="npc-prop-win-dlg" class="form-input" style="height:28px;" placeholder="Você é muito forte..." />
+            </div>
+
+            <div class="form-group">
+              <label style="font-size:10px;">Time Pokémon (JSON ou [{ speciesId, level, name }])</label>
+              <input type="text" id="npc-prop-team" class="form-input" style="height:28px; font-family:monospace; font-size:11px;" placeholder='[{"speciesId":19,"level":3,"name":"Rattata"}]' />
+            </div>
+          </div>
+
+          <!-- SECTION: Shop Config -->
+          <div id="npc-section-shop" class="form-group hidden" style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); border-radius:8px; padding:10px; gap:8px; display:flex; flex-direction:column;">
+            <span style="font-size:11px; font-weight:800; color:#34d399;">🛒 CATÁLOGO DA LOJA</span>
+            <p style="font-size:10px; color:#cbd5e1; margin:0;">Selecione os itens vendidos neste atendente (deixe desmarcado para catálogo padrão):</p>
+            <div id="npc-shop-items-checklist" style="display:flex; flex-wrap:wrap; gap:6px;">
+              <!-- Checkboxes for default items -->
+            </div>
+          </div>
+
+          <!-- SECTION: Starter Oak Info -->
+          <div id="npc-section-oak" class="form-group hidden" style="background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:8px; padding:10px;">
+            <span style="font-size:11px; font-weight:800; color:#fbbf24;">🎓 SISTEMA DO PROFESSOR CARVALHO</span>
+            <p style="font-size:11px; color:#fde68a; margin:4px 0 0 0;">
+              Ao interagir com este NPC no Laboratório, abre a interface com as 3 Pokébolas (Bulbasaur, Charmander e Squirtle), lupa animada do GIF e confirmação SIM/NÃO.
+            </p>
+          </div>
+
+          <!-- Position Coordinates -->
+          <div class="form-row" style="gap:8px; align-items:flex-end;">
+            <div class="form-group" style="flex:1;">
+              <label style="font-size:10px;">Posição X</label>
+              <input type="number" id="npc-prop-x" class="form-input" style="height:28px;" />
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label style="font-size:10px;">Posição Y</label>
+              <input type="number" id="npc-prop-y" class="form-input" style="height:28px;" />
+            </div>
+            <button id="btn-npc-focus" class="editor-btn small secondary" style="height:28px; padding:0 10px;">🔍 Focar</button>
+          </div>
+        </div>
+        <div class="modal-footer" style="display:flex; justify-content:space-between; padding:12px; border-top:1px solid rgba(255,255,255,0.1);">
+          <button id="btn-delete-npc" class="editor-btn danger">Excluir NPC</button>
+          <div style="display:flex; gap:8px;">
+            <button id="btn-cancel-npc" class="editor-btn secondary">Cancelar</button>
+            <button id="btn-save-npc" class="editor-btn gold">Salvar NPC</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Toast Container -->
       <div id="editor-toast-container" class="editor-toast-container"></div>
     `;
@@ -737,20 +1358,19 @@ export default class EditorUI {
       if (zoomEl) zoomEl.textContent = `${Math.round(zoom * 100)}%`;
     };
 
-    this.editorScene.onTilePicked = async (gid, layerName) => {
+    this.editorScene.onTilePicked = async (gid, sourceLayerName) => {
       if (this.activeSidebarTab !== 'layers') {
         this.switchSidebarTab('layers');
       }
 
-      if (layerName && layerName !== this.editorScene.activeLayerName) {
-        this._selectLayer(layerName);
+      // IMPORTANTE: Não alterar a camada de pintura do usuário!
+      // O usuário selecionou a camada onde quer colocar os tiles (ex: Overhead).
+      // Ao usar o conta-gotas ele captura o visual/GID sem alterar a camada alvo.
+      if (this.editorScene.activeTool === 'picker') {
+        this.selectTool('pencil');
       }
 
-      // Check if user currently has an Outside tileset active
-      const activeName = (this.activeTileset?.name || '').toLowerCase();
-      const isOutsideActive = activeName.includes('outside') || activeName.includes('spring') || activeName.includes('summer') || activeName.includes('autumn') || activeName.includes('winter');
-
-      // Check if the picked tile belongs to the currently active tileset
+      // Check which tileset in the map contains the picked tile GID
       const mapTilesets = this.editorScene.mapJsonData?.tilesets || [];
       const pickedTileset = mapTilesets.find(t => {
         const start = t.firstgid || 1;
@@ -758,43 +1378,81 @@ export default class EditorUI {
         return gid >= start && gid < start + count;
       });
 
-      const isSameTileset = pickedTileset && this.activeTileset && (pickedTileset.name === this.activeTileset.name);
+      const currentTileset = this.activeTileset;
+      const currentStart = currentTileset ? (currentTileset.firstgid || 1) : 1;
+      const currentCount = currentTileset ? (currentTileset.tilecount || (currentTileset.columns * 100)) : 0;
 
-      if (isOutsideActive && !isSameTileset) {
-        // STAY in active Outside tileset, find and select matching tile inside it!
-        this.showToast(`🔍 Buscando correspondente em '${this.activeTileset.name}'...`, 'info');
-        const bestMatchGid = await this.findSimilarOutsideTiles(gid, this.activeTileset);
-        if (bestMatchGid) {
-          this.setTileGid(bestMatchGid);
-          this.scrollToTileInPalette(bestMatchGid);
-          this.showToast(`✨ Tile Outside correspondente selecionado! (GID ${bestMatchGid})`, 'success');
+      // Verifica se o tile pertence ao tileset atualmente selecionado
+      const belongsToCurrent = currentTileset && (
+        (pickedTileset && pickedTileset.name === currentTileset.name) ||
+        (gid >= currentStart && gid < currentStart + currentCount)
+      );
+
+      if (belongsToCurrent) {
+        // Se pertencer ao tileset atual selecionado: vai diretamente para ele sem fazer busca
+        this.setTileGid(gid);
+        this.scrollToTileInPalette(gid);
+
+        const listEl = document.getElementById('similar-tiles-list');
+        if (listEl) {
+          listEl.innerHTML = `<small class="similarity-placeholder" style="color:#a0aec0;">Tile GID ${gid} pertence diretamente ao tileset atual (${currentTileset.name}).</small>`;
         }
+        this.showToast(`🎯 Tile GID ${gid} selecionado no tileset "${currentTileset.name}"!`, 'success');
       } else {
-        // Standard Eyedropper: switch to exact original tile & tileset
-        const foundIdx = mapTilesets.findIndex(t => t.name === (pickedTileset?.name));
-        if (foundIdx >= 0) {
-          this.switchTileset(foundIdx, gid);
+        // Se for de um tileset diferente do atualmente selecionado: faz a busca de correspondência
+        if (currentTileset) {
+          const fromName = pickedTileset ? pickedTileset.name : 'outro tileset';
+          this.showToast(`🔍 Buscando correspondência de "${fromName}" em "${currentTileset.name}"...`, 'info');
+
+          const bestGid = await this.findSimilarOutsideTiles(gid, currentTileset);
+          if (bestGid) {
+            this.setTileGid(bestGid);
+            this.scrollToTileInPalette(bestGid);
+            this.showToast(`✨ Correspondência encontrada no tileset "${currentTileset.name}"!`, 'success');
+          }
         } else {
-          this.setTileGid(gid);
-          this.scrollToTileInPalette(gid);
+          // Sem tileset pré-selecionado: troca para o tileset do tile
+          const foundIdx = mapTilesets.findIndex(t => t.name === (pickedTileset?.name));
+          if (foundIdx >= 0) {
+            this.switchTileset(foundIdx, gid);
+          } else {
+            this.setTileGid(gid);
+            this.scrollToTileInPalette(gid);
+          }
+          this.showToast(`Tile GID ${gid} copiado (origem: "${sourceLayerName || 'Ativa'}")!`, 'success');
         }
-        this.findSimilarOutsideTiles(gid);
-        this.showToast(`🎯 Tile GID ${gid} copiado da camada "${layerName || 'Ativa'}"!`, 'success');
       }
     };
 
     this.editorScene.onObjectDeleted = (obj) => {
       this.renderPortalsList();
       this.renderSignsList();
+      this.renderZonesList();
+      this.renderSpawnsList();
+      this.renderNpcsList();
     };
 
     this.editorScene.onObjectSelected = (obj) => {
       if (obj.layerName === 'Portals' || obj.type === 'portal_link') {
         this.openPortalModal(obj);
         this.renderPortalsList();
+      } else if (obj.layerName === 'Zones' || obj.type === 'zone') {
+        this.openZoneModal(obj);
+        this.renderZonesList();
+      } else if (obj.layerName === 'PokemonSpawns' || obj.layerName === 'Spawns' || obj.type === 'spawn') {
+        this.openSpawnModal(obj);
+        this.renderSpawnsList();
+      } else if (obj.layerName === 'NPCs' || obj.type === 'npc' || obj.type === 'starter_oak' || obj.type === 'dialogue' || obj.type === 'battle' || obj.type === 'shop') {
+        this.openNpcModal(obj);
+        this.renderNpcsList();
       } else {
         this.openObjectModal(obj);
       }
+    };
+
+    this.editorScene.onNpcSelected = (npc) => {
+      this.switchSidebarTab('npcs');
+      this.openNpcModal(npc);
     };
 
     this.editorScene.onPortalSelected = (portal) => {
@@ -807,12 +1465,25 @@ export default class EditorUI {
       this.renderSignsList();
     };
 
+    this.editorScene.onZoneSelected = (zone) => {
+      this.openZoneModal(zone);
+      this.renderZonesList();
+    };
+
+    this.editorScene.onSpawnSelected = (spawn) => {
+      this.openSpawnModal(spawn);
+      this.renderSpawnsList();
+    };
+
     this.editorScene.onMapLoaded = (mapName, mapJsonData, layerNames) => {
       this.renderLayersList(layerNames);
       this.populateTilesetSelect();
       this.switchTileset(0);
       this.renderPortalsList();
       this.renderSignsList();
+      this.renderZonesList();
+      this.renderSpawnsList();
+      this.renderNpcsList();
 
       const badge = document.getElementById('editor-map-badge');
       if (badge) {
@@ -829,6 +1500,153 @@ export default class EditorUI {
 
     this.editorScene.onToast = (msg, type) => {
       this.showToast(msg, type);
+    };
+
+    this.editorScene.onPortalPairCompleted = async (destBox, context) => {
+      document.getElementById('portal-picker-bar')?.classList.add('hidden');
+
+      if (!context || !context.sourceMap || !context.targetMap) {
+        this.showToast('Erro: Contexto de portais incompleto.', 'error');
+        return;
+      }
+
+      const sourceMap = context.sourceMap;
+      const targetMap = context.targetMap;
+
+      // Calcular pontos seguros de spawn (chegada)
+      // Chegando no destino: centro do gatilho de destino desenhado
+      const destSpawnX = destBox.x + Math.floor(destBox.width / 2);
+      const destSpawnY = destBox.y + Math.floor(destBox.height / 2);
+
+      // Chegando de volta na origem: centro horizontal do gatilho de origem, 16px à frente da porta
+      const originSpawnX = context.originX + Math.floor(context.originW / 2);
+      const originSpawnY = context.originY + context.originH + 16;
+
+      // 1. Gravar portal no MAPA DE DESTINO (que está atualmente carregado no editor)
+      const destPortalLayer = this.editorScene._getOrCreateObjectLayer('Portals');
+      let destPortal = destPortalLayer.objects.find(o => {
+        const p = this.editorScene._readProps(o.properties);
+        return p.targetRoom === sourceMap || (Math.abs(o.x - destBox.x) < 8 && Math.abs(o.y - destBox.y) < 8);
+      });
+
+      if (!destPortal) {
+        destPortal = {
+          id: Date.now() + 10,
+          name: `Saída para ${sourceMap}`,
+          type: 'portal_link',
+          x: destBox.x,
+          y: destBox.y,
+          width: destBox.width,
+          height: destBox.height,
+          properties: []
+        };
+        destPortalLayer.objects.push(destPortal);
+      } else {
+        destPortal.x = destBox.x;
+        destPortal.y = destBox.y;
+        destPortal.width = destBox.width;
+        destPortal.height = destBox.height;
+      }
+
+      destPortal.name = `Saída para ${sourceMap}`;
+      destPortal.properties = [
+        { name: 'targetRoom', value: sourceMap },
+        { name: 'targetX', value: originSpawnX },
+        { name: 'targetY', value: originSpawnY },
+        { name: 'label', value: `Saída para ${sourceMap}` },
+        { name: 'isLinked', value: true }
+      ];
+
+      this.editorScene.selectedObject = destPortal;
+      this.editorScene.drawObjects();
+      await this.saveMap();
+
+      // 2. Gravar portal no MAPA DE ORIGEM (via API de persistência)
+      try {
+        const res = await fetch(`/api/admin/map?map=${encodeURIComponent(sourceMap)}`);
+        if (res.ok) {
+          const originMapJson = await res.json();
+          if (originMapJson && originMapJson.layers) {
+            let originLayer = originMapJson.layers.find(l => (l.name === 'Portals' || l.name === 'Warps' || l.name === 'Doors') && l.type === 'objectgroup');
+            if (!originLayer) {
+              originLayer = {
+                name: 'Portals',
+                type: 'objectgroup',
+                visible: true,
+                opacity: 1,
+                objects: []
+              };
+              originMapJson.layers.push(originLayer);
+            }
+
+            let originPortal = originLayer.objects.find(o => o.id == context.portalId || (Math.abs(o.x - context.originX) < 8 && Math.abs(o.y - context.originY) < 8));
+            if (!originPortal) {
+              originPortal = {
+                id: context.portalId || Date.now(),
+                name: context.label || `Entrada para ${targetMap}`,
+                type: 'portal_link',
+                x: context.originX,
+                y: context.originY,
+                width: context.originW,
+                height: context.originH,
+                properties: []
+              };
+              originLayer.objects.push(originPortal);
+            } else {
+              originPortal.x = context.originX;
+              originPortal.y = context.originY;
+              originPortal.width = context.originW;
+              originPortal.height = context.originH;
+            }
+
+            originPortal.name = context.label || `Entrada para ${targetMap}`;
+            originPortal.properties = [
+              { name: 'targetRoom', value: targetMap },
+              { name: 'targetX', value: destSpawnX },
+              { name: 'targetY', value: destSpawnY },
+              { name: 'label', value: context.label || `Entrada para ${targetMap}` },
+              { name: 'isLinked', value: true }
+            ];
+
+            await fetch(`/api/admin/map?map=${encodeURIComponent(sourceMap)}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(originMapJson)
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[onPortalPairCompleted] Falha ao salvar portal de origem:', err);
+      }
+
+      // 3. Sincronizar ROOMS_CONFIG em memória
+      if (ROOMS_CONFIG[sourceMap]) {
+        if (!ROOMS_CONFIG[sourceMap].portals) ROOMS_CONFIG[sourceMap].portals = [];
+        ROOMS_CONFIG[sourceMap].portals = ROOMS_CONFIG[sourceMap].portals.filter(p => p.targetRoom !== targetMap);
+        ROOMS_CONFIG[sourceMap].portals.push({
+          trigger: { x: context.originX, y: context.originY, width: context.originW, height: context.originH },
+          targetRoom: targetMap,
+          targetSpawn: { x: destSpawnX, y: destSpawnY },
+          label: context.label || `Entrada para ${targetMap}`
+        });
+      }
+
+      if (ROOMS_CONFIG[targetMap]) {
+        if (!ROOMS_CONFIG[targetMap].portals) ROOMS_CONFIG[targetMap].portals = [];
+        ROOMS_CONFIG[targetMap].portals = ROOMS_CONFIG[targetMap].portals.filter(p => p.targetRoom !== sourceMap);
+        ROOMS_CONFIG[targetMap].portals.push({
+          trigger: { x: destBox.x, y: destBox.y, width: destBox.width, height: destBox.height },
+          targetRoom: sourceMap,
+          targetSpawn: { x: originSpawnX, y: originSpawnY },
+          label: `Saída para ${sourceMap}`
+        });
+      }
+
+      this.renderPortalsList();
+      this.showToast(`✨ Conexão bidirecional criada com sucesso: '${sourceMap}' ⇄ '${targetMap}'!`, 'success');
+
+      // Reabrir o modal mostrando a ponta de destino recém-criada
+      this.openPortalModal(destPortal);
     };
 
     this.editorScene.onPortalTargetPicked = async (targetX, targetY, context) => {
@@ -852,10 +1670,6 @@ export default class EditorUI {
           if (context.originY !== undefined) document.getElementById('portal-prop-y').value = context.originY;
           if (context.originW !== undefined) document.getElementById('portal-prop-w').value = context.originW;
           if (context.originH !== undefined) document.getElementById('portal-prop-h').value = context.originH;
-          if (context.createReturn !== undefined) {
-            const chk = document.getElementById('portal-prop-create-return');
-            if (chk) chk.checked = context.createReturn;
-          }
         }
         modal.classList.remove('hidden');
         if (this.editorScene?.input?.keyboard) {
@@ -863,7 +1677,7 @@ export default class EditorUI {
         }
       }
 
-      this.showToast(`🎯 Spawn de destino definido: (${targetX}px, ${targetY}px)!`, 'success');
+      this.showToast(`Spawn de destino definido: (${targetX}px, ${targetY}px)!`, 'success');
     };
 
     // Top Bar Map Selector Change
@@ -949,7 +1763,7 @@ export default class EditorUI {
     }
 
     // Tool Buttons
-    const tools = ['hand', 'pencil', 'eraser', 'bucket', 'picker', 'sign', 'link', 'object'];
+    const tools = ['hand', 'pencil', 'eraser', 'bucket', 'picker', 'sign', 'link', 'object', 'zone', 'spawn', 'npc'];
     tools.forEach(tool => {
       const btn = document.getElementById(`tool-${tool}`);
       if (btn) {
@@ -961,11 +1775,15 @@ export default class EditorUI {
     document.getElementById('tool-zoomout')?.addEventListener('click', () => this.editorScene.zoomOut());
 
     // Sidebar Tabs
-    ['layers', 'portals', 'signs'].forEach(tab => {
+    ['layers', 'portals', 'signs', 'zones', 'spawns', 'npcs'].forEach(tab => {
       document.getElementById(`tab-btn-${tab}`)?.addEventListener('click', () => this.switchSidebarTab(tab));
     });
 
-    // New Portal & New Sign Buttons (First mark on map, then open config modal)
+    document.getElementById('editor-zones-subtab-select')?.addEventListener('change', (e) => {
+      this.switchZonesSubtab(e.target.value);
+    });
+
+    // New Portal, Sign, Zone, Spawn & NPC Buttons
     document.getElementById('btn-add-new-portal')?.addEventListener('click', () => {
       this.selectTool('link');
       this.showToast('Clique e arraste no mapa para marcar a área do teleporte (1 ou mais grids).', 'info');
@@ -974,6 +1792,21 @@ export default class EditorUI {
     document.getElementById('btn-add-new-sign')?.addEventListener('click', () => {
       this.selectTool('sign');
       this.showToast('Clique no mapa para marcar a posição da placa (1 grid).', 'info');
+    });
+
+    document.getElementById('btn-add-new-zone')?.addEventListener('click', () => {
+      this.selectTool('zone');
+      this.showToast('Clique e arraste no mapa para desenhar a área da Cidade / Rota.', 'info');
+    });
+
+    document.getElementById('btn-add-new-spawn')?.addEventListener('click', () => {
+      this.selectTool('spawn');
+      this.showToast('Clique e arraste no mapa para desenhar a área de Spawn Pokémon.', 'info');
+    });
+
+    document.getElementById('btn-add-new-npc')?.addEventListener('click', () => {
+      this.selectTool('npc');
+      this.showToast('Clique no mapa onde deseja posicionar o novo NPC.', 'info');
     });
 
     // Tileset Select, Quick Add & Upload
@@ -1007,7 +1840,7 @@ export default class EditorUI {
     // Top Action Buttons
     document.getElementById('btn-editor-save')?.addEventListener('click', () => this.saveMap());
     document.getElementById('btn-find-similar-tiles')?.addEventListener('click', () => {
-      if (this.activeGid) this.findSimilarOutsideTiles(this.activeGid);
+      if (this.activeGid) this.findSimilarOutsideTiles(this.activeGid, this.activeTileset);
     });
     document.getElementById('btn-editor-reload')?.addEventListener('click', () => {
       if (confirm('Recarregar mapa atual? Alterações não salvas serão perdidas.')) {
@@ -1124,17 +1957,24 @@ export default class EditorUI {
       }
     });
 
-    // Interactive Portal Picking Buttons
-    document.getElementById('btn-portal-pick-target')?.addEventListener('click', async () => {
+    // Interactive Portal Linking: Draw Target on Target Map
+    document.getElementById('btn-portal-draw-target')?.addEventListener('click', async () => {
       const targetRoom = document.getElementById('portal-prop-target-room').value;
       const label = document.getElementById('portal-prop-label').value;
-      const targetX = parseInt(document.getElementById('portal-prop-target-x').value, 10) || 0;
-      const targetY = parseInt(document.getElementById('portal-prop-target-y').value, 10) || 0;
       const x = parseInt(document.getElementById('portal-prop-x').value, 10) || 0;
       const y = parseInt(document.getElementById('portal-prop-y').value, 10) || 0;
       const w = parseInt(document.getElementById('portal-prop-w').value, 10) || 32;
       const h = parseInt(document.getElementById('portal-prop-h').value, 10) || 32;
-      const createReturn = document.getElementById('portal-prop-create-return')?.checked ?? true;
+
+      if (!targetRoom) {
+        this.showToast('Por favor, selecione um mapa de destino.', 'warning');
+        return;
+      }
+
+      if (targetRoom === this.editorScene.currentMapName) {
+        this.showToast('Selecione um mapa de destino diferente do mapa atual.', 'warning');
+        return;
+      }
 
       const currentObj = this.editorScene.selectedObject || {};
 
@@ -1142,76 +1982,66 @@ export default class EditorUI {
         sourceMap: this.editorScene.currentMapName,
         targetMap: targetRoom,
         portalId: currentObj.id,
-        label,
-        targetX,
-        targetY,
+        label: label || `Conexão ${this.editorScene.currentMapName} ⇄ ${targetRoom}`,
         originX: x,
         originY: y,
         originW: w,
-        originH: h,
-        createReturn
+        originH: h
       };
 
       document.getElementById('editor-portal-modal').classList.add('hidden');
 
-      if (targetRoom && targetRoom !== this.editorScene.currentMapName) {
-        this.showToast(`Carregando mapa de destino '${targetRoom}'...`, 'info');
-        await this.editorScene.loadMapByName(targetRoom);
-        const mapSelect = document.getElementById('editor-map-select');
-        if (mapSelect) mapSelect.value = targetRoom;
-      }
+      this.showToast(`Abrindo mapa '${targetRoom}' para desenhar o portal de destino...`, 'info');
+      await this.editorScene.loadMapByName(targetRoom);
+      const mapSelect = document.getElementById('editor-map-select');
+      if (mapSelect) mapSelect.value = targetRoom;
 
-      this.editorScene.startPortalTargetPicking(context);
+      this.editorScene.startDrawingPortalDestination(context);
 
       const pickerBar = document.getElementById('portal-picker-bar');
       if (pickerBar) {
-        document.getElementById('portal-picker-mode-badge').textContent = '🎯 MARCAR SPAWN DE DESTINO';
-        document.getElementById('portal-picker-instructions').textContent = `Clique no mapa '${targetRoom}' para marcar a posição de nascimento (use Espaço/Arrastar para Pan).`;
+        const badge = document.getElementById('portal-picker-mode-badge');
+        const instructions = document.getElementById('portal-picker-instructions');
+        if (badge) badge.textContent = 'DESENHAR DESTINO';
+        if (instructions) instructions.textContent = `Arraste no mapa '${targetRoom}' para marcar a área do portal/tapete de destino.`;
         pickerBar.classList.remove('hidden');
       }
     });
 
     document.getElementById('btn-portal-pick-origin')?.addEventListener('click', async () => {
-      const targetRoom = document.getElementById('portal-prop-target-room').value;
-      const label = document.getElementById('portal-prop-label').value;
-      const targetX = parseInt(document.getElementById('portal-prop-target-x').value, 10) || 0;
-      const targetY = parseInt(document.getElementById('portal-prop-target-y').value, 10) || 0;
-      const createReturn = document.getElementById('portal-prop-create-return')?.checked ?? true;
-
-      const currentObj = this.editorScene.selectedObject || {};
-
-      const context = {
-        sourceMap: this.editorScene.currentMapName,
-        targetMap: targetRoom,
-        portalId: currentObj.id,
-        label,
-        targetX,
-        targetY,
-        createReturn
-      };
-
       document.getElementById('editor-portal-modal').classList.add('hidden');
       this.selectTool('link');
-      this.showToast('📍 Clique e arraste no mapa para desenhar a área do gatilho de origem.', 'info');
+      this.showToast('Clique e arraste no mapa para desenhar a nova área do gatilho de origem.', 'info');
 
       const pickerBar = document.getElementById('portal-picker-bar');
       if (pickerBar) {
-        document.getElementById('portal-picker-mode-badge').textContent = '📍 DESENHAR GATILHO DE ORIGEM';
-        document.getElementById('portal-picker-instructions').textContent = 'Clique e arraste no mapa para marcar a área do portal.';
+        const badge = document.getElementById('portal-picker-mode-badge');
+        const instructions = document.getElementById('portal-picker-instructions');
+        if (badge) badge.textContent = 'REDESENHAR ORIGEM';
+        if (instructions) instructions.textContent = 'Clique e arraste no mapa para marcar a nova área do portal.';
         pickerBar.classList.remove('hidden');
       }
     });
 
     document.getElementById('btn-portal-picker-cancel')?.addEventListener('click', async () => {
       document.getElementById('portal-picker-bar')?.classList.add('hidden');
+      
+      const pairCtx = this.editorScene.portalPairContext;
+      const pickCtx = this.editorScene.portalPickContext;
+      const returnToMap = pairCtx?.sourceMap || pickCtx?.sourceMap;
+
+      this.editorScene.cancelPortalMarking();
       this.editorScene.stopPortalPicking();
-      const ctx = this.editorScene.portalPickContext;
-      if (ctx && ctx.sourceMap && ctx.sourceMap !== this.editorScene.currentMapName) {
-        await this.editorScene.loadMapByName(ctx.sourceMap);
+
+      if (returnToMap && returnToMap !== this.editorScene.currentMapName) {
+        await this.editorScene.loadMapByName(returnToMap);
         const mapSelect = document.getElementById('editor-map-select');
-        if (mapSelect) mapSelect.value = ctx.sourceMap;
+        if (mapSelect) mapSelect.value = returnToMap;
       }
-      document.getElementById('editor-portal-modal')?.classList.remove('hidden');
+
+      if (this.editorScene.selectedObject) {
+        document.getElementById('editor-portal-modal')?.classList.remove('hidden');
+      }
     });
 
     // Sign Modal Buttons
@@ -1241,11 +2071,79 @@ export default class EditorUI {
     document.getElementById('btn-save-object')?.addEventListener('click', () => this.saveObjectModal());
     document.getElementById('btn-delete-object')?.addEventListener('click', () => this.deleteObjectModal());
 
+    // Zone Modal Buttons
+    document.getElementById('btn-close-zone-modal')?.addEventListener('click', () => {
+      document.getElementById('editor-zone-modal').classList.add('hidden');
+      if (this.editorScene?.input?.keyboard) {
+        this.editorScene.input.keyboard.enabled = true;
+        this.editorScene.input.keyboard.clearCaptures();
+      }
+    });
+    document.getElementById('btn-save-zone')?.addEventListener('click', () => this.saveZoneModal());
+    document.getElementById('btn-delete-zone')?.addEventListener('click', () => this.deleteZoneModal());
+    document.getElementById('btn-zone-pick-origin')?.addEventListener('click', () => {
+      const currentObj = this.editorScene.selectedObject;
+      if (currentObj) {
+        document.getElementById('editor-zone-modal').classList.add('hidden');
+        if (this.editorScene?.input?.keyboard) {
+          this.editorScene.input.keyboard.enabled = true;
+          this.editorScene.input.keyboard.clearCaptures();
+        }
+        this.editorScene.startZoneRedraw(currentObj);
+        this.showToast('Clique e arraste no mapa para redesenhar as dimensões da zona.', 'info');
+      }
+    });
+
+    // Spawn Modal Buttons
+    document.getElementById('btn-close-spawn-modal')?.addEventListener('click', () => {
+      document.getElementById('editor-spawn-modal').classList.add('hidden');
+      if (this.editorScene?.input?.keyboard) {
+        this.editorScene.input.keyboard.enabled = true;
+        this.editorScene.input.keyboard.clearCaptures();
+      }
+    });
+    document.getElementById('btn-save-spawn')?.addEventListener('click', () => this.saveSpawnModal());
+    document.getElementById('btn-delete-spawn')?.addEventListener('click', () => this.deleteSpawnModal());
+    document.getElementById('btn-add-spawn-pokemon-row')?.addEventListener('click', () => this.addSpawnPokemonRow());
+    this.setupSpawnModalEvents();
+
+    // NPC Modal Buttons
+    const closeNpcModal = () => {
+      document.getElementById('editor-npc-modal')?.classList.add('hidden');
+      if (this.editorScene?.input?.keyboard) {
+        this.editorScene.input.keyboard.enabled = true;
+        this.editorScene.input.keyboard.clearCaptures();
+      }
+    };
+    document.getElementById('btn-close-npc-modal')?.addEventListener('click', closeNpcModal);
+    document.getElementById('btn-cancel-npc')?.addEventListener('click', closeNpcModal);
+    document.getElementById('btn-save-npc')?.addEventListener('click', () => this.saveNpcModal());
+    document.getElementById('btn-delete-npc')?.addEventListener('click', () => this.deleteNpcModal());
+    document.getElementById('btn-npc-focus')?.addEventListener('click', () => {
+      const cur = this.editorScene.selectedObject;
+      if (cur && this.editorScene.cameras?.main) {
+        this.editorScene.cameras.main.centerOn(cur.x, cur.y);
+      }
+    });
+
+    document.getElementById('npc-prop-sprite')?.addEventListener('change', (e) => {
+      this._updateNpcSpritePreview(e.target.value);
+    });
+
+    document.getElementById('npc-prop-type')?.addEventListener('change', (e) => {
+      this._updateNpcTypeSections(e.target.value);
+    });
+
+    this.populateNpcSpriteSelect();
+
     // Stop propagation of all keydown events on inputs and textareas so typing (spaces, letters) is completely unaffected
     const modalInputs = document.querySelectorAll(
       '#editor-sign-modal input, #editor-sign-modal textarea, ' +
       '#editor-portal-modal input, #editor-portal-modal select, ' +
       '#editor-object-modal input, #editor-object-modal textarea, ' +
+      '#editor-zone-modal input, #editor-zone-modal select, #editor-zone-modal textarea, ' +
+      '#editor-spawn-modal input, #editor-spawn-modal select, #editor-spawn-modal textarea, ' +
+      '#editor-npc-modal input, #editor-npc-modal select, #editor-npc-modal textarea, ' +
       '#editor-topbar input, #editor-topbar select'
     );
     modalInputs.forEach(inputEl => {
@@ -1294,7 +2192,7 @@ export default class EditorUI {
     // Group 1: Cities
     if (this.allMapsList.cities && this.allMapsList.cities.length > 0) {
       const groupCities = document.createElement('optgroup');
-      groupCities.label = '🏙️ Cidades de Kanto';
+      groupCities.label = 'Cidades de Kanto';
       this.allMapsList.cities.forEach(city => {
         const opt = document.createElement('option');
         opt.value = city;
@@ -1307,7 +2205,7 @@ export default class EditorUI {
     // Group 2: Routes
     if (this.allMapsList.routes && this.allMapsList.routes.length > 0) {
       const groupRoutes = document.createElement('optgroup');
-      groupRoutes.label = '🌿 Rotas de Kanto';
+      groupRoutes.label = 'Rotas de Kanto';
       this.allMapsList.routes.forEach(route => {
         const opt = document.createElement('option');
         opt.value = route;
@@ -1322,7 +2220,7 @@ export default class EditorUI {
       const remaining = this.allMapsList.root.filter(r => !this.allMapsList.cities.includes(r) && !this.allMapsList.routes.includes(r));
       if (remaining.length > 0) {
         const groupOther = document.createElement('optgroup');
-        groupOther.label = '🗺️ Outros Mapas';
+        groupOther.label = 'Outros Mapas';
         remaining.forEach(m => {
           const opt = document.createElement('option');
           opt.value = m;
@@ -1342,10 +2240,12 @@ export default class EditorUI {
 
     select.innerHTML = '';
     const all = [...(this.allMapsList.cities || []), ...(this.allMapsList.routes || []), ...(this.allMapsList.root || [])];
-    all.sort().forEach(mapId => {
+    const unique = Array.from(new Set(all));
+    unique.sort().forEach(mapId => {
       const opt = document.createElement('option');
       opt.value = mapId;
-      opt.textContent = mapId.replace('_', ' ').toUpperCase();
+      const roomDef = ROOMS_CONFIG[mapId];
+      opt.textContent = roomDef?.name ? `${roomDef.name} (${mapId})` : mapId.replace(/_/g, ' ').toUpperCase();
       select.appendChild(opt);
     });
   }
@@ -1581,9 +2481,18 @@ export default class EditorUI {
     const modal = document.getElementById('editor-portal-modal');
     if (!modal) return;
 
+    // Atualizar badge do mapa de origem
+    const originBadge = document.getElementById('portal-origin-map-badge');
+    if (originBadge) {
+      originBadge.textContent = this.editorScene.currentMapName;
+    }
+
     const props = this.editorScene._readProps(obj.properties);
-    document.getElementById('portal-prop-label').value = props.label || obj.name || '';
-    document.getElementById('portal-prop-target-room').value = props.targetRoom || 'route_1';
+    const fallbackTarget = (this.editorScene.currentMapName === 'pallet_oak_lab') ? 'kanto' : 'pallet_oak_lab';
+    const chosenTarget = props.targetRoom || fallbackTarget;
+
+    document.getElementById('portal-prop-label').value = props.label || obj.name || `Conexão ${this.editorScene.currentMapName} ⇄ ${chosenTarget}`;
+    document.getElementById('portal-prop-target-room').value = chosenTarget;
     document.getElementById('portal-prop-target-x').value = props.targetX ?? 0;
     document.getElementById('portal-prop-target-y').value = props.targetY ?? 0;
     document.getElementById('portal-prop-x').value = obj.x || 0;
@@ -1655,9 +2564,11 @@ export default class EditorUI {
     }
     await this.saveMap();
 
-    const createReturn = document.getElementById('portal-prop-create-return')?.checked;
-    if (createReturn && targetRoom && targetRoom !== this.editorScene.currentMapName) {
-      await this.saveReturnPortal(targetRoom, this.editorScene.currentMapName, targetX, targetY, x, y + h);
+    // Sempre sincronizar o portal de retorno no mapa parceiro de forma bidirecional
+    if (targetRoom && targetRoom !== this.editorScene.currentMapName) {
+      const returnTargetSpawnX = x + Math.floor(w / 2);
+      const returnTargetSpawnY = y + h + 16;
+      await this.saveReturnPortal(targetRoom, this.editorScene.currentMapName, targetX, targetY, returnTargetSpawnX, returnTargetSpawnY);
     }
   }
 
@@ -1680,11 +2591,15 @@ export default class EditorUI {
         targetMapJson.layers.push(portalLayer);
       }
 
-      let existingReturn = portalLayer.objects.find(o => Math.abs(o.x - returnX) < 16 && Math.abs(o.y - returnY) < 16);
+      let existingReturn = portalLayer.objects.find(o => {
+        const p = this.editorScene._readProps(o.properties);
+        return p.targetRoom === sourceMapName || (Math.abs(o.x - returnX) < 16 && Math.abs(o.y - returnY) < 16);
+      });
+
       if (!existingReturn) {
         existingReturn = {
           id: Date.now() + Math.floor(Math.random() * 1000),
-          name: `Voltar para ${sourceMapName}`,
+          name: `Saída para ${sourceMapName}`,
           type: 'portal_link',
           x: returnX,
           y: returnY,
@@ -1695,12 +2610,12 @@ export default class EditorUI {
         portalLayer.objects.push(existingReturn);
       }
 
-      existingReturn.name = `Voltar para ${sourceMapName}`;
+      existingReturn.name = `Saída para ${sourceMapName}`;
       existingReturn.properties = [
         { name: 'targetRoom', value: sourceMapName },
         { name: 'targetX', value: returnTargetX },
         { name: 'targetY', value: returnTargetY },
-        { name: 'label', value: `Voltar para ${sourceMapName}` },
+        { name: 'label', value: `Saída para ${sourceMapName}` },
         { name: 'isLinked', value: true }
       ];
 
@@ -1710,15 +2625,31 @@ export default class EditorUI {
         body: JSON.stringify(targetMapJson)
       });
 
-      this.showToast(`⚡ Portal de retorno em '${targetRoom}' criado e salvo automaticamente!`, 'success');
+      // Atualizar ROOMS_CONFIG em memória
+      if (ROOMS_CONFIG[targetRoom]) {
+        if (!ROOMS_CONFIG[targetRoom].portals) ROOMS_CONFIG[targetRoom].portals = [];
+        ROOMS_CONFIG[targetRoom].portals = ROOMS_CONFIG[targetRoom].portals.filter(p => p.targetRoom !== sourceMapName);
+        ROOMS_CONFIG[targetRoom].portals.push({
+          trigger: { x: existingReturn.x, y: existingReturn.y, width: existingReturn.width || 32, height: existingReturn.height || 32 },
+          targetRoom: sourceMapName,
+          targetSpawn: { x: returnTargetX, y: returnTargetY },
+          label: `Saída para ${sourceMapName}`
+        });
+      }
+
+      this.showToast(`✨ Conexão bidirecional em '${targetRoom}' sincronizada!`, 'success');
     } catch (err) {
-      console.warn('[saveReturnPortal] Falha ao criar portal de retorno automático:', err);
+      console.warn('[saveReturnPortal] Falha ao sincronizar portal de retorno:', err);
     }
   }
 
   async deletePortalModal() {
     const current = this.editorScene.selectedObject;
     if (!current || !this.editorScene.mapJsonData) return;
+
+    const props = this.editorScene._readProps(current.properties);
+    const targetRoom = props.targetRoom;
+    const currentMapName = this.editorScene.currentMapName;
 
     for (const layer of this.editorScene.mapJsonData.layers) {
       if (layer.type === 'objectgroup' && layer.objects) {
@@ -1735,6 +2666,42 @@ export default class EditorUI {
       this.editorScene.input.keyboard.clearCaptures();
     }
     await this.saveMap();
+
+    // Sincronizar remoção no mapa parceiro para manter ambas as pontas alinhadas
+    if (targetRoom && targetRoom !== currentMapName) {
+      try {
+        const res = await fetch(`/api/admin/map?map=${encodeURIComponent(targetRoom)}`);
+        if (res.ok) {
+          const targetMapJson = await res.json();
+          let changed = false;
+          for (const layer of targetMapJson.layers || []) {
+            if (layer.type === 'objectgroup' && layer.objects) {
+              const countBefore = layer.objects.length;
+              layer.objects = layer.objects.filter(o => {
+                const op = this.editorScene._readProps(o.properties);
+                return op.targetRoom !== currentMapName;
+              });
+              if (layer.objects.length !== countBefore) {
+                changed = true;
+              }
+            }
+          }
+          if (changed) {
+            await fetch(`/api/admin/map?map=${encodeURIComponent(targetRoom)}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(targetMapJson)
+            });
+            if (ROOMS_CONFIG[targetRoom] && ROOMS_CONFIG[targetRoom].portals) {
+              ROOMS_CONFIG[targetRoom].portals = ROOMS_CONFIG[targetRoom].portals.filter(p => p.targetRoom !== currentMapName);
+            }
+            this.showToast(`Portal correspondente em '${targetRoom}' também foi removido.`, 'info');
+          }
+        }
+      } catch (err) {
+        console.warn('[deletePortalModal] Erro ao sincronizar remoção no mapa destino:', err);
+      }
+    }
   }
 
   // ─── Signs & Conversations List & Editor ──────────────────────────────────
@@ -1948,20 +2915,1587 @@ export default class EditorUI {
     await this.saveMap();
   }
 
+  // ─── Zones List & Editor ──────────────────────────────────────────────────
+
+  renderZonesList() {
+    const container = document.getElementById('editor-zones-list');
+    if (!container || !this.editorScene.mapJsonData) return;
+
+    container.innerHTML = '';
+    const zoneLayer = this.editorScene.mapJsonData.layers.find(l => (l.name === 'Zones' || l.name === 'Regiões') && l.type === 'objectgroup');
+
+    if (!zoneLayer || zoneLayer.objects.length === 0) {
+      container.innerHTML = `<div style="font-size:12px; color:#888; text-align:center; padding:16px;">Nenhuma zona cadastrada. Clique em "Nova Zona" ou use a ferramenta (Z) para desenhar no mapa.</div>`;
+      return;
+    }
+
+    zoneLayer.objects.forEach(obj => {
+      const props = this.editorScene._readProps(obj.properties);
+      const name = props.name || obj.name || 'Zona sem nome';
+      const status = props.status || 'pending';
+      const note = props.note || props.message || '';
+      const color = props.color || '#00e5ff';
+
+      const statusBadges = {
+        completed: '<span style="background: rgba(0,230,118,0.2); color: #00e676; border: 1px solid #00e676; padding: 2px 6px; border-radius: 4px; font-weight:700;">Concluído</span>',
+        ready: '<span style="background: rgba(0,230,118,0.2); color: #00e676; border: 1px solid #00e676; padding: 2px 6px; border-radius: 4px; font-weight:700;">Concluído</span>',
+        pending: '<span style="background: rgba(255,179,0,0.2); color: #ffb300; border: 1px solid #ffb300; padding: 2px 6px; border-radius: 4px; font-weight:700;">Pendente</span>',
+        dev: '<span style="background: rgba(255,179,0,0.2); color: #ffb300; border: 1px solid #ffb300; padding: 2px 6px; border-radius: 4px; font-weight:700;">Pendente</span>'
+      };
+
+      const card = document.createElement('div');
+      card.className = 'portal-card';
+      card.style.borderLeft = `4px solid ${color}`;
+      card.innerHTML = `
+        <div class="portal-card-header">
+          <span style="display:inline-flex; align-items:center; gap:6px; font-weight:700;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 2"></rect><path d="M3 9h18"></path></svg>
+            <span>${name}</span>
+          </span>
+          ${statusBadges[status] || statusBadges.pending}
+        </div>
+        <div class="portal-card-details" style="margin: 6px 0;">
+          <div>Dimensões: <strong>${obj.width || 64}x${obj.height || 64}px</strong> | Pos: [${obj.x}, ${obj.y}]</div>
+          ${note ? `<div style="margin-top:4px; font-style:italic; color:#e2e8f0; background:rgba(255,255,255,0.05); padding:4px 6px; border-radius:4px;">"${note}"</div>` : ''}
+        </div>
+        <div class="portal-card-actions">
+          <button class="editor-btn small primary btn-edit-z">Configurar</button>
+          <button class="editor-btn small gold btn-redraw-z">Redesenhar</button>
+          <button class="editor-btn small secondary btn-focus-z">Focar Zona</button>
+          <button class="editor-btn small danger btn-delete-z">Excluir</button>
+        </div>
+      `;
+
+      card.querySelector('.btn-edit-z').addEventListener('click', () => this.openZoneModal({ ...obj, layerName: zoneLayer.name }));
+      card.querySelector('.btn-redraw-z').addEventListener('click', () => {
+        this.editorScene.selectedObject = { ...obj, layerName: zoneLayer.name };
+        this.editorScene.startZoneRedraw(this.editorScene.selectedObject);
+        this.showToast('Clique e arraste no mapa para redesenhar o retângulo da zona.', 'info');
+      });
+      card.querySelector('.btn-focus-z').addEventListener('click', () => {
+        if (this.editorScene.cameras?.main) {
+          this.editorScene.cameras.main.centerOn((obj.x || 0) + (obj.width || 64) / 2, (obj.y || 0) + (obj.height || 64) / 2);
+        }
+      });
+      card.querySelector('.btn-delete-z').addEventListener('click', async () => {
+        if (confirm(`Tem certeza que deseja excluir a zona "${name}"?`)) {
+          this.editorScene.selectedObject = { ...obj, layerName: zoneLayer.name };
+          await this.deleteZoneModal();
+        }
+      });
+
+      container.appendChild(card);
+    });
+  }
+
+  openZoneModal(zone) {
+    if (this.editorScene?.input?.keyboard) {
+      this.editorScene.input.keyboard.enabled = false;
+    }
+    this.editorScene.selectedObject = zone;
+    this.editorScene.drawObjects();
+
+    const modal = document.getElementById('editor-zone-modal');
+    if (!modal) return;
+
+    const props = this.editorScene._readProps(zone.properties);
+    document.getElementById('zone-prop-name').value = props.name || zone.name || '';
+    document.getElementById('zone-prop-type').value = props.type || 'city';
+    document.getElementById('zone-prop-status').value = props.status === 'completed' || props.status === 'ready' ? 'completed' : 'pending';
+    document.getElementById('zone-prop-color').value = props.color || '#00e5ff';
+    document.getElementById('zone-prop-note').value = props.note || props.message || '';
+    document.getElementById('zone-prop-x').value = zone.x || 0;
+    document.getElementById('zone-prop-y').value = zone.y || 0;
+    document.getElementById('zone-prop-w').value = zone.width || 128;
+    document.getElementById('zone-prop-h').value = zone.height || 128;
+
+    modal.classList.remove('hidden');
+  }
+
+  async saveZoneModal() {
+    const current = this.editorScene.selectedObject;
+    if (!current || !this.editorScene.mapJsonData) return;
+
+    const name = document.getElementById('zone-prop-name').value;
+    const type = document.getElementById('zone-prop-type').value;
+    const status = document.getElementById('zone-prop-status').value;
+    const color = document.getElementById('zone-prop-color').value;
+    const note = document.getElementById('zone-prop-note').value;
+    const x = parseInt(document.getElementById('zone-prop-x').value, 10) || 0;
+    const y = parseInt(document.getElementById('zone-prop-y').value, 10) || 0;
+    const w = parseInt(document.getElementById('zone-prop-w').value, 10) || 128;
+    const h = parseInt(document.getElementById('zone-prop-h').value, 10) || 128;
+
+    let target = null;
+    const zoneLayer = this.editorScene._getOrCreateObjectLayer('Zones');
+    if (zoneLayer.objects) {
+      target = zoneLayer.objects.find(o => o.id == current.id || (o.x === current.x && o.y === current.y));
+    }
+
+    if (!target) {
+      target = {
+        id: current.id || Date.now(),
+        name,
+        type: 'zone',
+        x,
+        y,
+        width: w,
+        height: h,
+        properties: []
+      };
+      zoneLayer.objects.push(target);
+    }
+
+    target.name = name;
+    target.x = x;
+    target.y = y;
+    target.width = w;
+    target.height = h;
+    target.properties = [
+      { name: 'name', value: name },
+      { name: 'type', value: type },
+      { name: 'status', value: status },
+      { name: 'color', value: color },
+      { name: 'note', value: note }
+    ];
+
+    current.name = name;
+    current.x = x;
+    current.y = y;
+    current.width = w;
+    current.height = h;
+    current.properties = target.properties;
+
+    this.editorScene.drawObjects();
+    this.renderZonesList();
+    document.getElementById('editor-zone-modal').classList.add('hidden');
+    if (this.editorScene?.input?.keyboard) {
+      this.editorScene.input.keyboard.enabled = true;
+      this.editorScene.input.keyboard.clearCaptures();
+    }
+
+    await this.saveMap();
+  }
+
+  async deleteZoneModal() {
+    const current = this.editorScene.selectedObject;
+    if (!current || !this.editorScene.mapJsonData) return;
+
+    for (const layer of this.editorScene.mapJsonData.layers) {
+      if (layer.type === 'objectgroup' && layer.objects) {
+        layer.objects = layer.objects.filter(o => o.id != current.id && !(o.x === current.x && o.y === current.y));
+      }
+    }
+
+    this.editorScene.selectedObject = null;
+    this.editorScene.drawObjects();
+    this.renderZonesList();
+    document.getElementById('editor-zone-modal').classList.add('hidden');
+    if (this.editorScene?.input?.keyboard) {
+      this.editorScene.input.keyboard.enabled = true;
+      this.editorScene.input.keyboard.clearCaptures();
+    }
+    await this.saveMap();
+  }
+
+  // ─── Spawns List & Editor (Pokestop.io Style) ─────────────────────────────
+
+  renderSpawnsList() {
+    const container = document.getElementById('editor-spawns-list');
+    if (!container || !this.editorScene.mapJsonData) return;
+
+    container.innerHTML = '';
+    const spawnLayer = this.editorScene.mapJsonData.layers.find(l => (l.name === 'PokemonSpawns' || l.name === 'Spawns' || l.name === 'Encounters') && l.type === 'objectgroup');
+
+    if (!spawnLayer || spawnLayer.objects.length === 0) {
+      container.innerHTML = `<div style="font-size:12px; color:#888; text-align:center; padding:16px;">Nenhuma área de spawn cadastrada. Clique em "Nova Área" ou use a ferramenta (P) para desenhar no mapa.</div>`;
+      return;
+    }
+
+    spawnLayer.objects.forEach(obj => {
+      const props = this.editorScene._readProps(obj.properties);
+      const name = props.name || obj.name || 'Área de Spawn';
+      const encounterType = props.encounterType || 'grass';
+      const rate = props.rate || 10;
+      let pList = [];
+      try {
+        pList = typeof props.pokemonSpawns === 'string' ? JSON.parse(props.pokemonSpawns) : (props.pokemonSpawns || []);
+      } catch (e) {
+        pList = [];
+      }
+
+      const typeBadges = {
+        grass: '<span style="color:#00e676;">Grama Alta</span>',
+        water: '<span style="color:#00e5ff;">Água</span>',
+        fishing: '<span style="color:#ffb300;">Pesca</span>',
+        cave: '<span style="color:#e0e0e0;">Caverna</span>'
+      };
+
+      const speciesBadgesHtml = pList.slice(0, 5).map(p => {
+        const paddedId = String(p.speciesId || 16).padStart(3, '0');
+        const pokeObj = KANTO_POKEMON_LIST.find(k => k.id === (p.speciesId || 16)) || { name: `ID #${p.speciesId}` };
+        return `
+          <div style="display:inline-flex; align-items:center; gap:4px; background:rgba(255,255,255,0.08); padding:2px 6px; border-radius:12px; font-size:10px;">
+            <img src="/assets/pokemon/animated/front/normal/${paddedId}.gif" width="22" height="22" style="image-rendering:pixelated;" />
+            <span>${pokeObj.name} (L. ${p.minLevel}-${p.maxLevel})</span>
+          </div>
+        `;
+      }).join('');
+
+      const card = document.createElement('div');
+      card.className = 'portal-card';
+      card.innerHTML = `
+        <div class="portal-card-header">
+          <span style="display:inline-flex; align-items:center; gap:6px; font-weight:700;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18"></path></svg>
+            <span>${name}</span>
+          </span>
+          <span style="font-size:11px; font-weight:700;">${typeBadges[encounterType] || encounterType} (${rate}%)</span>
+        </div>
+        <div style="margin: 6px 0; display:flex; flex-wrap:wrap; gap:4px;">
+          ${speciesBadgesHtml || '<span style="color:#888; font-size:11px;">Nenhuma espécie configurada</span>'}
+          ${pList.length > 5 ? `<span style="font-size:10px; color:#ffb300; align-self:center;">+${pList.length - 5} mais</span>` : ''}
+        </div>
+        <div class="portal-card-actions">
+          <button class="editor-btn small primary btn-edit-sp">Configurar (Pokéstop)</button>
+          <button class="editor-btn small secondary btn-focus-sp">Focar Área</button>
+          <button class="editor-btn small danger btn-delete-sp">Excluir</button>
+        </div>
+      `;
+
+      card.querySelector('.btn-edit-sp').addEventListener('click', () => this.openSpawnModal({ ...obj, layerName: spawnLayer.name }));
+      card.querySelector('.btn-focus-sp').addEventListener('click', () => {
+        if (this.editorScene.cameras?.main) {
+          this.editorScene.cameras.main.centerOn((obj.x || 0) + (obj.width || 64) / 2, (obj.y || 0) + (obj.height || 64) / 2);
+        }
+      });
+      card.querySelector('.btn-delete-sp').addEventListener('click', async () => {
+        if (confirm(`Tem certeza que deseja excluir a área de spawn "${name}"?`)) {
+          this.editorScene.selectedObject = { ...obj, layerName: spawnLayer.name };
+          await this.deleteSpawnModal();
+        }
+      });
+
+      container.appendChild(card);
+    });
+  }
+
+  async fetchSpeciesList() {
+    try {
+      const res = await fetch('/api/admin/encounter-zones/species');
+      const data = await res.json();
+      if (data?.success && Array.isArray(data.species) && data.species.length > 0) {
+        this.databaseSpecies = data.species;
+      }
+    } catch (e) {
+      this.databaseSpecies = KANTO_POKEMON_LIST;
+    }
+  }
+
+  setupSpawnModalEvents() {
+    // Tab switching
+    document.getElementById('tab-btn-spawn-map')?.addEventListener('click', () => this.switchSpawnTab('map'));
+    document.getElementById('tab-btn-spawn-pokemon')?.addEventListener('click', () => this.switchSpawnTab('pokemon'));
+
+    // Dynamic tile summary calculation when coordinate inputs change
+    ['spawn-prop-x', 'spawn-prop-y', 'spawn-prop-w', 'spawn-prop-h'].forEach(id => {
+      document.getElementById(id)?.addEventListener('input', () => this.updateSpawnTileSummary());
+    });
+
+    // Period distribution view toggle (Manhã, Tarde, Noite, Madrugada)
+    this.activeSpawnPeriod = 'morning';
+    const setPeriodView = (period) => {
+      this.activeSpawnPeriod = period;
+      document.getElementById('btn-period-morning')?.classList.toggle('active', period === 'morning');
+      document.getElementById('btn-period-afternoon')?.classList.toggle('active', period === 'afternoon');
+      document.getElementById('btn-period-night')?.classList.toggle('active', period === 'night');
+      document.getElementById('btn-period-dawn')?.classList.toggle('active', period === 'dawn');
+      this.updateSpawnPercentages();
+    };
+
+    document.getElementById('btn-period-morning')?.addEventListener('click', () => setPeriodView('morning'));
+    document.getElementById('btn-period-afternoon')?.addEventListener('click', () => setPeriodView('afternoon'));
+    document.getElementById('btn-period-night')?.addEventListener('click', () => setPeriodView('night'));
+    document.getElementById('btn-period-dawn')?.addEventListener('click', () => setPeriodView('dawn'));
+
+    // Normalize weights button
+    document.getElementById('btn-normalize-spawn-weights')?.addEventListener('click', () => this.normalizeSpawnWeights());
+
+    // Add Pokemon button
+    document.getElementById('btn-add-spawn-pokemon-row')?.addEventListener('click', () => {
+      this.addSpawnPokemonRow({ speciesId: 16, minLevel: 2, maxLevel: 5, morningChance: 25, afternoonChance: 25, nightChance: 25, dawnChance: 25 });
+    });
+
+    // Copy Zone Config buttons
+    document.getElementById('btn-apply-copy-zone')?.addEventListener('click', () => {
+      this.applyCopiedSpawnConfig();
+    });
+    document.getElementById('spawn-copy-source-select')?.addEventListener('change', (e) => {
+      if (e.target.value) {
+        this.applyCopiedSpawnConfig();
+      }
+    });
+
+    // Search and Autocomplete from Database
+    const searchInput = document.getElementById('spawn-pokemon-search');
+    const clearBtn = document.getElementById('btn-clear-spawn-search');
+    const autocompleteDropdown = document.getElementById('spawn-search-autocomplete');
+
+    if (searchInput) {
+      searchInput.addEventListener('input', async (e) => {
+        const query = e.target.value.trim().toLowerCase();
+        if (clearBtn) clearBtn.style.display = query ? 'block' : 'none';
+        
+        // Filter existing cards in area
+        this.filterSpawnPokemonTable(query);
+
+        // Autocomplete search from database
+        await this.renderSpawnSearchAutocomplete(query);
+      });
+
+      searchInput.addEventListener('focus', async () => {
+        const query = searchInput.value.trim().toLowerCase();
+        if (query) await this.renderSpawnSearchAutocomplete(query);
+      });
+
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const firstItem = autocompleteDropdown?.querySelector('.spawn-autocomplete-item');
+          if (firstItem) {
+            firstItem.click();
+          }
+        }
+      });
+    }
+
+    clearBtn?.addEventListener('click', () => {
+      if (searchInput) searchInput.value = '';
+      clearBtn.style.display = 'none';
+      this.filterSpawnPokemonTable('');
+      if (autocompleteDropdown) autocompleteDropdown.classList.add('hidden');
+    });
+
+    // Close autocomplete when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#spawn-pokemon-search') && !e.target.closest('#spawn-search-autocomplete')) {
+        autocompleteDropdown?.classList.add('hidden');
+      }
+    });
+
+    // Custom Stepper Buttons Delegated Click Handler
+    const spawnModal = document.getElementById('editor-spawn-modal');
+    spawnModal?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.stepper-btn');
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const wrap = btn.closest('.custom-stepper-wrap');
+      const input = wrap?.querySelector('input[type="number"]');
+      if (!input || input.disabled) return;
+
+      const step = parseFloat(input.step) || 1;
+      const min = input.min !== '' ? parseFloat(input.min) : -Infinity;
+      const max = input.max !== '' ? parseFloat(input.max) : Infinity;
+      let val = parseFloat(input.value);
+      if (isNaN(val)) val = 0;
+
+      if (btn.classList.contains('btn-step-up')) {
+        val = Math.min(max, val + step);
+      } else if (btn.classList.contains('btn-step-down')) {
+        val = Math.max(min, val - step);
+      }
+
+      input.value = val;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
+
+  async fetchSpeciesList() {
+    if (this.databaseSpecies && this.databaseSpecies.length > 0) return this.databaseSpecies;
+    try {
+      const res = await fetch('/api/admin/encounter-zones/species');
+      const data = await res.json();
+      if (data?.success && Array.isArray(data.species) && data.species.length > 0) {
+        this.databaseSpecies = data.species;
+        return this.databaseSpecies;
+      }
+    } catch (e) {
+      console.warn('[EditorUI] Falha ao carregar espécies do banco, usando fallback:', e);
+    }
+    this.databaseSpecies = KANTO_POKEMON_LIST;
+    return this.databaseSpecies;
+  }
+
+  switchSpawnTab(tabName) {
+    const isMap = tabName === 'map';
+    const tabBtnMap = document.getElementById('tab-btn-spawn-map');
+    const tabBtnPoke = document.getElementById('tab-btn-spawn-pokemon');
+    const paneMap = document.getElementById('tab-pane-spawn-map');
+    const panePoke = document.getElementById('tab-pane-spawn-pokemon');
+
+    tabBtnMap?.classList.toggle('active', isMap);
+    tabBtnPoke?.classList.toggle('active', !isMap);
+    paneMap?.classList.toggle('hidden', !isMap);
+    panePoke?.classList.toggle('hidden', isMap);
+
+    if (!isMap) {
+      this.updateSpawnPercentages();
+    }
+  }
+
+  updateSpawnTileSummary() {
+    const x = parseInt(document.getElementById('spawn-prop-x')?.value, 10) || 0;
+    const y = parseInt(document.getElementById('spawn-prop-y')?.value, 10) || 0;
+    const w = parseInt(document.getElementById('spawn-prop-w')?.value, 10) || 64;
+    const h = parseInt(document.getElementById('spawn-prop-h')?.value, 10) || 64;
+
+    const tx = Math.floor(x / 32);
+    const ty = Math.floor(y / 32);
+    const tw = Math.ceil(w / 32);
+    const th = Math.ceil(h / 32);
+
+    const summaryEl = document.getElementById('spawn-tile-summary');
+    if (summaryEl) {
+      summaryEl.innerHTML = `<span style="display:inline-flex; align-items:center; gap:5px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg><span>Tiles: [${tx}, ${ty}] • Dimensões: ${tw}x${th} tiles (${w}x${h}px)</span></span>`;
+    }
+  }
+
+  filterSpawnPokemonTable(query) {
+    const cards = document.querySelectorAll('.spawn-card-row');
+    cards.forEach(c => {
+      if (!query) {
+        c.style.display = '';
+        return;
+      }
+      const select = c.querySelector('.row-species-select');
+      const optText = select ? select.options[select.selectedIndex]?.text.toLowerCase() : '';
+      const match = optText.includes(query) || String(select?.value).includes(query);
+      c.style.display = match ? '' : 'none';
+    });
+  }
+
+  async renderSpawnSearchAutocomplete(query) {
+    const dropdown = document.getElementById('spawn-search-autocomplete');
+    if (!dropdown) return;
+
+    if (!query) {
+      dropdown.classList.add('hidden');
+      dropdown.innerHTML = '';
+      return;
+    }
+
+    const speciesList = await this.fetchSpeciesList();
+    const cleanNum = parseInt(query.replace('#', ''), 10);
+    const matches = speciesList.filter(s => {
+      const name = (s.name || '').toLowerCase();
+      const id = String(s.id || '');
+      const paddedId = id.padStart(3, '0');
+      const idMatch = !isNaN(cleanNum) && s.id === cleanNum;
+      const typeMatch = (s.type1 && s.type1.toLowerCase().includes(query)) || (s.type2 && s.type2.toLowerCase().includes(query));
+      return name.includes(query) || id === query || paddedId.includes(query) || idMatch || typeMatch;
+    }).slice(0, 12);
+
+    if (matches.length === 0) {
+      dropdown.innerHTML = `<div style="padding: 14px; color: #94a3b8; font-size: 11px; text-align: center;">Nenhum Pokémon encontrado no banco para "<strong>${query}</strong>"</div>`;
+      dropdown.classList.remove('hidden');
+      return;
+    }
+
+    const typeColors = {
+      GRASS: '#10b981', POISON: '#a855f7', FIRE: '#f97316', WATER: '#3b82f6',
+      ELECTRIC: '#eab308', BUG: '#84cc16', NORMAL: '#94a3b8', FLYING: '#60a5fa',
+      PSYCHIC: '#ec4899', GHOST: '#7c3aed', GROUND: '#d97706', ROCK: '#78716c',
+      FIGHTING: '#ef4444', ICE: '#06b6d4', DRAGON: '#6366f1'
+    };
+
+    dropdown.innerHTML = matches.map(s => {
+      const paddedId = String(s.id).padStart(3, '0');
+      const t1 = s.type1 ? `<span class="spawn-type-tag" style="background:${typeColors[s.type1.toUpperCase()] || '#3b82f6'}; color:#fff;">${s.type1}</span>` : '';
+      const t2 = s.type2 ? `<span class="spawn-type-tag" style="background:${typeColors[s.type2.toUpperCase()] || '#64748b'}; color:#fff;">${s.type2}</span>` : '';
+      return `
+        <div class="spawn-autocomplete-item" data-id="${s.id}">
+          <img src="/assets/pokemon/animated/front/normal/${paddedId}.gif" alt="${s.name}" onerror="this.src='/assets/pokemon/animated/front/normal/016.gif'" />
+          <div style="flex: 1; display: flex; flex-direction: column;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-weight: 800; color: #ffd700; font-size: 12px;">#${paddedId}</span>
+              <span style="font-weight: 700; color: #fff; font-size: 12px;">${s.name}</span>
+            </div>
+            <div style="display: flex; gap: 4px; margin-top: 3px;">
+              ${t1} ${t2}
+            </div>
+          </div>
+          <button type="button" class="editor-btn xsmall gold" style="padding: 4px 10px; font-weight: 700;">+ Adicionar</button>
+        </div>
+      `;
+    }).join('');
+
+    dropdown.querySelectorAll('.spawn-autocomplete-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const id = parseInt(item.getAttribute('data-id'), 10);
+        this.addSpawnPokemonRow({ speciesId: id, minLevel: 2, maxLevel: 5, morningChance: 25, afternoonChance: 25, nightChance: 25, dawnChance: 25 });
+        dropdown.classList.add('hidden');
+        const searchInput = document.getElementById('spawn-pokemon-search');
+        if (searchInput) searchInput.value = '';
+        document.getElementById('btn-clear-spawn-search')?.style.setProperty('display', 'none');
+        this.filterSpawnPokemonTable('');
+        this.showToast(`Pokémon #${String(id).padStart(3, '0')} adicionado à área!`, 'success');
+      });
+    });
+
+    dropdown.classList.remove('hidden');
+  }
+
+  updateSpawnPercentages() {
+    const cards = Array.from(document.querySelectorAll('.spawn-card-row'));
+    let totalMorning = 0;
+    let totalAfternoon = 0;
+    let totalNight = 0;
+    let totalDawn = 0;
+
+    cards.forEach(c => {
+      const m = parseFloat(c.querySelector('.row-chance-morning')?.value) || 0;
+      const a = parseFloat(c.querySelector('.row-chance-afternoon')?.value) || 0;
+      const n = parseFloat(c.querySelector('.row-chance-night')?.value) || 0;
+      const d = parseFloat(c.querySelector('.row-chance-dawn')?.value) || 0;
+      totalMorning += m;
+      totalAfternoon += a;
+      totalNight += n;
+      totalDawn += d;
+    });
+
+    // Update badges
+    const updateBadge = (id, total, normalColor) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.textContent = `(${total.toFixed(0)}%)`;
+        el.style.color = Math.abs(total - 100) < 0.1 ? '#10b981' : normalColor;
+      }
+    };
+
+    updateBadge('badge-total-morning', totalMorning, '#fbbf24');
+    updateBadge('badge-total-afternoon', totalAfternoon, '#60a5fa');
+    updateBadge('badge-total-night', totalNight, '#c084fc');
+    updateBadge('badge-total-dawn', totalDawn, '#22d3ee');
+
+    const countBadge = document.getElementById('spawn-tab-count-badge');
+    if (countBadge) {
+      countBadge.textContent = `${cards.length} Pokémon`;
+    }
+
+    const activePeriod = this.activeSpawnPeriod || 'morning';
+    let activeTotal = totalMorning;
+    let activePeriodLabel = 'Manhã (06h–12h)';
+    if (activePeriod === 'afternoon') {
+      activeTotal = totalAfternoon;
+      activePeriodLabel = 'Tarde (12h–18h)';
+    } else if (activePeriod === 'night') {
+      activeTotal = totalNight;
+      activePeriodLabel = 'Noite (18h–00h)';
+    } else if (activePeriod === 'dawn') {
+      activeTotal = totalDawn;
+      activePeriodLabel = 'Madrugada (00h–06h)';
+    }
+
+    const statusEl = document.getElementById('spawn-distribution-status');
+    if (statusEl) {
+      const allBalanced = Math.abs(totalMorning - 100) < 0.1 &&
+                          Math.abs(totalAfternoon - 100) < 0.1 &&
+                          Math.abs(totalNight - 100) < 0.1 &&
+                          Math.abs(totalDawn - 100) < 0.1;
+      if (allBalanced) {
+        statusEl.innerHTML = `
+          <span class="status-badge success">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>Todos os 4 turnos 100%</span>
+          </span>
+        `;
+      } else {
+        statusEl.innerHTML = `
+          <span class="status-badge warning">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            <span>Total ${activePeriodLabel}: ${activeTotal.toFixed(0)}%</span>
+          </span>
+        `;
+      }
+    }
+
+    // Build probability bar for active period
+    const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316', '#14b8a6', '#6366f1', '#e11d48', '#d97706'];
+    const barSegments = [];
+
+    cards.forEach((c, idx) => {
+      let val = 0;
+      if (activePeriod === 'morning') val = parseFloat(c.querySelector('.row-chance-morning')?.value) || 0;
+      else if (activePeriod === 'afternoon') val = parseFloat(c.querySelector('.row-chance-afternoon')?.value) || 0;
+      else if (activePeriod === 'night') val = parseFloat(c.querySelector('.row-chance-night')?.value) || 0;
+      else if (activePeriod === 'dawn') val = parseFloat(c.querySelector('.row-chance-dawn')?.value) || 0;
+
+      if (val > 0) {
+        const pctOfBar = activeTotal > 0 ? (val / activeTotal) * 100 : 0;
+        const select = c.querySelector('.row-species-select');
+        const speciesName = select ? select.options[select.selectedIndex]?.text || 'Pokémon' : 'Pokémon';
+        const color = COLORS[idx % COLORS.length];
+
+        barSegments.push({
+          pct: pctOfBar,
+          color,
+          title: `${speciesName} (${activePeriodLabel}): ${val}% (Proporção: ${pctOfBar.toFixed(1)}%)`
+        });
+      }
+    });
+
+    const barEl = document.getElementById('spawn-probability-bar');
+    if (barEl) {
+      if (barSegments.length === 0) {
+        barEl.innerHTML = `<div style="width: 100%; height: 100%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; font-size: 9px; color: #64748b;">Nenhum Pokémon configurado para ${activePeriodLabel} (0%)</div>`;
+      } else {
+        barEl.innerHTML = barSegments.map(s => `
+          <div class="spawn-prob-bar-segment" style="width: ${s.pct}%; background: ${s.color};" title="${s.title}"></div>
+        `).join('');
+      }
+    }
+
+    const emptyMsg = document.getElementById('spawn-pokemon-empty-msg');
+    if (emptyMsg) {
+      emptyMsg.classList.toggle('hidden', cards.length > 0);
+    }
+  }
+
+  normalizeSpawnWeights() {
+    const cards = Array.from(document.querySelectorAll('.spawn-card-row'));
+    if (cards.length === 0) return;
+
+    ['morning', 'afternoon', 'night', 'dawn'].forEach(period => {
+      const selector = `.row-chance-${period}`;
+      let total = 0;
+      cards.forEach(c => {
+        total += parseFloat(c.querySelector(selector)?.value) || 0;
+      });
+
+      if (total <= 0) {
+        const eq = Math.floor(100 / cards.length);
+        cards.forEach((c, i) => {
+          const input = c.querySelector(selector);
+          if (input) input.value = i === cards.length - 1 ? 100 - eq * (cards.length - 1) : eq;
+        });
+      } else {
+        let allocated = 0;
+        const nonZeroCards = cards.filter(c => (parseFloat(c.querySelector(selector)?.value) || 0) > 0);
+        if (nonZeroCards.length > 0) {
+          nonZeroCards.forEach((c, i) => {
+            const input = c.querySelector(selector);
+            const val = parseFloat(input?.value) || 0;
+            let newVal = Math.max(1, Math.round((val / total) * 100));
+            if (i === nonZeroCards.length - 1) {
+              newVal = Math.max(1, 100 - allocated);
+            } else {
+              allocated += newVal;
+            }
+            if (input) input.value = newVal;
+          });
+        }
+      }
+    });
+
+    this.updateSpawnPercentages();
+    this.showToast('Todos os 4 horários normalizados para 100%!', 'success');
+  }
+
+  async populateCopyZoneSelect(currentSpawn) {
+    const select = document.getElementById('spawn-copy-source-select');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">-- Selecione uma zona para copiar a config --</option>';
+
+    // 1. Zonas locais do mapa atual (Camada PokemonSpawns)
+    const spawnLayer = this.editorScene?.mapJsonData?.layers?.find(l => (l.name === 'PokemonSpawns' || l.name === 'Spawns') && l.type === 'objectgroup');
+    const mapObjects = spawnLayer?.objects || [];
+
+    const currentId = currentSpawn?.id;
+    const currentX = currentSpawn?.x;
+    const currentY = currentSpawn?.y;
+
+    const availableLocal = mapObjects.filter(obj => {
+      const isCurrent = (currentId && obj.id == currentId) || (obj.x === currentX && obj.y === currentY);
+      return !isCurrent;
+    });
+
+    this.copyZoneCache = new Map();
+
+    if (availableLocal.length > 0) {
+      const optGroupMap = document.createElement('optgroup');
+      optGroupMap.label = 'Zonas deste Mapa';
+
+      availableLocal.forEach(obj => {
+        const props = this.editorScene._readProps(obj.properties);
+        const name = props.name || obj.name || `Área #${obj.id}`;
+        let spawns = [];
+        try {
+          spawns = typeof props.pokemonSpawns === 'string' ? JSON.parse(props.pokemonSpawns) : (props.pokemonSpawns || []);
+        } catch (e) { spawns = []; }
+
+        const key = `local_${obj.id || `${obj.x}_${obj.y}`}`;
+        this.copyZoneCache.set(key, {
+          name,
+          encounterType: props.encounterType || 'grass',
+          rate: props.rate ?? 10,
+          pokemonSpawns: spawns
+        });
+
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = `${name} (${spawns.length} Pokémon - ${props.encounterType || 'grass'})`;
+        optGroupMap.appendChild(opt);
+      });
+
+      select.appendChild(optGroupMap);
+    }
+
+    // 2. Zonas persistidas no banco de dados
+    try {
+      const res = await fetch('/api/admin/encounter-zones?mapId=kanto');
+      const data = await res.json();
+      if (data?.success && Array.isArray(data.zones) && data.zones.length > 0) {
+        const dbZones = data.zones.filter(z => {
+          const isCurrent = (currentId && z.id == currentId) || (z.x === currentX && z.y === currentY);
+          return !isCurrent;
+        });
+
+        if (dbZones.length > 0) {
+          const optGroupDb = document.createElement('optgroup');
+          optGroupDb.label = 'Zonas Salvas no Banco de Dados';
+
+          dbZones.forEach(z => {
+            const key = `db_${z.id}`;
+            let spawns = [];
+            try {
+              spawns = typeof z.pokemonSpawns === 'string' ? JSON.parse(z.pokemonSpawns) : (z.pokemonSpawns || []);
+            } catch (e) { spawns = []; }
+
+            this.copyZoneCache.set(key, {
+              name: z.name,
+              encounterType: z.encounterMethod || 'grass',
+              rate: z.baseRate ?? 10,
+              pokemonSpawns: spawns
+            });
+
+            const opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = `${z.name} (#${z.id}) (${spawns.length} Pokémon)`;
+            optGroupDb.appendChild(opt);
+          });
+
+          select.appendChild(optGroupDb);
+        }
+      }
+    } catch (e) {
+      console.warn('[EditorUI] Falha ao carregar zonas do banco para cópia:', e);
+    }
+  }
+
+  applyCopiedSpawnConfig() {
+    const select = document.getElementById('spawn-copy-source-select');
+    const selectedKey = select?.value;
+    if (!selectedKey || !this.copyZoneCache?.has(selectedKey)) {
+      this.showToast('Selecione uma zona existente no dropdown para copiar.', 'warning');
+      return;
+    }
+
+    const source = this.copyZoneCache.get(selectedKey);
+    const spawns = source.pokemonSpawns;
+    if (!Array.isArray(spawns) || spawns.length === 0) {
+      this.showToast(`A zona "${source.name}" não possui Pokémons configurados para copiar.`, 'warning');
+      return;
+    }
+
+    const currentCards = document.querySelectorAll('.spawn-card-row');
+    if (currentCards.length > 0) {
+      if (!confirm(`Deseja substituir a configuração atual pela da zona "${source.name}" (${spawns.length} Pokémon)?`)) {
+        return;
+      }
+    }
+
+    // Copiar método e taxa se definidos
+    if (source.encounterType) {
+      const typeInput = document.getElementById('spawn-prop-type');
+      if (typeInput) typeInput.value = source.encounterType;
+    }
+    if (source.rate) {
+      const rateInput = document.getElementById('spawn-prop-rate');
+      if (rateInput) rateInput.value = source.rate;
+    }
+
+    const clonedList = JSON.parse(JSON.stringify(spawns));
+    this.renderSpawnPokemonRows(clonedList);
+    this.updateSpawnPercentages();
+
+    this.showToast(`Configuração copiada de "${source.name}" com sucesso! (${clonedList.length} Pokémon)`, 'success');
+  }
+
+  async openSpawnModal(spawn) {
+    if (this.editorScene?.input?.keyboard) {
+      this.editorScene.input.keyboard.enabled = false;
+    }
+    this.editorScene.selectedObject = spawn;
+    this.editorScene.drawObjects();
+
+    const modal = document.getElementById('editor-spawn-modal');
+    if (!modal) return;
+
+    // Switch to tab 1 (Map & Delimitation) by default
+    this.switchSpawnTab('map');
+
+    const props = this.editorScene._readProps(spawn.properties);
+    document.getElementById('spawn-prop-name').value = props.name || spawn.name || '';
+    document.getElementById('spawn-prop-type').value = props.encounterType || 'grass';
+    document.getElementById('spawn-prop-rate').value = props.rate ?? 10;
+    document.getElementById('spawn-prop-x').value = spawn.x || 0;
+    document.getElementById('spawn-prop-y').value = spawn.y || 0;
+    document.getElementById('spawn-prop-w').value = spawn.width || 64;
+    document.getElementById('spawn-prop-h').value = spawn.height || 64;
+
+    this.updateSpawnTileSummary();
+
+    // Clear search
+    const searchInput = document.getElementById('spawn-pokemon-search');
+    if (searchInput) searchInput.value = '';
+    document.getElementById('btn-clear-spawn-search')?.style.setProperty('display', 'none');
+    document.getElementById('spawn-search-autocomplete')?.classList.add('hidden');
+
+    // Populate copy zone dropdown
+    await this.populateCopyZoneSelect(spawn);
+
+    // Load species from database
+    await this.fetchSpeciesList();
+
+    let pList = [];
+    try {
+      pList = typeof props.pokemonSpawns === 'string' ? JSON.parse(props.pokemonSpawns) : (props.pokemonSpawns || []);
+    } catch (e) {
+      pList = [];
+    }
+
+    if (!Array.isArray(pList) || pList.length === 0) {
+      pList = [{ speciesId: 16, minLevel: 2, maxLevel: 4, morningChance: 45, afternoonChance: 40, nightChance: 10, dawnChance: 5, highIvChance: 0, shinyBonus: 1 }];
+    }
+
+    this.renderSpawnPokemonRows(pList);
+    modal.classList.remove('hidden');
+  }
+
+  renderSpawnPokemonRows(list) {
+    const container = document.getElementById('spawn-pokemon-cards-container');
+    if (!container) return;
+
+    container.innerHTML = '';
+    list.forEach(p => this.addSpawnPokemonRow(p, false));
+    this.updateSpawnPercentages();
+  }
+
+  addSpawnPokemonRow(data = {}, updatePct = true) {
+    const container = document.getElementById('spawn-pokemon-cards-container');
+    if (!container) return;
+
+    const speciesId = data.speciesId || 16;
+    const minLevel = data.minLevel ?? 2;
+    const maxLevel = data.maxLevel ?? 5;
+
+    // Read chances for 4 periods
+    const morning = data.morningChance ?? data.times?.morning ?? 45;
+    const afternoon = data.afternoonChance ?? data.dayChance ?? data.times?.afternoon ?? data.times?.day ?? 40;
+    const night = data.nightChance ?? data.times?.night ?? 10;
+    const dawn = data.dawnChance ?? data.madrugadaChance ?? data.times?.dawn ?? data.times?.madrugada ?? (data.nightChance ? Math.round(data.nightChance / 2) : 5);
+
+    const highIvChance = data.highIvChance ?? 0;
+    const shinyBonus = data.shinyBonus ?? 1;
+
+    const card = document.createElement('div');
+    card.className = 'spawn-card-row';
+
+    const speciesList = this.databaseSpecies || KANTO_POKEMON_LIST;
+    const optionsHtml = speciesList.map(k => {
+      const selected = k.id === speciesId ? 'selected' : '';
+      return `<option value="${k.id}" ${selected}>#${String(k.id).padStart(3, '0')} ${k.name}</option>`;
+    }).join('');
+
+    const paddedId = String(speciesId).padStart(3, '0');
+
+    card.innerHTML = `
+      <!-- Linha Superior do Card: Sprite, Espécie, Nível, IV, Shiny, Excluir -->
+      <div class="spawn-card-header">
+        <div class="spawn-card-sprite-wrap">
+          <img class="spawn-card-sprite row-sprite-img" src="/assets/pokemon/animated/front/normal/${paddedId}.gif" alt="Pokemon" onerror="this.src='/assets/pokemon/animated/front/normal/016.gif'" />
+        </div>
+        
+        <div class="spawn-card-species">
+          <select class="form-input row-species-select" style="padding: 6px 12px; font-size: 12px; font-weight: 700; width: 100%; border-radius: 6px; height: 34px;">
+            ${optionsHtml}
+          </select>
+        </div>
+
+        <div class="spawn-card-field-group">
+          <span class="field-label">NÍVEL</span>
+          <div class="custom-stepper-wrap compact">
+            <input type="number" class="row-min-lvl" value="${minLevel}" min="1" max="100" title="Nível Mínimo" />
+            <div class="custom-stepper-controls">
+              <button type="button" class="stepper-btn btn-step-up" tabindex="-1" title="Aumentar"><svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"/></svg></button>
+              <button type="button" class="stepper-btn btn-step-down" tabindex="-1" title="Diminuir"><svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg></button>
+            </div>
+          </div>
+          <span class="field-separator">–</span>
+          <div class="custom-stepper-wrap compact">
+            <input type="number" class="row-max-lvl" value="${maxLevel}" min="1" max="100" title="Nível Máximo" />
+            <div class="custom-stepper-controls">
+              <button type="button" class="stepper-btn btn-step-up" tabindex="-1" title="Aumentar"><svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"/></svg></button>
+              <button type="button" class="stepper-btn btn-step-down" tabindex="-1" title="Diminuir"><svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="spawn-card-field-group">
+          <span class="field-label">IV ALTO</span>
+          <div class="custom-stepper-wrap compact">
+            <input type="number" class="row-high-iv" value="${highIvChance}" min="0" max="100" title="Chance de IVs Altos (31)" />
+            <div class="custom-stepper-controls">
+              <button type="button" class="stepper-btn btn-step-up" tabindex="-1" title="Aumentar"><svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"/></svg></button>
+              <button type="button" class="stepper-btn btn-step-down" tabindex="-1" title="Diminuir"><svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg></button>
+            </div>
+          </div>
+          <span class="field-unit">%</span>
+        </div>
+
+        <div class="spawn-card-field-group">
+          <span class="field-label">SHINY</span>
+          <div class="custom-stepper-wrap compact">
+            <input type="number" class="row-shiny-mult" value="${shinyBonus}" min="1" max="50" title="Multiplicador Shiny" />
+            <div class="custom-stepper-controls">
+              <button type="button" class="stepper-btn btn-step-up" tabindex="-1" title="Aumentar"><svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"/></svg></button>
+              <button type="button" class="stepper-btn btn-step-down" tabindex="-1" title="Diminuir"><svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg></button>
+            </div>
+          </div>
+          <span class="field-unit">x</span>
+        </div>
+
+        <button type="button" class="btn-remove-row spawn-card-btn-delete" title="Remover este Pokémon da área">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+        </button>
+      </div>
+
+      <!-- Grid dos 4 Horários de Encontro -->
+      <div class="spawn-card-times-grid">
+        <div class="spawn-time-box morning" title="Período da Manhã (06h às 12h)">
+          <div class="time-info">
+            <div class="time-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v6"></path><path d="M4.93 10.93l4.24 4.24"></path><path d="M2 18h20"></path><path d="M20 18a8 8 0 0 0-16 0"></path><path d="M19.07 10.93l-4.24 4.24"></path></svg>
+              <span>Manhã</span>
+            </div>
+            <span class="time-hours">06h–12h</span>
+          </div>
+          <div class="time-input-wrap">
+            <div class="custom-stepper-wrap">
+              <input type="number" class="row-chance-morning" value="${morning}" min="0" max="100" />
+              <div class="custom-stepper-controls">
+                <button type="button" class="stepper-btn btn-step-up" tabindex="-1" title="Aumentar"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"/></svg></button>
+                <button type="button" class="stepper-btn btn-step-down" tabindex="-1" title="Diminuir"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg></button>
+              </div>
+            </div>
+            <span class="time-pct-symbol">%</span>
+          </div>
+        </div>
+
+        <div class="spawn-time-box afternoon" title="Período da Tarde (12h às 18h)">
+          <div class="time-info">
+            <div class="time-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path></svg>
+              <span>Tarde</span>
+            </div>
+            <span class="time-hours">12h–18h</span>
+          </div>
+          <div class="time-input-wrap">
+            <div class="custom-stepper-wrap">
+              <input type="number" class="row-chance-afternoon" value="${afternoon}" min="0" max="100" />
+              <div class="custom-stepper-controls">
+                <button type="button" class="stepper-btn btn-step-up" tabindex="-1" title="Aumentar"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"/></svg></button>
+                <button type="button" class="stepper-btn btn-step-down" tabindex="-1" title="Diminuir"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg></button>
+              </div>
+            </div>
+            <span class="time-pct-symbol">%</span>
+          </div>
+        </div>
+
+        <div class="spawn-time-box night" title="Período da Noite (18h às 00h)">
+          <div class="time-info">
+            <div class="time-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+              <span>Noite</span>
+            </div>
+            <span class="time-hours">18h–00h</span>
+          </div>
+          <div class="time-input-wrap">
+            <div class="custom-stepper-wrap">
+              <input type="number" class="row-chance-night" value="${night}" min="0" max="100" />
+              <div class="custom-stepper-controls">
+                <button type="button" class="stepper-btn btn-step-up" tabindex="-1" title="Aumentar"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"/></svg></button>
+                <button type="button" class="stepper-btn btn-step-down" tabindex="-1" title="Diminuir"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg></button>
+              </div>
+            </div>
+            <span class="time-pct-symbol">%</span>
+          </div>
+        </div>
+
+        <div class="spawn-time-box dawn" title="Período da Madrugada (00h às 06h)">
+          <div class="time-info">
+            <div class="time-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>
+              <span>Madrugada</span>
+            </div>
+            <span class="time-hours">00h–06h</span>
+          </div>
+          <div class="time-input-wrap">
+            <div class="custom-stepper-wrap">
+              <input type="number" class="row-chance-dawn" value="${dawn}" min="0" max="100" />
+              <div class="custom-stepper-controls">
+                <button type="button" class="stepper-btn btn-step-up" tabindex="-1" title="Aumentar"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"/></svg></button>
+                <button type="button" class="stepper-btn btn-step-down" tabindex="-1" title="Diminuir"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg></button>
+              </div>
+            </div>
+            <span class="time-pct-symbol">%</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const speciesSelect = card.querySelector('.row-species-select');
+    const spriteImg = card.querySelector('.row-sprite-img');
+    speciesSelect.addEventListener('change', (e) => {
+      const newId = String(e.target.value).padStart(3, '0');
+      spriteImg.src = `/assets/pokemon/animated/front/normal/${newId}.gif`;
+      this.updateSpawnPercentages();
+    });
+
+    ['.row-chance-morning', '.row-chance-afternoon', '.row-chance-night', '.row-chance-dawn'].forEach(sel => {
+      card.querySelector(sel)?.addEventListener('input', () => {
+        this.updateSpawnPercentages();
+      });
+    });
+
+    card.querySelector('.btn-remove-row').addEventListener('click', () => {
+      card.remove();
+      this.updateSpawnPercentages();
+    });
+
+    container.appendChild(card);
+
+    if (updatePct) {
+      this.updateSpawnPercentages();
+    }
+  }
+
+  async saveSpawnModal() {
+    const current = this.editorScene.selectedObject;
+    if (!current || !this.editorScene.mapJsonData) return;
+
+    const name = document.getElementById('spawn-prop-name').value;
+    const encounterType = document.getElementById('spawn-prop-type').value;
+    const rate = parseInt(document.getElementById('spawn-prop-rate').value, 10) || 10;
+    const x = parseInt(document.getElementById('spawn-prop-x').value, 10) || 0;
+    const y = parseInt(document.getElementById('spawn-prop-y').value, 10) || 0;
+    const w = parseInt(document.getElementById('spawn-prop-w').value, 10) || 64;
+    const h = parseInt(document.getElementById('spawn-prop-h').value, 10) || 64;
+
+    const cards = document.querySelectorAll('.spawn-card-row');
+    const pokemonList = [];
+    cards.forEach(c => {
+      const speciesId = parseInt(c.querySelector('.row-species-select').value, 10);
+      const minLevel = parseInt(c.querySelector('.row-min-lvl').value, 10) || 1;
+      const maxLevel = parseInt(c.querySelector('.row-max-lvl').value, 10) || minLevel;
+      const morningChance = parseFloat(c.querySelector('.row-chance-morning').value) || 0;
+      const afternoonChance = parseFloat(c.querySelector('.row-chance-afternoon').value) || 0;
+      const nightChance = parseFloat(c.querySelector('.row-chance-night').value) || 0;
+      const dawnChance = parseFloat(c.querySelector('.row-chance-dawn').value) || 0;
+      const highIvChance = parseInt(c.querySelector('.row-high-iv').value, 10) || 0;
+      const shinyBonus = parseFloat(c.querySelector('.row-shiny-mult').value) || 1;
+
+      const timeOfDay = [];
+      if (morningChance > 0) timeOfDay.push('morning');
+      if (afternoonChance > 0) timeOfDay.push('afternoon', 'day');
+      if (nightChance > 0) timeOfDay.push('night');
+      if (dawnChance > 0) timeOfDay.push('dawn');
+
+      pokemonList.push({
+        speciesId,
+        minLevel,
+        maxLevel,
+        morningChance,
+        afternoonChance,
+        dayChance: afternoonChance,
+        nightChance,
+        dawnChance,
+        madrugadaChance: dawnChance,
+        times: {
+          morning: morningChance,
+          afternoon: afternoonChance,
+          day: afternoonChance,
+          night: nightChance,
+          dawn: dawnChance,
+          madrugada: dawnChance
+        },
+        timeOfDay: timeOfDay.length > 0 ? timeOfDay : ['morning', 'afternoon', 'night', 'dawn'],
+        weight: Math.round(Math.max(morningChance, afternoonChance, nightChance, dawnChance, 1)),
+        highIvChance,
+        shinyBonus
+      });
+    });
+
+    let target = null;
+    const spawnLayer = this.editorScene._getOrCreateObjectLayer('PokemonSpawns');
+    if (spawnLayer.objects) {
+      target = spawnLayer.objects.find(o => o.id == current.id || (o.x === current.x && o.y === current.y));
+    }
+
+    if (!target) {
+      target = {
+        id: current.id || Date.now(),
+        name,
+        type: 'spawn',
+        x,
+        y,
+        width: w,
+        height: h,
+        properties: []
+      };
+      spawnLayer.objects.push(target);
+    }
+
+    target.name = name;
+    target.x = x;
+    target.y = y;
+    target.width = w;
+    target.height = h;
+    target.properties = [
+      { name: 'name', value: name },
+      { name: 'encounterType', value: encounterType },
+      { name: 'rate', value: rate },
+      { name: 'pokemonSpawns', value: JSON.stringify(pokemonList) }
+    ];
+
+    current.name = name;
+    current.x = x;
+    current.y = y;
+    current.width = w;
+    current.height = h;
+    current.properties = target.properties;
+
+    this.editorScene.drawObjects();
+    this.renderSpawnsList();
+    document.getElementById('editor-spawn-modal').classList.add('hidden');
+    if (this.editorScene?.input?.keyboard) {
+      this.editorScene.input.keyboard.enabled = true;
+      this.editorScene.input.keyboard.clearCaptures();
+    }
+
+    await this.saveMap();
+  }
+
+  async deleteSpawnModal() {
+    const current = this.editorScene.selectedObject;
+    if (!current || !this.editorScene.mapJsonData) return;
+
+    for (const layer of this.editorScene.mapJsonData.layers) {
+      if (layer.type === 'objectgroup' && layer.objects) {
+        layer.objects = layer.objects.filter(o => o.id != current.id && !(o.x === current.x && o.y === current.y));
+      }
+    }
+
+    this.editorScene.selectedObject = null;
+    this.editorScene.drawObjects();
+    this.renderSpawnsList();
+    document.getElementById('editor-spawn-modal').classList.add('hidden');
+    if (this.editorScene?.input?.keyboard) {
+      this.editorScene.input.keyboard.enabled = true;
+      this.editorScene.input.keyboard.clearCaptures();
+    }
+    await this.saveMap();
+  }
+
+  // ─── NPCs List & Editor ──────────────────────────────────────────────────
+
+  populateNpcSpriteSelect() {
+    const select = document.getElementById('npc-prop-sprite');
+    if (!select) return;
+    select.innerHTML = '';
+    NPC_SPRITES.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.key;
+      opt.textContent = `${s.name} (${s.key})`;
+      select.appendChild(opt);
+    });
+  }
+
+  _updateNpcSpritePreview(spriteKey) {
+    const previewEl = document.getElementById('npc-prop-sprite-preview');
+    if (!previewEl) return;
+    const def = NPC_SPRITES.find(s => s.key === spriteKey) || NPC_SPRITES[0];
+    previewEl.style.backgroundImage = `url('/assets/characters/npcs/${def.file}')`;
+  }
+
+  _updateNpcTypeSections(npcType) {
+    const secBattle = document.getElementById('npc-section-battle');
+    const secShop = document.getElementById('npc-section-shop');
+    const secOak = document.getElementById('npc-section-oak');
+    const dlgLabel = document.getElementById('npc-dialogue-label');
+
+    if (secBattle) secBattle.classList.toggle('hidden', npcType !== 'battle');
+    if (secShop) secShop.classList.toggle('hidden', npcType !== 'shop');
+    if (secOak) secOak.classList.toggle('hidden', npcType !== 'starter_oak');
+
+    if (dlgLabel) {
+      if (npcType === 'starter_oak') {
+        dlgLabel.textContent = 'Mensagem de Abertura / Boas-Vindas de Carvalho';
+      } else if (npcType === 'battle') {
+        dlgLabel.textContent = 'Diálogo de Abertura ao Ver o Jogador (Grito de Batalha)';
+      } else if (npcType === 'shop') {
+        dlgLabel.textContent = 'Diálogo de Cumprimento do Atendente';
+      } else {
+        dlgLabel.textContent = 'Frases de Diálogo (Uma por linha)';
+      }
+    }
+  }
+
+  renderNpcsList() {
+    const container = document.getElementById('editor-npcs-list');
+    if (!container || !this.editorScene.mapJsonData) return;
+
+    container.innerHTML = '';
+    const npcLayer = this.editorScene.mapJsonData.layers.find(l => l.name === 'NPCs' && l.type === 'objectgroup');
+
+    if (!npcLayer || !npcLayer.objects || npcLayer.objects.length === 0) {
+      container.innerHTML = `<div style="font-size:12px; color:#888; text-align:center; padding:16px;">Nenhum NPC cadastrado neste mapa. Clique em "Novo NPC" ou use a ferramenta (N) para posicionar no mapa.</div>`;
+      return;
+    }
+
+    npcLayer.objects.forEach(obj => {
+      const props = this.editorScene._readProps(obj.properties);
+      const name = props.name || obj.name || 'NPC';
+      const spriteKey = props.spriteKey || props.sprite || 'npc_boy';
+      const npcType = props.npcType || props.type || 'dialogue';
+      const direction = props.direction || 'down';
+
+      const spriteDef = NPC_SPRITES.find(s => s.key === spriteKey) || { file: 'npc_boy.png' };
+      const typeDef = NPC_TYPES.find(t => t.id === npcType) || { label: 'Diálogo', icon: '💬' };
+
+      const card = document.createElement('div');
+      card.className = 'portal-card';
+
+      let borderColor = '#00e5ff';
+      if (npcType === 'starter_oak') borderColor = '#ffd700';
+      else if (npcType === 'battle') borderColor = '#ff1744';
+      else if (npcType === 'shop') borderColor = '#00e676';
+      card.style.borderLeft = `4px solid ${borderColor}`;
+
+      const dirLabels = { down: 'Baixo (Frente)', up: 'Cima (Costas)', left: 'Esquerda', right: 'Direita' };
+
+      card.innerHTML = `
+        <div class="portal-card-header" style="color: #fff;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:28px; height:36px; background:#0b1120; border:1px solid rgba(255,255,255,0.2); border-radius:4px; overflow:hidden; flex-shrink:0;">
+              <div style="width:32px; height:48px; background-image:url('/assets/characters/npcs/${spriteDef.file}'); background-size:128px 192px; background-position:0 0; image-rendering:pixelated; transform:scale(0.8) translate(-4px, -6px);"></div>
+            </div>
+            <div>
+              <span style="font-weight:700; font-size:12px; display:block;">${name}</span>
+              <span style="font-size:10px; color:${borderColor}; font-weight:700;">${typeDef.icon} ${typeDef.label}</span>
+            </div>
+          </div>
+          <span style="color:var(--fr-gold); font-size:11px;">[${obj.x}, ${obj.y}]</span>
+        </div>
+        <div class="portal-card-details" style="margin: 4px 0;">
+          <div>Sprite: <strong>${spriteKey}</strong> | Olhando para: <strong>${dirLabels[direction] || direction}</strong></div>
+        </div>
+        <div class="portal-card-actions">
+          <button class="editor-btn small primary btn-edit-npc">Configurar</button>
+          <button class="editor-btn small secondary btn-focus-npc">Focar</button>
+          <button class="editor-btn small danger btn-delete-npc">Excluir</button>
+        </div>
+      `;
+
+      card.querySelector('.btn-edit-npc').addEventListener('click', () => this.openNpcModal({ ...obj, layerName: 'NPCs' }));
+      card.querySelector('.btn-focus-npc').addEventListener('click', () => {
+        if (this.editorScene.cameras?.main) {
+          this.editorScene.cameras.main.centerOn(obj.x, obj.y);
+        }
+      });
+      card.querySelector('.btn-delete-npc').addEventListener('click', async () => {
+        if (confirm(`Tem certeza que deseja excluir o NPC "${name}"?`)) {
+          this.editorScene.selectedObject = { ...obj, layerName: 'NPCs' };
+          await this.deleteNpcModal();
+        }
+      });
+
+      container.appendChild(card);
+    });
+  }
+
+  openNpcModal(npc) {
+    if (this.editorScene?.input?.keyboard) {
+      this.editorScene.input.keyboard.enabled = false;
+    }
+    this.editorScene.selectedObject = npc;
+    this.editorScene.drawObjects();
+
+    const modal = document.getElementById('editor-npc-modal');
+    if (!modal) return;
+
+    this.populateNpcSpriteSelect();
+
+    const props = this.editorScene._readProps(npc.properties);
+    const spriteKey = props.spriteKey || props.sprite || 'npc_boy';
+    const npcType = props.npcType || props.type || 'dialogue';
+    const name = props.name || npc.name || 'Novo NPC';
+
+    document.getElementById('npc-prop-name').value = name;
+    document.getElementById('npc-prop-sprite').value = spriteKey;
+    document.getElementById('npc-prop-type').value = npcType;
+    document.getElementById('npc-prop-direction').value = props.direction || 'down';
+
+    let dlg = props.dialogue || props.text || ['Olá, treinador!'];
+    if (typeof dlg === 'string') {
+      try {
+        const parsed = JSON.parse(dlg);
+        dlg = Array.isArray(parsed) ? parsed.join('\n') : dlg;
+      } catch (e) {
+        // keep string
+      }
+    } else if (Array.isArray(dlg)) {
+      dlg = dlg.join('\n');
+    }
+    document.getElementById('npc-prop-dialogue').value = dlg;
+
+    document.getElementById('npc-prop-vision').value = props.visionRange !== undefined ? props.visionRange : (npcType === 'battle' ? 3 : 0);
+    document.getElementById('npc-prop-reward').value = props.rewardMoney !== undefined ? props.rewardMoney : 200;
+    document.getElementById('npc-prop-reward-exp').value = props.rewardExp !== undefined ? props.rewardExp : 150;
+    document.getElementById('npc-prop-cooldown').value = props.cooldown !== undefined ? props.cooldown : 300;
+    document.getElementById('npc-prop-loss-dlg').value = props.lossDialogue || 'Haha! Ainda precisa treinar mais!';
+    document.getElementById('npc-prop-win-dlg').value = props.winDialogue || 'Você é muito forte...';
+
+    let teamStr = props.team || '[{"speciesId":19,"level":3,"name":"Rattata"}]';
+    if (typeof teamStr === 'object') teamStr = JSON.stringify(teamStr);
+    document.getElementById('npc-prop-team').value = teamStr;
+
+    // Shop checklist
+    const shopListContainer = document.getElementById('npc-shop-items-checklist');
+    if (shopListContainer) {
+      shopListContainer.innerHTML = '';
+      let activeShopIds = [];
+      if (props.shopItems) {
+        if (Array.isArray(props.shopItems)) {
+          activeShopIds = props.shopItems.map(i => typeof i === 'string' ? i : i.id);
+        } else if (typeof props.shopItems === 'string') {
+          try {
+            const parsed = JSON.parse(props.shopItems);
+            if (Array.isArray(parsed)) activeShopIds = parsed.map(i => typeof i === 'string' ? i : i.id);
+          } catch(e) {}
+        }
+      } else {
+        // By default all items are available
+        activeShopIds = DEFAULT_MART_ITEMS.map(i => i.id);
+      }
+
+      DEFAULT_MART_ITEMS.forEach(item => {
+        const isChecked = activeShopIds.includes(item.id);
+        const itemLabel = document.createElement('label');
+        itemLabel.style.display = 'inline-flex';
+        itemLabel.style.alignItems = 'center';
+        itemLabel.style.gap = '4px';
+        itemLabel.style.fontSize = '11px';
+        itemLabel.style.background = 'rgba(255,255,255,0.06)';
+        itemLabel.style.padding = '4px 8px';
+        itemLabel.style.borderRadius = '4px';
+        itemLabel.style.cursor = 'pointer';
+        itemLabel.innerHTML = `
+          <input type="checkbox" class="npc-shop-item-check" value="${item.id}" ${isChecked ? 'checked' : ''} />
+          <span>${item.name} ($${item.price})</span>
+        `;
+        shopListContainer.appendChild(itemLabel);
+      });
+    }
+
+    document.getElementById('npc-prop-x').value = npc.x || 0;
+    document.getElementById('npc-prop-y').value = npc.y || 0;
+
+    this._updateNpcSpritePreview(spriteKey);
+    this._updateNpcTypeSections(npcType);
+
+    modal.classList.remove('hidden');
+  }
+
+  async saveNpcModal() {
+    const current = this.editorScene.selectedObject;
+    if (!current || !this.editorScene.mapJsonData) return;
+
+    const name = document.getElementById('npc-prop-name').value || 'NPC';
+    const spriteKey = document.getElementById('npc-prop-sprite').value || 'npc_boy';
+    const npcType = document.getElementById('npc-prop-type').value || 'dialogue';
+    const direction = document.getElementById('npc-prop-direction').value || 'down';
+    const dlgRaw = document.getElementById('npc-prop-dialogue').value || '';
+    const dialogue = dlgRaw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+    const x = parseInt(document.getElementById('npc-prop-x').value, 10) || 0;
+    const y = parseInt(document.getElementById('npc-prop-y').value, 10) || 0;
+
+    const visionRange = parseInt(document.getElementById('npc-prop-vision').value, 10) || 0;
+    const rewardMoney = parseInt(document.getElementById('npc-prop-reward').value, 10) || 0;
+    const rewardExp = parseInt(document.getElementById('npc-prop-reward-exp').value, 10) || 0;
+    const cooldown = parseInt(document.getElementById('npc-prop-cooldown').value, 10) || 0;
+    const lossDialogue = document.getElementById('npc-prop-loss-dlg').value || 'Haha! Ainda precisa treinar mais!';
+    const winDialogue = document.getElementById('npc-prop-win-dlg').value || 'Você é muito forte...';
+
+    let team = null;
+    try {
+      const teamVal = document.getElementById('npc-prop-team').value;
+      if (teamVal) team = JSON.parse(teamVal);
+    } catch(e) {
+      team = [{ speciesId: 19, level: 3, name: 'Rattata' }];
+    }
+
+    // Selected shop items
+    const checkedShopBoxes = document.querySelectorAll('.npc-shop-item-check:checked');
+    const selectedShopIds = Array.from(checkedShopBoxes).map(cb => cb.value);
+    const shopItems = DEFAULT_MART_ITEMS.filter(it => selectedShopIds.includes(it.id));
+
+    let target = null;
+    const npcLayer = this.editorScene._getOrCreateObjectLayer('NPCs');
+    if (npcLayer.objects) {
+      target = npcLayer.objects.find(o => o.id == current.id || (o.x === current.x && o.y === current.y));
+    }
+
+    if (!target) {
+      target = {
+        id: current.id || Date.now(),
+        name,
+        type: npcType,
+        x,
+        y,
+        width: 32,
+        height: 48,
+        properties: []
+      };
+      npcLayer.objects.push(target);
+    }
+
+    target.name = name;
+    target.type = npcType;
+    target.x = x;
+    target.y = y;
+    target.width = 32;
+    target.height = 48;
+
+    const props = [
+      { name: 'name', value: name },
+      { name: 'spriteKey', value: spriteKey },
+      { name: 'direction', value: direction },
+      { name: 'npcType', value: npcType },
+      { name: 'dialogue', value: JSON.stringify(dialogue) }
+    ];
+
+    if (npcType === 'battle') {
+      props.push({ name: 'visionRange', value: visionRange });
+      props.push({ name: 'rewardMoney', value: rewardMoney });
+      props.push({ name: 'rewardExp', value: rewardExp });
+      props.push({ name: 'cooldown', value: cooldown });
+      props.push({ name: 'lossDialogue', value: lossDialogue });
+      props.push({ name: 'winDialogue', value: winDialogue });
+      if (team) props.push({ name: 'team', value: JSON.stringify(team) });
+    } else if (npcType === 'shop') {
+      props.push({ name: 'shopItems', value: JSON.stringify(shopItems) });
+    }
+
+    target.properties = props;
+
+    current.name = name;
+    current.x = x;
+    current.y = y;
+    current.properties = props;
+
+    this.editorScene.drawObjects();
+    this.renderNpcsList();
+    document.getElementById('editor-npc-modal')?.classList.add('hidden');
+    if (this.editorScene?.input?.keyboard) {
+      this.editorScene.input.keyboard.enabled = true;
+      this.editorScene.input.keyboard.clearCaptures();
+    }
+
+    await this.saveMap();
+    this.showToast(`✅ NPC "${name}" salvo no mapa!`, 'success');
+  }
+
+  async deleteNpcModal() {
+    const current = this.editorScene.selectedObject;
+    if (!current || !this.editorScene.mapJsonData) return;
+
+    for (const layer of this.editorScene.mapJsonData.layers) {
+      if (layer.name === 'NPCs' && layer.objects) {
+        layer.objects = layer.objects.filter(o => o.id != current.id && !(o.x === current.x && o.y === current.y));
+      }
+    }
+
+    this.editorScene.selectedObject = null;
+    this.editorScene.drawObjects();
+    this.renderNpcsList();
+    document.getElementById('editor-npc-modal')?.classList.add('hidden');
+    if (this.editorScene?.input?.keyboard) {
+      this.editorScene.input.keyboard.enabled = true;
+      this.editorScene.input.keyboard.clearCaptures();
+    }
+    await this.saveMap();
+    this.showToast('🗑️ NPC removido do mapa.', 'info');
+  }
+
   // ─── Sidebar Tabs ─────────────────────────────────────────────────────────
 
   switchSidebarTab(tabName) {
+    if (tabName === 'spawns') {
+      this.switchZonesSubtab('spawns');
+      tabName = 'zones';
+    }
+
     this.activeSidebarTab = tabName;
-    ['layers', 'portals', 'signs'].forEach(t => {
+    ['layers', 'portals', 'signs', 'zones', 'npcs'].forEach(t => {
       document.getElementById(`tab-btn-${t}`)?.classList.toggle('active', t === tabName);
-      document.getElementById(`tab-content-${t}`)?.classList.toggle('hidden', t !== tabName);
     });
+
+    // Toggle tab contents
+    document.getElementById('tab-content-layers')?.classList.toggle('hidden', tabName !== 'layers');
+    document.getElementById('tab-content-portals')?.classList.toggle('hidden', tabName !== 'portals');
+    document.getElementById('tab-content-signs')?.classList.toggle('hidden', tabName !== 'signs');
+    document.getElementById('tab-content-zones')?.classList.toggle('hidden', tabName !== 'zones');
+    document.getElementById('tab-content-npcs')?.classList.toggle('hidden', tabName !== 'npcs');
 
     if (tabName === 'portals') {
       this.renderPortalsList();
     } else if (tabName === 'signs') {
       this.renderSignsList();
+    } else if (tabName === 'zones') {
+      this.renderZonesList();
+      this.renderSpawnsList();
+    } else if (tabName === 'npcs') {
+      this.renderNpcsList();
     }
+  }
+
+  switchZonesSubtab(subtabName) {
+    this.activeZonesSubtab = subtabName;
+    const select = document.getElementById('editor-zones-subtab-select');
+    if (select && select.value !== subtabName) {
+      select.value = subtabName;
+    }
+
+    const citiesView = document.getElementById('zones-subview-cities');
+    const spawnsView = document.getElementById('zones-subview-spawns');
+    if (citiesView) citiesView.classList.toggle('hidden', subtabName !== 'cities');
+    if (spawnsView) spawnsView.classList.toggle('hidden', subtabName !== 'spawns');
   }
 
   // ─── Tools & Tilesets ─────────────────────────────────────────────────────
@@ -1992,7 +4526,7 @@ export default class EditorUI {
   selectTool(toolName) {
     this.editorScene.setTool(toolName);
 
-    const tools = ['hand', 'pencil', 'eraser', 'bucket', 'picker', 'sign', 'link', 'object'];
+    const tools = ['hand', 'pencil', 'eraser', 'bucket', 'picker', 'sign', 'link', 'object', 'zone', 'spawn', 'npc'];
     tools.forEach(t => {
       document.getElementById(`tool-${t}`)?.classList.toggle('active', t === toolName);
     });
@@ -2003,9 +4537,12 @@ export default class EditorUI {
       eraser: 'Borracha (E)',
       bucket: 'Preenchimento (F)',
       picker: 'Conta-gotas (I)',
-      sign: '🪧 Placa (1 grid)',
-      link: '🚪 Teleporte (Grids)',
-      object: 'Objetos (O)'
+      sign: 'Placa (1 grid)',
+      link: 'Teleporte (Grids)',
+      object: 'Objetos (O)',
+      zone: 'Zona/Região (Z)',
+      spawn: 'Spawn Pokémon (P)',
+      npc: 'NPC (N)'
     };
 
     const toolEl = document.getElementById('editor-tool-indicator');
@@ -2112,7 +4649,7 @@ export default class EditorUI {
 
     if (unaddedPresets.length > 0) {
       const libGroup = document.createElement('optgroup');
-      libGroup.label = '➕ Adicionar da Biblioteca...';
+      libGroup.label = 'Adicionar da Biblioteca...';
 
       unaddedPresets.forEach(p => {
         const opt = document.createElement('option');
@@ -2131,7 +4668,7 @@ export default class EditorUI {
 
       if (otherFiles.length > 0) {
         const fileGroup = document.createElement('optgroup');
-        fileGroup.label = '📁 Outros Arquivos PNG...';
+        fileGroup.label = 'Outros Arquivos PNG...';
         otherFiles.forEach(file => {
           const opt = document.createElement('option');
           opt.value = `file:${file}`;
@@ -2686,7 +5223,7 @@ export default class EditorUI {
     if (!gid || gid <= 0) return null;
     const listEl = document.getElementById('similar-tiles-list');
     if (listEl) {
-      listEl.innerHTML = '<small class="similarity-placeholder" style="color:#00e5ff;">🔍 Buscando tiles correspondentes no Outside...</small>';
+      listEl.innerHTML = '<small class="similarity-placeholder" style="color:#00e5ff;">🔍 Buscando tiles correspondentes...</small>';
     }
 
     try {
@@ -2724,23 +5261,25 @@ export default class EditorUI {
 
       const srcVec = this.getTileSignature(helperCanvas, helperCtx, 0, 0, tileW, tileH);
 
-      // Determine target Outside preset to search
+      // Determine target preset/tileset to search
       let targetPreset = null;
-      if (targetTilesetObj) {
-        const targetName = targetTilesetObj.name;
+      const targetObj = targetTilesetObj || this.activeTileset;
+      if (targetObj) {
+        const targetName = targetObj.name;
         targetPreset = PRESET_TILESETS.find(p => p.name === targetName || p.file.replace(/\.png$/i, '') === targetName);
       }
-      if (!targetPreset) {
-        const isCurrentOutside = this.activeTileset && (
-          this.activeTileset.name.toLowerCase().includes('outside') ||
-          this.activeTileset.name.toLowerCase().includes('spring') ||
-          this.activeTileset.name.toLowerCase().includes('summer') ||
-          this.activeTileset.name.toLowerCase().includes('autumn') ||
-          this.activeTileset.name.toLowerCase().includes('winter')
-        );
-        if (isCurrentOutside) {
-          targetPreset = PRESET_TILESETS.find(p => p.name === this.activeTileset.name);
-        }
+      if (!targetPreset && targetObj) {
+        const fallbackFile = (targetObj.image || targetObj.name + '.png').split('/').pop();
+        targetPreset = {
+          name: targetObj.name,
+          file: fallbackFile,
+          columns: targetObj.columns || 16,
+          tilecount: targetObj.tilecount || (targetObj.columns * 100),
+          tilewidth: targetObj.tilewidth || 32,
+          tileheight: targetObj.tileheight || 32,
+          margin: targetObj.margin || 0,
+          spacing: targetObj.spacing || 0
+        };
       }
       if (!targetPreset) {
         targetPreset = PRESET_TILESETS.find(p => p.name.includes('Outside1 Spring'))
@@ -2796,14 +5335,23 @@ export default class EditorUI {
       if (!listEl) return null;
       listEl.innerHTML = '';
 
-      this.addLibraryTileset(targetPreset.name);
+      // Update header title to show the current target tileset
+      const headerTitle = document.querySelector('#tile-similarity-container .similarity-header span');
+      if (headerTitle) {
+        headerTitle.textContent = `🔍 Correspondências em ${targetPreset.name}`;
+      }
+
       const currentMapTilesets = this.editorScene?.mapJsonData?.tilesets || [];
-      const boundIdx = currentMapTilesets.findIndex(t => t.name === targetPreset.name);
-      const targetFirstGid = boundIdx >= 0 ? (currentMapTilesets[boundIdx].firstgid || 1) : 1;
+      let boundIdx = currentMapTilesets.findIndex(t => t.name === targetPreset.name);
+      if (boundIdx < 0) {
+        this.addLibraryTileset(targetPreset.name);
+        boundIdx = (this.editorScene?.mapJsonData?.tilesets || []).findIndex(t => t.name === targetPreset.name);
+      }
+      const targetFirstGid = boundIdx >= 0 ? (this.editorScene.mapJsonData.tilesets[boundIdx].firstgid || 1) : 1;
 
       topMatches.forEach((match, idx) => {
         const card = document.createElement('div');
-        card.className = 'similar-tile-card';
+        card.className = 'similar-tile-card' + (idx === 0 ? ' active' : '');
         card.title = `Correspondência #${idx + 1} (${match.matchPct}% de similaridade no ${targetPreset.name})`;
 
         const thumbCanvas = document.createElement('canvas');
@@ -2820,10 +5368,17 @@ export default class EditorUI {
         card.appendChild(badge);
 
         card.addEventListener('click', () => {
+          listEl.querySelectorAll('.similar-tile-card').forEach(c => c.classList.remove('active'));
+          card.classList.add('active');
           if (boundIdx >= 0) {
             const targetGid = targetFirstGid + match.localId;
-            this.switchTileset(boundIdx, targetGid);
-            this.showToast(`✨ Tile Outside similar selecionado! (GID ${targetGid} - ${match.matchPct}%)`, 'success');
+            if (this.activeTileset?.name !== targetPreset.name) {
+              this.switchTileset(boundIdx, targetGid);
+            } else {
+              this.setTileGid(targetGid);
+              this.scrollToTileInPalette(targetGid);
+            }
+            this.showToast(`✨ Tile similar selecionado! (GID ${targetGid} - ${match.matchPct}%)`, 'success');
           }
         });
 
@@ -2848,7 +5403,7 @@ export default class EditorUI {
     const saveBtn = document.getElementById('btn-editor-save');
     if (saveBtn) saveBtn.disabled = true;
 
-    this.showToast(`Salvando '${this.editorScene.currentMapName}' no servidor...`, 'info');
+    this.showToast(`Salvando '${this.editorScene.currentMapName}' e sincronizando banco de dados...`, 'info');
 
     try {
       const exportJson = this.editorScene.getExportJson();
@@ -2866,10 +5421,40 @@ export default class EditorUI {
         throw new Error(data.error || 'Erro ao salvar mapa.');
       }
 
-      this.showToast(`✅ MAPA '${this.editorScene.currentMapName}' SALVO COM SUCESSO!`, 'success');
+      // Sync encounter zones from map JSON to database persistently
+      const spawnLayer = exportJson.layers?.find(l => (l.name === 'PokemonSpawns' || l.name === 'Spawns' || l.name === 'Encounters') && l.type === 'objectgroup');
+      if (spawnLayer && Array.isArray(spawnLayer.objects)) {
+        const dbZones = spawnLayer.objects.map(obj => {
+          const props = this.editorScene._readProps(obj.properties);
+          let pList = [];
+          try {
+            pList = typeof props.pokemonSpawns === 'string' ? JSON.parse(props.pokemonSpawns) : (props.pokemonSpawns || []);
+          } catch (e) {
+            pList = [];
+          }
+          return {
+            name: props.name || obj.name || 'Área de Spawn',
+            encounterType: props.encounterType || 'grass',
+            rate: props.rate || 10,
+            x: obj.x || 0,
+            y: obj.y || 0,
+            width: obj.width || 64,
+            height: obj.height || 64,
+            pokemonSpawns: pList
+          };
+        });
+
+        await fetch('/api/admin/encounter-zones/bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mapId: this.editorScene.currentMapName, zones: dbZones })
+        });
+      }
+
+      this.showToast(`MAPA '${this.editorScene.currentMapName}' E SPAWNS SALVOS NO BANCO!`, 'success');
     } catch (err) {
       console.error('[EditorUI Save Error]:', err);
-      this.showToast('❌ Erro ao salvar mapa: ' + err.message, 'error');
+      this.showToast('Erro ao salvar mapa: ' + err.message, 'error');
     } finally {
       if (saveBtn) saveBtn.disabled = false;
     }

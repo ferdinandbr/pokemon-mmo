@@ -6,7 +6,7 @@ const prisma = require('../database');
 
 function setupBattleHandlers(io, socket) {
   // ─── 1. Trigger Wild Encounter (Step on Tall Grass) ──────────────────────
-  socket.on('battle:wild_trigger', async () => {
+  socket.on('battle:wild_trigger', async (payload) => {
     try {
       const player = roomManager.getPlayer(socket.id);
       if (!player) {
@@ -14,10 +14,17 @@ function setupBattleHandlers(io, socket) {
         return socket.emit('battle:start_failed', { message: 'Personagem não conectado à sala.' });
       }
 
-      console.log(`[Battle] Iniciando wild battle para personagem ${player.name} (id: ${player.characterId}) no mapa ${player.roomId}`);
+      const playerX = typeof payload?.x === 'number' ? payload.x : player.x;
+      const playerY = typeof payload?.y === 'number' ? payload.y : player.y;
+
+      console.log(`[Battle] Solicitando wild battle para ${player.name} em (${playerX}, ${playerY}) no mapa ${player.roomId}`);
       const battleState = await battleManager.startWildBattle(player.characterId, {
         roomId: player.roomId,
-        playerName: player.name
+        playerName: player.name,
+        playerX,
+        playerY,
+        zoneId: payload?.zoneId,
+        encounterMethod: payload?.method || 'grass'
       });
 
       socket.emit('battle:started', {
@@ -27,6 +34,38 @@ function setupBattleHandlers(io, socket) {
       console.log(`[Battle] battle:started emitido com sucesso para ${player.name} vs ${battleState.wildPokemon?.name}`);
     } catch (err) {
       console.warn('[Battle Socket Warning battle:wild_trigger]:', err.message);
+      socket.emit('battle:start_failed', { message: err.message });
+    }
+  });
+
+  // ─── 1.1 Trigger Trainer Encounter (NPC Battle) ──────────────────────────
+  socket.on('npc:battle_start', async (payload) => {
+    try {
+      const player = roomManager.getPlayer(socket.id);
+      if (!player) {
+        return socket.emit('battle:start_failed', { message: 'Personagem não conectado à sala.' });
+      }
+
+      const { npcId, trainerData } = payload || {};
+      console.log(`[Battle] Iniciando batalha de treinador para ${player.name} contra ${trainerData?.trainerName || 'Treinador'}`);
+
+      const battleState = await battleManager.startTrainerBattle(player.characterId, {
+        npcId,
+        trainerName: trainerData?.trainerName || 'Treinador',
+        rewardMoney: trainerData?.rewardMoney || 200,
+        rewardExp: trainerData?.rewardExp || 150,
+        cooldown: trainerData?.cooldown || 300,
+        team: trainerData?.team || [{ speciesId: 19, level: 3 }],
+        winDialogue: trainerData?.winDialogue,
+        lossDialogue: trainerData?.lossDialogue
+      });
+
+      socket.emit('battle:started', {
+        success: true,
+        ...battleState
+      });
+    } catch (err) {
+      console.warn('[Battle Socket Warning npc:battle_start]:', err.message);
       socket.emit('battle:start_failed', { message: err.message });
     }
   });

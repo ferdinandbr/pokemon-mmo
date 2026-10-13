@@ -13,6 +13,7 @@ const LAYER_DEPTHS = {
   Building: 40,
   Buildings: 40,
   Objects: 50,
+  'Objects 2': 55,
   Trees: 60,
   Tress: 60,
   Collision: 99000,
@@ -83,6 +84,9 @@ export default class EditorScene extends Phaser.Scene {
     this.isPickingPortalOrigin = false;
     this.portalPickContext = null;
     this.onPortalTargetPicked = null;
+    this.isDrawingPortalDestination = false;
+    this.portalPairContext = null;
+    this.onPortalPairCompleted = null;
     this.pickPointerDownX = 0;
     this.pickPointerDownY = 0;
     this.wasDraggingMap = false;
@@ -93,10 +97,13 @@ export default class EditorScene extends Phaser.Scene {
     this.onObjectSelected = null;
     this.onPortalSelected = null;
     this.onSignSelected = null;
+    this.onZoneSelected = null;
+    this.onSpawnSelected = null;
     this.onMapLoaded = null;
     this.onToast = null;
     this.onZoomUpdate = null;
     this.onObjectDeleted = null;
+    this.onNpcSelected = null;
   }
 
   preload() {
@@ -197,6 +204,7 @@ export default class EditorScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-F', () => { if (!isTyping()) this.setTool('bucket'); });
     this.input.keyboard.on('keydown-I', () => { if (!isTyping()) this.setTool('picker'); });
     this.input.keyboard.on('keydown-O', () => { if (!isTyping()) this.setTool('object'); });
+    this.input.keyboard.on('keydown-N', () => { if (!isTyping()) this.setTool('npc'); });
     this.input.keyboard.on('keydown-G', () => { if (!isTyping()) this.toggleGrid(); });
     this.input.keyboard.on('keydown-C', () => { if (!isTyping()) this.toggleCollisions(); });
     this.input.keyboard.on('keydown-ESC', () => { if (!isTyping()) this.cancelPortalMarking(); });
@@ -818,8 +826,16 @@ export default class EditorScene extends Phaser.Scene {
     for (const layer of objectLayers) {
       const isPortalLayer = (layer.name === 'Portals' || layer.name === 'Warps' || layer.name === 'Doors');
       const isSignLayer = (layer.name === 'Points of interest' || layer.name === 'Signs');
+      const isZoneLayer = (layer.name === 'Zones' || layer.name === 'Regiões');
+      const isSpawnLayer = (layer.name === 'PokemonSpawns' || layer.name === 'Spawns' || layer.name === 'Encounters');
+      const isNpcLayer = (layer.name === 'NPCs');
 
       for (const obj of layer.objects) {
+        if (isNpcLayer) {
+          this._drawNpcObject(obj);
+          continue;
+        }
+
         if (isPortalLayer) {
           this._drawSinglePortal(obj);
           continue;
@@ -827,6 +843,16 @@ export default class EditorScene extends Phaser.Scene {
 
         if (isSignLayer || (obj.properties && (this._readProps(obj.properties).dialogue || this._readProps(obj.properties).text))) {
           this._drawSignObject(obj, layer.name);
+          continue;
+        }
+
+        if (isZoneLayer) {
+          this._drawZoneObject(obj);
+          continue;
+        }
+
+        if (isSpawnLayer) {
+          this._drawSpawnObject(obj);
           continue;
         }
 
@@ -925,6 +951,270 @@ export default class EditorScene extends Phaser.Scene {
     }
   }
 
+  _drawZoneObject(obj) {
+    const props = this._readProps(obj.properties);
+    const status = props.status || 'pending';
+    const customColor = props.color;
+    const w = obj.width || 64;
+    const h = obj.height || 64;
+
+    let statusColor = 0xffb300; // default pending amber/yellow
+    if (status === 'completed' || status === 'concluido' || status === 'ready') {
+      statusColor = 0x00e676; // green
+    } else if (status === 'pending' || status === 'pendente') {
+      statusColor = 0xffb300; // yellow/amber
+    }
+
+    if (customColor) {
+      if (typeof customColor === 'string' && customColor.startsWith('#')) {
+        statusColor = parseInt(customColor.replace('#', '0x'), 16);
+      } else if (typeof customColor === 'number') {
+        statusColor = customColor;
+      }
+    }
+
+    this.objectGraphics.fillStyle(statusColor, 0.15);
+    this.objectGraphics.lineStyle(2.5, statusColor, 0.95);
+    this.objectGraphics.fillRect(obj.x, obj.y, w, h);
+    this.objectGraphics.strokeRect(obj.x, obj.y, w, h);
+
+    if (this.selectedObject && this.selectedObject.id === obj.id) {
+      this.objectGraphics.lineStyle(3.5, 0xffffff, 1);
+      this.objectGraphics.strokeRect(obj.x - 3, obj.y - 3, w + 6, h + 6);
+    }
+  }
+
+  _drawSpawnObject(obj) {
+    const props = this._readProps(obj.properties);
+    const method = props.encounterType || props.method || 'grass';
+
+    const w = obj.width || 64;
+    const h = obj.height || 64;
+
+    let methodColor = 0x00e676;
+    if (method === 'water' || method === 'surf') methodColor = 0x00b0ff;
+    else if (method === 'fishing' || method === 'pesca') methodColor = 0xffab00;
+    else if (method === 'cave' || method === 'rock') methodColor = 0xb0bec5;
+
+    this.objectGraphics.fillStyle(methodColor, 0.22);
+    this.objectGraphics.lineStyle(2.5, methodColor, 0.95);
+    this.objectGraphics.fillRect(obj.x, obj.y, w, h);
+    this.objectGraphics.strokeRect(obj.x, obj.y, w, h);
+
+    if (this.selectedObject && this.selectedObject.id === obj.id) {
+      this.objectGraphics.lineStyle(3, 0xffffff, 1);
+      this.objectGraphics.strokeRect(obj.x - 3, obj.y - 3, w + 6, h + 6);
+    }
+  }
+
+  _drawNpcObject(obj) {
+    const props = this._readProps(obj.properties);
+    const name = props.name || obj.name || 'NPC';
+    const npcType = props.npcType || props.type || 'dialogue';
+    const direction = props.direction || 'down';
+
+    const w = 32;
+    const h = 48;
+    const ox = obj.x;
+    const oy = obj.y;
+    const rx = ox - 16;
+    const ry = oy - 34;
+
+    let color = 0x00e5ff; // dialogue cyan
+    if (npcType === 'starter_oak') color = 0xffd700; // oak gold
+    else if (npcType === 'battle') color = 0xff1744; // battle red
+    else if (npcType === 'shop') color = 0x00e676; // shop emerald
+
+    // NPC Shadow Ellipse at feet
+    this.objectGraphics.fillStyle(0x000000, 0.4);
+    this.objectGraphics.fillEllipse(ox, oy, 24, 10);
+
+    // NPC 32x48 Box
+    this.objectGraphics.fillStyle(color, 0.25);
+    this.objectGraphics.lineStyle(2, color, 0.95);
+    this.objectGraphics.fillRect(rx, ry, w, h);
+    this.objectGraphics.strokeRect(rx, ry, w, h);
+
+    // Head circle marker
+    this.objectGraphics.fillStyle(color, 0.9);
+    this.objectGraphics.fillCircle(ox, ry + 12, 7);
+
+    // Direction indicator
+    this.objectGraphics.lineStyle(2, 0xffffff, 1);
+    const arrowY = oy - 4;
+    if (direction === 'down') {
+      this.objectGraphics.lineBetween(ox, arrowY - 4, ox, arrowY + 6);
+      this.objectGraphics.lineBetween(ox - 3, arrowY + 3, ox, arrowY + 6);
+      this.objectGraphics.lineBetween(ox + 3, arrowY + 3, ox, arrowY + 6);
+    } else if (direction === 'up') {
+      this.objectGraphics.lineBetween(ox, arrowY + 4, ox, arrowY - 6);
+      this.objectGraphics.lineBetween(ox - 3, arrowY - 3, ox, arrowY - 6);
+      this.objectGraphics.lineBetween(ox + 3, arrowY - 3, ox, arrowY - 6);
+    } else if (direction === 'left') {
+      this.objectGraphics.lineBetween(ox + 4, arrowY, ox - 6, arrowY);
+      this.objectGraphics.lineBetween(ox - 3, arrowY - 3, ox - 6, arrowY);
+      this.objectGraphics.lineBetween(ox - 3, arrowY + 3, ox - 6, arrowY);
+    } else if (direction === 'right') {
+      this.objectGraphics.lineBetween(ox - 4, arrowY, ox + 6, arrowY);
+      this.objectGraphics.lineBetween(ox + 3, arrowY - 3, ox + 6, arrowY);
+      this.objectGraphics.lineBetween(ox + 3, arrowY + 3, ox + 6, arrowY);
+    }
+
+    if (this.selectedObject && this.selectedObject.id === obj.id) {
+      this.objectGraphics.lineStyle(3, 0xffffff, 1);
+      this.objectGraphics.strokeRect(rx - 3, ry - 3, w + 6, h + 6);
+    }
+  }
+
+  findNpcAt(worldX, worldY) {
+    if (!this.mapJsonData) return null;
+    const npcLayer = this.mapJsonData.layers.find(l => l.name === 'NPCs' && l.type === 'objectgroup');
+    if (!npcLayer || !npcLayer.objects) return null;
+    for (const obj of npcLayer.objects) {
+      const ox = obj.x;
+      const oy = obj.y;
+      if (worldX >= ox - 18 && worldX <= ox + 18 && worldY >= oy - 36 && worldY <= oy + 12) {
+        return { ...obj, layerName: npcLayer.name };
+      }
+    }
+    return null;
+  }
+
+  addNpcObject(x, y, name = 'Novo NPC', spriteKey = 'npc_boy', direction = 'down', npcType = 'dialogue', dialogue = ['Olá, treinador!'], extraProps = {}) {
+    const npcLayer = this._getOrCreateObjectLayer('NPCs');
+    const newNpc = {
+      id: Date.now(),
+      name: name,
+      type: npcType,
+      x: x,
+      y: y,
+      width: 32,
+      height: 48,
+      properties: [
+        { name: 'name', value: name },
+        { name: 'spriteKey', value: spriteKey },
+        { name: 'direction', value: direction },
+        { name: 'npcType', value: npcType },
+        { name: 'dialogue', value: typeof dialogue === 'string' ? dialogue : JSON.stringify(dialogue) }
+      ]
+    };
+
+    if (extraProps.visionRange !== undefined) {
+      newNpc.properties.push({ name: 'visionRange', value: Number(extraProps.visionRange) });
+    }
+    if (extraProps.rewardMoney !== undefined) {
+      newNpc.properties.push({ name: 'rewardMoney', value: Number(extraProps.rewardMoney) });
+    }
+    if (extraProps.rewardExp !== undefined) {
+      newNpc.properties.push({ name: 'rewardExp', value: Number(extraProps.rewardExp) });
+    }
+    if (extraProps.cooldown !== undefined) {
+      newNpc.properties.push({ name: 'cooldown', value: Number(extraProps.cooldown) });
+    }
+    if (extraProps.team) {
+      newNpc.properties.push({ name: 'team', value: typeof extraProps.team === 'string' ? extraProps.team : JSON.stringify(extraProps.team) });
+    }
+    if (extraProps.winDialogue) {
+      newNpc.properties.push({ name: 'winDialogue', value: extraProps.winDialogue });
+    }
+    if (extraProps.lossDialogue) {
+      newNpc.properties.push({ name: 'lossDialogue', value: extraProps.lossDialogue });
+    }
+    if (extraProps.shopItems) {
+      newNpc.properties.push({ name: 'shopItems', value: typeof extraProps.shopItems === 'string' ? extraProps.shopItems : JSON.stringify(extraProps.shopItems) });
+    }
+
+    npcLayer.objects.push(newNpc);
+    this.selectedObject = { ...newNpc, layerName: 'NPCs' };
+    this.drawObjects();
+    if (this.onToast) this.onToast(`👤 NPC "${name}" posicionado em [${x}, ${y}]!`, 'success');
+    return newNpc;
+  }
+
+  findZoneAt(worldX, worldY) {
+    if (!this.mapJsonData) return null;
+    const zoneLayer = this.mapJsonData.layers.find(l => (l.name === 'Zones' || l.name === 'Regiões') && l.type === 'objectgroup');
+    if (!zoneLayer || !zoneLayer.objects) return null;
+    for (const obj of zoneLayer.objects) {
+      const w = obj.width || 64;
+      const h = obj.height || 64;
+      if (worldX >= obj.x && worldX <= obj.x + w && worldY >= obj.y && worldY <= obj.y + h) {
+        return { ...obj, layerName: zoneLayer.name };
+      }
+    }
+    return null;
+  }
+
+  findSpawnAt(worldX, worldY) {
+    if (!this.mapJsonData) return null;
+    const spawnLayer = this.mapJsonData.layers.find(l => (l.name === 'PokemonSpawns' || l.name === 'Spawns' || l.name === 'Encounters') && l.type === 'objectgroup');
+    if (!spawnLayer || !spawnLayer.objects) return null;
+    for (const obj of spawnLayer.objects) {
+      const w = obj.width || 64;
+      const h = obj.height || 64;
+      if (worldX >= obj.x && worldX <= obj.x + w && worldY >= obj.y && worldY <= obj.y + h) {
+        return { ...obj, layerName: spawnLayer.name };
+      }
+    }
+    return null;
+  }
+
+  startZoneRedraw(zone) {
+    this.zoneRedrawContext = zone;
+    this.activeTool = 'zone';
+    if (this.sys.game.canvas) this.sys.game.canvas.style.cursor = 'crosshair';
+  }
+
+  addZoneTrigger(x, y, w = 128, h = 128, name = 'Nova Região', status = 'pending', type = 'city', notes = '', color = '#00e5ff') {
+    const zoneLayer = this._getOrCreateObjectLayer('Zones');
+    const newZone = {
+      id: Date.now(),
+      name: name,
+      type: 'zone',
+      x: x,
+      y: y,
+      width: w,
+      height: h,
+      properties: [
+        { name: 'name', value: name },
+        { name: 'status', value: status },
+        { name: 'zoneType', value: type },
+        { name: 'notes', value: notes },
+        { name: 'color', value: color }
+      ]
+    };
+    zoneLayer.objects.push(newZone);
+    this.selectedObject = { ...newZone, layerName: 'Zones' };
+    this.drawObjects();
+    if (this.onToast) this.onToast(`Zona "${name}" criada em [${x}, ${y}] (${w}x${h})!`, 'success');
+    return newZone;
+  }
+
+  addSpawnTrigger(x, y, w = 128, h = 128, name = 'Área de Spawn', encounterType = 'grass', pokemonList = [], highIvChance = 0, shinyBonus = 1, weatherInfluence = []) {
+    const spawnLayer = this._getOrCreateObjectLayer('PokemonSpawns');
+    const newSpawn = {
+      id: Date.now(),
+      name: name,
+      type: 'pokemon_spawn',
+      x: x,
+      y: y,
+      width: w,
+      height: h,
+      properties: [
+        { name: 'encounterType', value: encounterType },
+        { name: 'pokemonList', value: typeof pokemonList === 'string' ? pokemonList : JSON.stringify(pokemonList) },
+        { name: 'highIvChance', value: highIvChance },
+        { name: 'shinyBonus', value: shinyBonus },
+        { name: 'weatherInfluence', value: typeof weatherInfluence === 'string' ? weatherInfluence : JSON.stringify(weatherInfluence) }
+      ]
+    };
+    spawnLayer.objects.push(newSpawn);
+    this.selectedObject = { ...newSpawn, layerName: 'PokemonSpawns' };
+    this.drawObjects();
+    if (this.onToast) this.onToast(`🐉 Área de Spawn "${name}" criada em [${x}, ${y}]!`, 'success');
+    return newSpawn;
+  }
+
   findPortalAt(worldX, worldY) {
     if (!this.mapJsonData) return null;
     const portalLayer = this.mapJsonData.layers.find(l => (l.name === 'Portals' || l.name === 'Warps' || l.name === 'Doors') && l.type === 'objectgroup');
@@ -962,12 +1252,31 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   cancelPortalMarking() {
+    if (this.isDrawingPortalDestination) {
+      this.stopDrawingPortalDestination();
+      document.getElementById('portal-picker-bar')?.classList.add('hidden');
+      if (this.onToast) this.onToast('🚫 Desenho do portal de destino cancelado.', 'info');
+    }
     if (this.isMarkingPortal) {
       this.isMarkingPortal = false;
       this.portalDragStart = null;
       this.cursorGraphics.clear();
       if (this.onToast) this.onToast('🚫 Marcação de teleporte cancelada.', 'info');
     }
+  }
+
+  startDrawingPortalDestination(context) {
+    this.isDrawingPortalDestination = true;
+    this.portalPairContext = context;
+    this.activeTool = 'link';
+    if (this.sys.game.canvas) this.sys.game.canvas.style.cursor = 'crosshair';
+  }
+
+  stopDrawingPortalDestination() {
+    this.isDrawingPortalDestination = false;
+    this.portalPairContext = null;
+    if (this.cursorGraphics) this.cursorGraphics.clear();
+    if (this.sys.game.canvas) this.sys.game.canvas.style.cursor = 'default';
   }
 
   startPortalTargetPicking(context) {
@@ -1038,6 +1347,42 @@ export default class EditorScene extends Phaser.Scene {
       for (let y = boxY + tileH; y < boxY + boxH; y += tileH) {
         this.cursorGraphics.lineBetween(boxX, y, boxX + boxW, y);
       }
+      return;
+    }
+
+    if (this.isMarkingZone && this.zoneDragStart) {
+      const minTileX = Math.max(0, Math.min(this.zoneDragStart.tileX, tileX));
+      const maxTileX = Math.min(this.map.width - 1, Math.max(this.zoneDragStart.tileX, tileX));
+      const minTileY = Math.max(0, Math.min(this.zoneDragStart.tileY, tileY));
+      const maxTileY = Math.min(this.map.height - 1, Math.max(this.zoneDragStart.tileY, tileY));
+
+      const boxX = minTileX * tileW;
+      const boxY = minTileY * tileH;
+      const boxW = (maxTileX - minTileX + 1) * tileW;
+      const boxH = (maxTileY - minTileY + 1) * tileH;
+
+      this.cursorGraphics.fillStyle(0x00e5ff, 0.35);
+      this.cursorGraphics.fillRect(boxX, boxY, boxW, boxH);
+      this.cursorGraphics.lineStyle(2.5, 0x00e5ff, 1);
+      this.cursorGraphics.strokeRect(boxX, boxY, boxW, boxH);
+      return;
+    }
+
+    if (this.isMarkingSpawn && this.spawnDragStart) {
+      const minTileX = Math.max(0, Math.min(this.spawnDragStart.tileX, tileX));
+      const maxTileX = Math.min(this.map.width - 1, Math.max(this.spawnDragStart.tileX, tileX));
+      const minTileY = Math.max(0, Math.min(this.spawnDragStart.tileY, tileY));
+      const maxTileY = Math.min(this.map.height - 1, Math.max(this.spawnDragStart.tileY, tileY));
+
+      const boxX = minTileX * tileW;
+      const boxY = minTileY * tileH;
+      const boxW = (maxTileX - minTileX + 1) * tileW;
+      const boxH = (maxTileY - minTileY + 1) * tileH;
+
+      this.cursorGraphics.fillStyle(0x00e676, 0.35);
+      this.cursorGraphics.fillRect(boxX, boxY, boxW, boxH);
+      this.cursorGraphics.lineStyle(2.5, 0x00e676, 1);
+      this.cursorGraphics.strokeRect(boxX, boxY, boxW, boxH);
       return;
     }
 
@@ -1161,6 +1506,17 @@ export default class EditorScene extends Phaser.Scene {
       this.cursorGraphics.fillRect(snapX, snapY, tileW, tileH);
       this.cursorGraphics.strokeRect(snapX, snapY, tileW, tileH);
       return;
+    } else if (this.activeTool === 'npc') {
+      // NPC Placement indicator (32x48 box standing at snap center)
+      const npcX = snapX;
+      const npcY = snapY - 18;
+      this.cursorGraphics.lineStyle(2, 0x00e5ff, 1);
+      this.cursorGraphics.fillStyle(0x00e5ff, 0.35);
+      this.cursorGraphics.fillRect(npcX, npcY, 32, 48);
+      this.cursorGraphics.strokeRect(npcX, npcY, 32, 48);
+      this.cursorGraphics.fillStyle(0xffffff, 0.9);
+      this.cursorGraphics.fillCircle(snapX + tileW / 2, npcY + 12, 6);
+      return;
     } else {
       this.cursorGraphics.lineStyle(2, 0xffffff, 0.9);
       this.cursorGraphics.fillStyle(0xffffff, 0.1);
@@ -1213,8 +1569,14 @@ export default class EditorScene extends Phaser.Scene {
         return;
       }
 
-      // Eraser tool: check if clicking on existing sign or portal to delete
+      // Eraser tool: check if clicking on existing sign, portal or npc to delete
       if (this.activeTool === 'eraser') {
+        const existingNpc = this.findNpcAt(worldPoint.x, worldPoint.y);
+        if (existingNpc) {
+          this.deleteObject(existingNpc);
+          if (this.onToast) this.onToast(`🗑️ NPC "${existingNpc.name || 'NPC'}" apagado!`, 'info');
+          return;
+        }
         const existingSign = this.findSignAt(worldPoint.x, worldPoint.y);
         if (existingSign) {
           this.deleteObject(existingSign);
@@ -1229,12 +1591,54 @@ export default class EditorScene extends Phaser.Scene {
         }
       }
 
-      // Check if clicking on an existing sign on the map (when using sign or object tool)
-      const existingSign = this.findSignAt(worldPoint.x, worldPoint.y);
-      if (existingSign && (this.activeTool === 'sign' || this.activeTool === 'object')) {
-        this.selectedObject = existingSign;
+      // Check if clicking on existing NPC
+      const existingNpc = this.findNpcAt(worldPoint.x, worldPoint.y);
+      if (existingNpc && (this.activeTool === 'npc' || this.activeTool === 'object')) {
+        this.selectedObject = existingNpc;
         this.drawObjects();
-        if (this.onSignSelected) this.onSignSelected(this.selectedObject);
+        if (this.onNpcSelected) this.onNpcSelected(this.selectedObject);
+        return;
+      }
+
+      // NPC Tool: place new NPC if clicking empty space
+      if (this.activeTool === 'npc') {
+        const snapX = Math.floor(worldPoint.x / tileW) * tileW + tileW / 2;
+        const snapY = Math.floor(worldPoint.y / tileH) * tileH + tileH / 2;
+        const newNpc = this.addNpcObject(snapX, snapY, 'Novo NPC', 'npc_boy', 'down', 'dialogue', ['Olá, treinador!']);
+        if (this.onNpcSelected) this.onNpcSelected({ ...newNpc, layerName: 'NPCs' });
+        return;
+      }
+
+      // Check if clicking on existing zone or spawn
+      const existingZone = this.findZoneAt(worldPoint.x, worldPoint.y);
+      if (existingZone && (this.activeTool === 'zone' || this.activeTool === 'object')) {
+        this.selectedObject = existingZone;
+        this.drawObjects();
+        if (this.onZoneSelected) this.onZoneSelected(this.selectedObject);
+        return;
+      }
+
+      const existingSpawn = this.findSpawnAt(worldPoint.x, worldPoint.y);
+      if (existingSpawn && (this.activeTool === 'spawn' || this.activeTool === 'object')) {
+        this.selectedObject = existingSpawn;
+        this.drawObjects();
+        if (this.onSpawnSelected) this.onSpawnSelected(this.selectedObject);
+        return;
+      }
+
+      // Zone: drag box tool
+      if (this.activeTool === 'zone') {
+        this.isMarkingZone = true;
+        this.zoneDragStart = { tileX, tileY, startX: worldPoint.x, startY: worldPoint.y, existingZone };
+        this.updateCursor(worldPoint.x, worldPoint.y);
+        return;
+      }
+
+      // Spawn: drag box tool
+      if (this.activeTool === 'spawn') {
+        this.isMarkingSpawn = true;
+        this.spawnDragStart = { tileX, tileY, startX: worldPoint.x, startY: worldPoint.y, existingSpawn };
+        this.updateCursor(worldPoint.x, worldPoint.y);
         return;
       }
 
@@ -1339,6 +1743,31 @@ export default class EditorScene extends Phaser.Scene {
 
       const dist = Phaser.Math.Distance.Between(this.portalDragStart.startX, this.portalDragStart.startY, worldPoint.x, worldPoint.y);
 
+      // Two-way portal linking: Destination area marked!
+      if (this.isDrawingPortalDestination && this.portalPairContext) {
+        const minTileX = Math.max(0, Math.min(this.portalDragStart.tileX, curTileX));
+        const maxTileX = Math.min(this.map.width - 1, Math.max(this.portalDragStart.tileX, curTileX));
+        const minTileY = Math.max(0, Math.min(this.portalDragStart.tileY, curTileY));
+        const maxTileY = Math.min(this.map.height - 1, Math.max(this.portalDragStart.tileY, curTileY));
+
+        const boxX = minTileX * tileW;
+        const boxY = minTileY * tileH;
+        const boxW = (maxTileX - minTileX + 1) * tileW;
+        const boxH = (maxTileY - minTileY + 1) * tileH;
+
+        const destBox = { x: boxX, y: boxY, width: boxW, height: boxH };
+        const ctx = this.portalPairContext;
+        this.stopDrawingPortalDestination();
+        this.isMarkingPortal = false;
+        this.portalDragStart = null;
+        this.updateCursor(worldPoint.x, worldPoint.y);
+
+        if (this.onPortalPairCompleted) {
+          this.onPortalPairCompleted(destBox, ctx);
+        }
+        return;
+      }
+
       // If clicked without dragging on an existing portal, select it
       if (dist < 8 && this.portalDragStart.existingPortal) {
         this.selectedObject = this.portalDragStart.existingPortal;
@@ -1363,7 +1792,7 @@ export default class EditorScene extends Phaser.Scene {
           if (this.onPortalSelected) this.onPortalSelected(this.selectedObject);
         } else {
           // Create the teleporte with the marked grid area (1 or more grids)
-          const targetRoom = (this.currentMapName === 'pallet_town') ? 'route_1' : 'pallet_town';
+          const targetRoom = (this.currentMapName === 'pallet_oak_lab') ? 'kanto' : (this.currentMapName === 'kanto' ? 'pallet_oak_lab' : 'kanto');
           const newPortal = this.addPortalTrigger(boxX, boxY, boxW, boxH, targetRoom, 0, 0, 'Novo Portal');
           if (this.onPortalSelected) this.onPortalSelected({ ...newPortal, layerName: 'Portals' });
         }
@@ -1371,6 +1800,95 @@ export default class EditorScene extends Phaser.Scene {
 
       this.isMarkingPortal = false;
       this.portalDragStart = null;
+      this.updateCursor(worldPoint.x, worldPoint.y);
+    }
+
+    if (this.isMarkingZone && this.zoneDragStart) {
+      const worldPoint = pointer.positionToCamera(this.cameras.main);
+      const tileW = this.map.tileWidth || 32;
+      const tileH = this.map.tileHeight || 32;
+      const curTileX = Math.floor(worldPoint.x / tileW);
+      const curTileY = Math.floor(worldPoint.y / tileH);
+      const dist = Phaser.Math.Distance.Between(this.zoneDragStart.startX, this.zoneDragStart.startY, worldPoint.x, worldPoint.y);
+
+      const minTileX = Math.max(0, Math.min(this.zoneDragStart.tileX, curTileX));
+      const maxTileX = Math.min(this.map.width - 1, Math.max(this.zoneDragStart.tileX, curTileX));
+      const minTileY = Math.max(0, Math.min(this.zoneDragStart.tileY, curTileY));
+      const maxTileY = Math.min(this.map.height - 1, Math.max(this.zoneDragStart.tileY, curTileY));
+
+      const boxX = minTileX * tileW;
+      const boxY = minTileY * tileH;
+      const boxW = Math.max(tileW, (maxTileX - minTileX + 1) * tileW);
+      const boxH = Math.max(tileH, (maxTileY - minTileY + 1) * tileH);
+
+      if (this.zoneRedrawContext) {
+        const target = this.zoneRedrawContext;
+        target.x = boxX;
+        target.y = boxY;
+        target.width = boxW;
+        target.height = boxH;
+
+        const zoneLayer = this._getOrCreateObjectLayer('Zones');
+        if (zoneLayer && zoneLayer.objects) {
+          const matchObj = zoneLayer.objects.find(o => o.id === target.id || (o.x === target.x && o.y === target.y));
+          if (matchObj) {
+            matchObj.x = boxX;
+            matchObj.y = boxY;
+            matchObj.width = boxW;
+            matchObj.height = boxH;
+          }
+        }
+        this.selectedObject = target;
+        this.drawObjects();
+        if (this.onZoneSelected) this.onZoneSelected(target);
+        this.zoneRedrawContext = null;
+      } else if (dist < 8 && this.zoneDragStart.existingZone) {
+        this.selectedObject = this.zoneDragStart.existingZone;
+        this.drawObjects();
+        if (this.onZoneSelected) this.onZoneSelected(this.selectedObject);
+      } else {
+        const newZone = this.addZoneTrigger(boxX, boxY, boxW, boxH, 'Nova Região', 'pending', 'city', '', '#00e5ff');
+        if (this.onZoneSelected) this.onZoneSelected({ ...newZone, layerName: 'Zones' });
+      }
+      this.isMarkingZone = false;
+      this.zoneDragStart = null;
+      this.updateCursor(worldPoint.x, worldPoint.y);
+    }
+
+    if (this.isMarkingSpawn && this.spawnDragStart) {
+      const worldPoint = pointer.positionToCamera(this.cameras.main);
+      const tileW = this.map.tileWidth || 32;
+      const tileH = this.map.tileHeight || 32;
+      const curTileX = Math.floor(worldPoint.x / tileW);
+      const curTileY = Math.floor(worldPoint.y / tileH);
+      const dist = Phaser.Math.Distance.Between(this.spawnDragStart.startX, this.spawnDragStart.startY, worldPoint.x, worldPoint.y);
+
+      if (dist < 8 && this.spawnDragStart.existingSpawn) {
+        this.selectedObject = this.spawnDragStart.existingSpawn;
+        this.drawObjects();
+        if (this.onSpawnSelected) this.onSpawnSelected(this.selectedObject);
+      } else {
+        const minTileX = Math.max(0, Math.min(this.spawnDragStart.tileX, curTileX));
+        const maxTileX = Math.min(this.map.width - 1, Math.max(this.spawnDragStart.tileX, curTileX));
+        const minTileY = Math.max(0, Math.min(this.spawnDragStart.tileY, curTileY));
+        const maxTileY = Math.min(this.map.height - 1, Math.max(this.spawnDragStart.tileY, curTileY));
+
+        const boxX = minTileX * tileW;
+        const boxY = minTileY * tileH;
+        const boxW = Math.max(tileW, (maxTileX - minTileX + 1) * tileW);
+        const boxH = Math.max(tileH, (maxTileY - minTileY + 1) * tileH);
+
+        const defaultPokemon = [
+          { speciesId: 16, speciesName: 'PIDGEY', weight: 45, minLevel: 2, maxLevel: 5 },
+          { speciesId: 19, speciesName: 'RATTATA', weight: 45, minLevel: 2, maxLevel: 4 },
+          { speciesId: 25, speciesName: 'PIKACHU', weight: 10, minLevel: 3, maxLevel: 5 }
+        ];
+
+        const newSpawn = this.addSpawnTrigger(boxX, boxY, boxW, boxH, 'Nova Área de Spawn', 'grass', defaultPokemon, 5, 1, []);
+        if (this.onSpawnSelected) this.onSpawnSelected({ ...newSpawn, layerName: 'PokemonSpawns' });
+      }
+      this.isMarkingSpawn = false;
+      this.spawnDragStart = null;
       this.updateCursor(worldPoint.x, worldPoint.y);
     }
 
@@ -1480,7 +1998,7 @@ export default class EditorScene extends Phaser.Scene {
         if (g && g > 0) {
           foundGid = g;
           targetLayer = lName;
-          this.activeLayerName = lName;
+          // Preservar a camada ativa do usuário (não sobrescrever this.activeLayerName)
           break;
         }
       }

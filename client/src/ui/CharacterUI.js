@@ -172,8 +172,18 @@ export default class CharacterUI {
   }
 
   async handleCreateCharacter(e) {
-    e.preventDefault();
+    if (e) e.preventDefault();
+    if (this.isCreatingChar) return;
+
     this.charCreateError.innerText = '';
+    this.isCreatingChar = true;
+
+    const submitBtn = this.formCreateChar.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn ? submitBtn.innerText : 'Confirmar & Iniciar Jornada';
+    if (submitBtn) {
+      submitBtn.setAttribute('disabled', 'true');
+      submitBtn.innerHTML = '<span class="btn-spinner"></span> Criando...';
+    }
 
     const name = document.getElementById('new-char-name').value;
 
@@ -207,10 +217,18 @@ export default class CharacterUI {
       this.handleEnterWorld();
     } catch (err) {
       this.charCreateError.innerText = err.message;
+    } finally {
+      this.isCreatingChar = false;
+      if (submitBtn) {
+        submitBtn.removeAttribute('disabled');
+        submitBtn.innerText = originalBtnText;
+      }
     }
   }
 
   handleEnterWorld() {
+    if (this.isEnteringWorld) return;
+
     if (!this.selectedCharId) {
       this.charSelectError.innerText = 'Selecione ou crie um personagem primeiro!';
       return;
@@ -219,11 +237,22 @@ export default class CharacterUI {
     const char = this.characters.find(c => c.id === this.selectedCharId);
     if (!char) return;
 
+    this.isEnteringWorld = true;
+    if (this.btnEnterWorld) {
+      this.btnEnterWorld.setAttribute('disabled', 'true');
+      this.btnEnterWorld.innerHTML = '<span class="btn-spinner"></span> Entrando...';
+    }
+
     this.hide();
     this.onEnterGame(char, this.token);
   }
 
   show() {
+    this.isEnteringWorld = false;
+    if (this.btnEnterWorld) {
+      this.btnEnterWorld.removeAttribute('disabled');
+      this.btnEnterWorld.innerText = 'Entrar no Mundo';
+    }
     this.charScreen.classList.remove('hidden');
     this.charListCard.style.display = 'block';
     this.charCreateCard.style.display = 'none';

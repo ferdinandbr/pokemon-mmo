@@ -33,7 +33,10 @@ export default class RemotePlayer extends Phaser.GameObjects.Container {
     this.sprite.setOrigin(0.5, 0.5);
     this.add(this.sprite);
 
-    // 3. Name Tag
+    // 3. Overhead Container (name tag & speech bubble rendered above all world layers & weather)
+    this.overheadContainer = scene.add.container(x, y);
+    this.overheadContainer.setDepth(PLAYER_VISUAL.nametagBaseDepth + y / 10000);
+
     const nameColor = this.gender === 'female' ? '#f472b6' : '#7dd3fc';
     this.nameTag = scene.add.text(0, PLAYER_VISUAL.nameY, this.name, {
       fontFamily: "'Outfit', 'Roboto', sans-serif",
@@ -45,17 +48,18 @@ export default class RemotePlayer extends Phaser.GameObjects.Container {
       align: 'center',
       resolution: 3
     }).setOrigin(0.5, 0.5);
-    this.add(this.nameTag);
+    this.overheadContainer.add(this.nameTag);
 
     // 4. Speech Bubble
     this.bubbleContainer = scene.add.container(0, PLAYER_VISUAL.bubbleY);
     this.bubbleContainer.setVisible(false);
-    this.add(this.bubbleContainer);
+    this.overheadContainer.add(this.bubbleContainer);
 
     this.speechTimer = null;
 
     scene.add.existing(this);
     this.setDepth(100 + y / 10000);
+    this.updateOverhead();
     this.playIdle();
   }
 
@@ -96,6 +100,7 @@ export default class RemotePlayer extends Phaser.GameObjects.Container {
     }
 
     this.setDepth(100 + this.y / 10000);
+    this.updateOverhead();
   }
 
   playIdle() {
@@ -143,5 +148,53 @@ export default class RemotePlayer extends Phaser.GameObjects.Container {
     this.speechTimer = this.scene.time.delayedCall(4500, () => {
       this.bubbleContainer.setVisible(false);
     });
+  }
+
+  updateOverhead() {
+    if (!this.overheadContainer || !this.overheadContainer.active) return;
+    this.overheadContainer.setPosition(Math.round(this.x), Math.round(this.y));
+    this.overheadContainer.setDepth(PLAYER_VISUAL.nametagBaseDepth + this.y / 10000);
+    this.overheadContainer.setVisible(this.visible);
+  }
+
+  setPosition(x, y, z, w) {
+    super.setPosition(x, y, z, w);
+    this.updateOverhead();
+    return this;
+  }
+
+  setVisible(value) {
+    super.setVisible(value);
+    if (this.overheadContainer) {
+      this.overheadContainer.setVisible(value);
+    }
+    return this;
+  }
+
+  setAlpha(value) {
+    super.setAlpha(value);
+    if (this.overheadContainer) {
+      this.overheadContainer.setAlpha(value);
+    }
+    return this;
+  }
+
+  setName(name) {
+    this.name = name;
+    if (this.nameTag) {
+      this.nameTag.setText(name);
+    }
+  }
+
+  destroy(fromScene) {
+    if (this.speechTimer) {
+      this.speechTimer.remove();
+      this.speechTimer = null;
+    }
+    if (this.overheadContainer) {
+      this.overheadContainer.destroy(true);
+      this.overheadContainer = null;
+    }
+    super.destroy(fromScene);
   }
 }

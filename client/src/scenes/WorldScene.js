@@ -12,6 +12,9 @@ import FlowerAnimationManager from '../systems/FlowerAnimationManager';
 import WeatherManager from '../systems/WeatherManager';
 import FollowerPokemon from '../entities/FollowerPokemon';
 import bgmManager from '../audio/BGMManager';
+import NPC from '../entities/NPC';
+import StarterSelectionUI from '../ui/StarterSelectionUI';
+import ShopUI from '../ui/ShopUI';
 
 const LAYER_DEPTHS = {
   Water: 10,
@@ -24,6 +27,7 @@ const LAYER_DEPTHS = {
   Building: 40,
   Buildings: 40,
   Objects: 50,
+  'Objects 2': 55,
   Trees: 60,
   Tress: 60,
   Collision: 90000,
@@ -54,8 +58,11 @@ export default class WorldScene extends Phaser.Scene {
     this.remoteFollowers = new Map(); // socketId -> FollowerPokemon
 
     this.currentMap = null;
+    this.currentMapKey = null;
+    this.kantoCache = null;
     this.mapLayers = new Map();
     this.collisionLayers = [];
+    this._encounterZonesDbCache = new Map();
 
     this.obstacleGroup = null;
     this.zones = [];
@@ -70,6 +77,13 @@ export default class WorldScene extends Phaser.Scene {
     this.dialogueBox = new DialogueBox();
     this._signs = [];
     this.nearbySign = null;
+
+    // NPC System & Modals
+    this.npcs = new Map(); // npcId -> NPC
+    this.nearbyNpc = null;
+    this.starterSelectionUI = null;
+    this.shopUI = null;
+    this.hasChosenStarter = false;
 
     // Tall grass immersion & rustle system
     this.tallGrassManager = new TallGrassManager(this);
@@ -90,6 +104,10 @@ export default class WorldScene extends Phaser.Scene {
     }
 
     this.obstacleGroup = this.physics.add.staticGroup();
+
+    // UI Managers for NPCs
+    this.starterSelectionUI = new StarterSelectionUI(this);
+    this.shopUI = new ShopUI(this);
 
     // Day & Night cycle system
     this.dayNightManager = new DayNightManager(this);
@@ -122,6 +140,21 @@ export default class WorldScene extends Phaser.Scene {
         this.weatherManager.destroy();
         this.weatherManager = null;
       }
+      if (this.kantoCache) {
+        if (this.kantoCache.map && this.kantoCache.map !== this.currentMap) {
+          this.kantoCache.map.destroy();
+        }
+        this.kantoCache = null;
+      }
+    });
+
+    this.events.on('destroy', () => {
+      if (this.kantoCache) {
+        if (this.kantoCache.map && this.kantoCache.map !== this.currentMap) {
+          this.kantoCache.map.destroy();
+        }
+        this.kantoCache = null;
+      }
     });
 
     // Clean up any legacy interact prompt if in DOM
@@ -145,6 +178,23 @@ export default class WorldScene extends Phaser.Scene {
       if (!pointer.leftButtonDown()) return;
 
       const worldPoint = pointer.positionToCamera(this.cameras.main);
+
+      // Check click directly on an NPC
+      if (this.npcs && this.npcs.size > 0 && this.localPlayer) {
+        for (const npc of this.npcs.values()) {
+          if (!npc || !npc.active) continue;
+          const dist = Phaser.Math.Distance.Between(this.localPlayer.x, this.localPlayer.y, npc.x, npc.y);
+          if (dist <= 100) {
+            const bounds = new Phaser.Geom.Rectangle(npc.x - 24, npc.y - 32, 48, 64);
+            if (bounds.contains(worldPoint.x, worldPoint.y)) {
+              this.nearbyNpc = npc;
+              this._handleInteract();
+              return;
+            }
+          }
+        }
+      }
+
       if (this._signs && this._signs.length > 0) {
         for (const sign of this._signs) {
           const sw = sign.width || 32;
@@ -179,6 +229,7 @@ export default class WorldScene extends Phaser.Scene {
     this.scale.on('resize', (gameSize) => {
       if (this.cameras.main) {
         this.cameras.main.setViewport(0, 0, gameSize.width, gameSize.height);
+        this._updateCameraBounds();
       }
     });
 
@@ -200,6 +251,12 @@ export default class WorldScene extends Phaser.Scene {
         if (this.nearbySign) {
           e.preventDefault();
           this._handleInteract();
+          return;
+        }
+        if (this.nearbyNpc && !this.isTransitioning && (!this.battleUI || !this.battleUI.isOpen)) {
+          e.preventDefault();
+          this._handleInteract();
+          return;
         }
       }
     });
@@ -218,6 +275,9 @@ export default class WorldScene extends Phaser.Scene {
     SocketClient.on('battle:start_failed', () => { this.isWildBattleTriggered = false; });
     SocketClient.on('pokemon:data_response', (d) => {
       if (d && d.success) {
+        if (Array.isArray(d.party) && d.party.length > 0) {
+          this.hasChosenStarter = true;
+        }
         this.checkLocalBuddyState(d.activeBuddy, d.party);
       }
     });
@@ -227,6 +287,7 @@ export default class WorldScene extends Phaser.Scene {
       if (this.localPlayer) {
         this.localPlayer.x = Math.round(this.localPlayer.x);
         this.localPlayer.y = Math.round(this.localPlayer.y);
+        this.localPlayer.updateOverhead?.();
 
         if (this.localFollower && this.localFollower.active) {
           const dt = delta || this.game.loop.delta || 16.666;
@@ -288,6 +349,13 @@ export default class WorldScene extends Phaser.Scene {
       return;
     }
 
+    // Não inicia batalha se o jogador ainda não possui nenhum Pokémon na equipe
+    const party = this.partyHUDUI?.party || window._partyHUDUI?.party || this.pokemonStorageUI?.party || window._pokemonStorageUI?.party || [];
+    const hasAnyPokemon = (Array.isArray(party) && party.length > 0) || Boolean(this.hasChosenStarter) || Boolean(this.localFollower?.buddyData);
+    if (!hasAnyPokemon) {
+      return;
+    }
+
     // Post-battle lock: no encounter on the exact exit tile, plus short cooldown
     const nowMs = this.time?.now || 0;
     if (nowMs < (this.battleExitCooldownUntil || 0)) return;
@@ -299,13 +367,30 @@ export default class WorldScene extends Phaser.Scene {
       this.lastBattleTile = null;
     }
 
+    // Check if player is strictly within a configured spawn area
+    const px = this.localPlayer ? this.localPlayer.x : 0;
+    const py = this.localPlayer ? (this.localPlayer.y + 19) : 0;
+    const spawnZone = this._findSpawnZoneAt(px, py, 'grass');
+    if (!spawnZone) {
+      // Not inside any configured spawn zone! No encounter.
+      return;
+    }
+
+    // Must have at least 1 Pokémon configured in this zone
+    if (!Array.isArray(spawnZone.pokemonSpawns) || spawnZone.pokemonSpawns.length === 0) {
+      return;
+    }
+
     this.stepsSinceLastBattle = (this.stepsSinceLastBattle || 0) + 1;
 
-    // Grace period: first 4 steps after entering room/ending battle have no encounter
-    if (this.stepsSinceLastBattle <= 4) return;
+    // Grace period: first 3 steps in zone have no encounter
+    if (this.stepsSinceLastBattle <= 3) return;
 
-    // 12% chance per step after grace period
-    if (Math.random() < 0.12) {
+    // Base rate % from spawn zone (e.g. rate 10 = 10% chance per step)
+    const baseRatePercent = typeof spawnZone.rate === 'number' ? spawnZone.rate : 10;
+    const encounterChance = Math.min(1.0, Math.max(0.01, baseRatePercent / 100));
+
+    if (Math.random() < encounterChance) {
       this.isWildBattleTriggered = true;
       this.stepsSinceLastBattle = 0;
 
@@ -318,7 +403,12 @@ export default class WorldScene extends Phaser.Scene {
       this.cameras.main.flash(400, 255, 255, 255);
 
       this.time.delayedCall(420, () => {
-        SocketClient.emit('battle:wild_trigger');
+        SocketClient.emit('battle:wild_trigger', {
+          x: Math.round(px),
+          y: Math.round(py),
+          zoneId: spawnZone.id,
+          method: 'grass'
+        });
       });
 
       // Safety timeout: if server doesn't respond in 4s, unfreeze player
@@ -328,6 +418,33 @@ export default class WorldScene extends Phaser.Scene {
         }
       });
     }
+  }
+
+  _updateCameraBounds() {
+    if (!this.cameras?.main) return;
+    const w = this.currentMap?.widthInPixels || this.currentRoom?.width || 13056;
+    const h = this.currentMap?.heightInPixels || this.currentRoom?.height || 12800;
+
+    const cam = this.cameras.main;
+    const zoom = this.currentZoom || cam.zoom || 1.5;
+    const viewW = cam.width / zoom;
+    const viewH = cam.height / zoom;
+
+    let boundX = 0;
+    let boundY = 0;
+    let boundW = w;
+    let boundH = h;
+
+    if (w < viewW) {
+      boundX = Math.round((w - viewW) / 2);
+      boundW = Math.round(viewW);
+    }
+    if (h < viewH) {
+      boundY = Math.round((h - viewH) / 2);
+      boundH = Math.round(viewH);
+    }
+
+    cam.setBounds(boundX, boundY, boundW, boundH);
   }
 
   onPlayerInit(data) {
@@ -354,13 +471,12 @@ export default class WorldScene extends Phaser.Scene {
     this.localPlayer.setDepth(100 + startY / 10000);
     this._attachPlayerColliders(this.localPlayer);
 
-    const w = this.currentMap?.widthInPixels || this.currentRoom.width || 13056;
-    const h = this.currentMap?.heightInPixels || this.currentRoom.height || 12800;
-    this.cameras.main.setBounds(0, 0, w, h);
-    this.cameras.main.startFollow(this.localPlayer, true, 1, 1);
-    this.cameras.main.roundPixels = true;
     this.currentZoom = this.currentZoom || this.getZoomFactor();
     this.cameras.main.setZoom(this.currentZoom);
+    this.cameras.main.roundPixels = true;
+    this.cameras.main.centerOn(startX, startY);
+    this._updateCameraBounds();
+    this.cameras.main.startFollow(this.localPlayer, true, 1, 1);
 
     if (self.activeBuddy) {
       const party = (data.pokemon || []).filter(p => p.location === 'party');
@@ -369,6 +485,9 @@ export default class WorldScene extends Phaser.Scene {
 
     this._clearRemotePlayers();
     for (const p of players) this._addRemotePlayer(p);
+
+    const hasAnyPokemon = Array.isArray(data.pokemon) && data.pokemon.length > 0;
+    this.hasChosenStarter = Boolean(data.hasCompletedIntro || hasAnyPokemon);
 
     this._updateHUD(this.currentZone || 'Pallet Town', self.name, data.money, self);
 
@@ -415,13 +534,14 @@ export default class WorldScene extends Phaser.Scene {
       this.localFollower.lastOwnerY = y;
     }
 
-    const w = this.currentMap?.widthInPixels || this.currentRoom.width || 1152;
-    const h = this.currentMap?.heightInPixels || this.currentRoom.height || 640;
-    this.cameras.main.setBounds(0, 0, w, h);
-    this.cameras.main.startFollow(this.localPlayer, true, 1, 1);
-    this.cameras.main.roundPixels = true;
     this.currentZoom = this.currentZoom || this.getZoomFactor();
     this.cameras.main.setZoom(this.currentZoom);
+    this.cameras.main.roundPixels = true;
+    if (this.localPlayer) {
+      this.cameras.main.centerOn(x, y);
+    }
+    this._updateCameraBounds();
+    this.cameras.main.startFollow(this.localPlayer, true, 1, 1);
 
     this._clearRemotePlayers();
     for (const p of players) this._addRemotePlayer(p);
@@ -432,7 +552,7 @@ export default class WorldScene extends Phaser.Scene {
       this.weatherManager.setWeather(finalWeather);
     }
     this.isTransitioning = false;
-    this.portalCooldown = (this.time?.now ?? 0) + 1500;
+    this.portalCooldown = (this.time?.now || performance.now()) + 2000;
   }
 
   onPlayerJoined(playerData) {
@@ -579,23 +699,38 @@ export default class WorldScene extends Phaser.Scene {
     }
     this.activeColliders = [];
 
-    // 2. Destroy previous map assets
+    const mapKey = (this.currentRoom?.tilemapKey && this.cache.tilemap.has(this.currentRoom.tilemapKey)) ? this.currentRoom.tilemapKey : 'kanto';
+    const isTargetKanto = (mapKey === 'kanto');
+
+    // 2. Destruir mapa anterior ou colocá-lo em hibernação (se for Kanto)
     if (this.tallGrassManager) {
       this.tallGrassManager.clear();
     }
-    if (this.currentMap) {
-      this.currentMap.destroy();
-      this.currentMap = null;
-    }
-    this.mapLayers.clear();
-    this.collisionLayers = [];
 
     if (this.obstacleGroup) {
       this.obstacleGroup.clear(true, true);
     }
 
-    // ── Create Tiled map ──
-    const mapKey = (this.currentRoom?.tilemapKey && this.cache.tilemap.has(this.currentRoom.tilemapKey)) ? this.currentRoom.tilemapKey : 'kanto';
+    if (this.currentMap) {
+      if (this.currentMapKey === 'kanto') {
+        // Preserva o Overworld de Kanto em cache dormindo (sem destruir suas texturas e layers)
+        this._sleepKanto();
+      } else {
+        // Interiores são mapas minúsculos e transitórios: destruir com segurança
+        this.currentMap.destroy();
+        this.currentMap = null;
+        this.mapLayers.clear();
+        this.collisionLayers = [];
+      }
+    }
+
+    // ── 3. Caminho Ultra-Rápido: Restaurar Kanto pré-carregado instantaneamente ──
+    if (isTargetKanto && this.kantoCache) {
+      this._wakeKanto();
+      return;
+    }
+
+    // ── 4. Construção inicial do mapa Tiled ──
     const map = this.make.tilemap({ key: mapKey });
     this.currentMap = map;
 
@@ -770,24 +905,23 @@ export default class WorldScene extends Phaser.Scene {
 
         if (layerName === 'Trees') {
           // Separate tree tops / canopies into a dedicated swaying layer
-          // so only the tree tops sway in the wind while trunks stay 100% stationary.
-          // In the base 'Trees' layer, we keep the tiles but hide them (alpha = 0)
-          // so that physics collision remains 100% solid and stationary across all tree tiles!
           const TREE_CANOPY_GIDS = new Set([
             689, 690, 691, 692, 693, 694, 697, 698, 699, 700,
             735, 751, 1631, 1632, 1633, 1634
           ]);
           const canopyLayer = map.createBlankLayer('Trees_Canopy', tilesetList, 0, 0);
-          if (canopyLayer) {
+          if (canopyLayer && layer.layer?.data) {
             canopyLayer.setDepth(depth);
-            const w = map.width;
-            const h = map.height;
-            for (let ty = 0; ty < h; ty++) {
-              for (let tx = 0; tx < w; tx++) {
-                const tile = layer.getTileAt(tx, ty);
+            const grid = layer.layer.data;
+            const numRows = grid.length;
+            for (let ty = 0; ty < numRows; ty++) {
+              const row = grid[ty];
+              if (!row) continue;
+              const numCols = row.length;
+              for (let tx = 0; tx < numCols; tx++) {
+                const tile = row[tx];
                 if (tile && TREE_CANOPY_GIDS.has(tile.index)) {
                   canopyLayer.putTileAt(tile.index, tx, ty);
-                  // Hide tile in base layer so it isn't rendered twice, but keep it in layer for solid collision
                   tile.alpha = 0;
                   tile.setVisible(false);
                 }
@@ -798,8 +932,8 @@ export default class WorldScene extends Phaser.Scene {
         }
 
         // Check if this layer has collision enabled
+        const hasDedicatedCollision = map.layers && map.layers.some(l => l.name === 'Collision');
         if (layerName === 'Collision') {
-          // Explicit collision mask: only solid walls and ledges collide; WALKABLE_OVERRIDE (6) is non-collidable
           layer.setCollision([
             COLLISION_TYPES.SOLID,
             COLLISION_TYPES.LEDGE_DOWN,
@@ -809,7 +943,7 @@ export default class WorldScene extends Phaser.Scene {
           ]);
           layer.setVisible(false);
           this.collisionLayers.push(layer);
-        } else if (COLLISION_LAYERS.includes(layerName)) {
+        } else if (!hasDedicatedCollision && COLLISION_LAYERS.includes(layerName)) {
           layer.setCollisionByExclusion([-1, 0]);
           this.collisionLayers.push(layer);
         }
@@ -820,16 +954,18 @@ export default class WorldScene extends Phaser.Scene {
 
     // ── Apply Walkable Overrides from Collision Layer (doorways, erased tiles, paths) ──
     const colLayer = this.mapLayers.get('Collision');
-    if (colLayer) {
-      const mapW = map.width;
-      const mapH = map.height;
-      for (let ty = 0; ty < mapH; ty++) {
-        for (let tx = 0; tx < mapW; tx++) {
-          const colTile = colLayer.getTileAt(tx, ty);
+    if (colLayer && colLayer.layer?.data) {
+      const grid = colLayer.layer.data;
+      const numRows = grid.length;
+      for (let ty = 0; ty < numRows; ty++) {
+        const row = grid[ty];
+        if (!row) continue;
+        const numCols = row.length;
+        for (let tx = 0; tx < numCols; tx++) {
+          const colTile = row[tx];
           if (colTile && colTile.index === COLLISION_TYPES.WALKABLE_OVERRIDE) {
-            // Force walkable across all collidable layers at this coordinate
             for (const cLayer of this.collisionLayers) {
-              const t = cLayer.getTileAt(tx, ty);
+              const t = cLayer.layer?.data?.[ty]?.[tx];
               if (t) {
                 t.setCollision(false, false, false, false);
               }
@@ -846,18 +982,211 @@ export default class WorldScene extends Phaser.Scene {
 
     // ── Object layers ──
     this._loadZones(map);
+    this._loadSpawns(map);
     this._loadPortals(map);
     this._loadSigns(map);
+    this._loadNPCs(map);
+
+    if (isTargetKanto) {
+      this.currentMapKey = 'kanto';
+      this._saveKantoCache();
+    } else {
+      this.currentMapKey = mapKey;
+    }
+  }
+
+  /**
+   * Coloca o mapa de Kanto em hibernação / dormência ao entrar em interiores.
+   * Oculta todas as camadas para que a GPU não gaste nenhum ciclo de renderização,
+   * mas mantém os objetos e malha de tiles prontos na memória.
+   */
+  _sleepKanto() {
+    if (!this.kantoCache) {
+      this._saveKantoCache();
+    }
+    if (this.kantoCache?.mapLayers) {
+      for (const layer of this.kantoCache.mapLayers.values()) {
+        if (layer && layer.setVisible) {
+          layer.setVisible(false);
+          layer.setActive(false);
+        }
+      }
+    }
+    if (this.kantoCache?.npcs) {
+      for (const npc of this.kantoCache.npcs.values()) {
+        if (npc && npc.setVisible) {
+          npc.setVisible(false);
+          npc.setActive(false);
+          if (npc.overheadContainer) npc.overheadContainer.setVisible(false);
+        }
+      }
+    }
+    this.currentMap = null;
+    this.currentMapKey = null;
+    this.mapLayers = new Map();
+    this.collisionLayers = [];
+    this.npcs = new Map();
+  }
+
+  /**
+   * Restaura o Overworld de Kanto em 0ms (instantaneamente) ao sair de interiores.
+   */
+  _wakeKanto() {
+    this.currentMap = this.kantoCache.map;
+    this.currentMapKey = 'kanto';
+    this.mapLayers = this.kantoCache.mapLayers;
+    this.collisionLayers = this.kantoCache.collisionLayers;
+    this.zones = this.kantoCache.zones;
+    this.spawnZones = this.kantoCache.spawnZones;
+    this._portals = this.kantoCache.portals;
+    this._signs = this.kantoCache.signs;
+
+    // Reativa todas as camadas com profundidades e visibilidades originais
+    for (const [name, layer] of this.mapLayers.entries()) {
+      if (layer && layer.setActive) {
+        layer.setActive(true);
+        if (name === 'Collision') {
+          layer.setVisible(false);
+        } else {
+          layer.setVisible(true);
+        }
+      }
+    }
+
+    // Reativa todos os NPCs de Kanto
+    this.npcs = this.kantoCache.npcs || new Map();
+    for (const npc of this.npcs.values()) {
+      if (npc && npc.setVisible) {
+        npc.setVisible(true);
+        npc.setActive(true);
+        if (npc.overheadContainer) npc.overheadContainer.setVisible(true);
+      }
+    }
+
+    // Restaura os limites de física de Kanto (13056 x 12800)
+    this.physics.world.setBounds(0, 0, this.currentMap.widthInPixels, this.currentMap.heightInPixels);
+
+    // Restaura o sistema de grama alta no layer 'Grass' de Kanto
+    const grass = this.kantoCache.grassLayer || this.mapLayers.get('Grass');
+    if (this.tallGrassManager && grass) {
+      this.tallGrassManager.setLayer(grass);
+    }
+  }
+
+  /**
+   * Salva os ponteiros e estruturas do mapa de Kanto em cache permanente.
+   */
+  _saveKantoCache() {
+    this.kantoCache = {
+      map: this.currentMap,
+      mapLayers: this.mapLayers,
+      collisionLayers: this.collisionLayers,
+      zones: this.zones,
+      spawnZones: this.spawnZones,
+      portals: this._portals,
+      signs: this._signs,
+      npcs: this.npcs,
+      grassLayer: this.mapLayers.get('Grass')
+    };
+  }
+
+  _loadSpawns(map) {
+    this.spawnZones = [];
+    if (!map) return;
+
+    // 1. Load from map objects if available
+    const spawnLayer = map.getObjectLayer('PokemonSpawns') ||
+      map.getObjectLayer('Spawns') ||
+      map.getObjectLayer('Encounters');
+    if (spawnLayer && spawnLayer.objects) {
+      for (const obj of spawnLayer.objects) {
+        if (!obj) continue;
+        const props = this._readProps(obj.properties);
+        let pokemonSpawns = [];
+        try {
+          pokemonSpawns = typeof props.pokemonSpawns === 'string' ? JSON.parse(props.pokemonSpawns) : (props.pokemonSpawns || []);
+        } catch (e) {
+          pokemonSpawns = [];
+        }
+        this.spawnZones.push({
+          id: obj.id,
+          name: props.name || obj.name || 'Área de Spawn',
+          encounterType: props.encounterType || props.method || 'grass',
+          rate: Number(props.rate) || 10,
+          bounds: new Phaser.Geom.Rectangle(obj.x, obj.y, obj.width, obj.height),
+          pokemonSpawns
+        });
+      }
+    }
+
+    // 2. Also fetch persistent database encounter zones asynchronously
+    const roomId = this.currentRoom?.id || 'kanto';
+
+    const applyDbZones = (zones) => {
+      if (Array.isArray(zones) && zones.length > 0) {
+        this.spawnZones = zones.map(z => {
+          let pSpawns = [];
+          try {
+            pSpawns = typeof z.pokemonSpawns === 'string' ? JSON.parse(z.pokemonSpawns) : (z.pokemonSpawns || []);
+          } catch (e) { pSpawns = []; }
+          return {
+            id: z.id,
+            name: z.name,
+            encounterType: z.encounterType || 'grass',
+            rate: Number(z.rate) || 10,
+            bounds: new Phaser.Geom.Rectangle(z.x, z.y, z.width, z.height),
+            pokemonSpawns: pSpawns
+          };
+        });
+        if (this.currentMapKey === 'kanto' && this.kantoCache) {
+          this.kantoCache.spawnZones = this.spawnZones;
+        }
+      }
+    };
+
+    if (this._encounterZonesDbCache.has(roomId)) {
+      applyDbZones(this._encounterZonesDbCache.get(roomId));
+      return;
+    }
+
+    fetch(`/api/admin/encounter-zones?mapId=${encodeURIComponent(roomId)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data?.success && Array.isArray(data.zones)) {
+          this._encounterZonesDbCache.set(roomId, data.zones);
+          applyDbZones(data.zones);
+        }
+      })
+      .catch(() => { });
+  }
+
+  _findSpawnZoneAt(x, y, method = 'grass') {
+    if (!this.spawnZones || this.spawnZones.length === 0) return null;
+    return this.spawnZones.find(zone => {
+      if (zone.encounterType && zone.encounterType !== method) return false;
+      if (!zone.bounds) return false;
+      // Permite tolerância de até 16px nas bordas dos tiles da zona de spawn
+      const b = zone.bounds;
+      return x >= (b.x - 16) && x <= (b.x + b.width + 16) &&
+             y >= (b.y - 16) && y <= (b.y + b.height + 16);
+    });
   }
 
   _loadZones(map) {
     this.zones = [];
-    const zonesLayer = map.getObjectLayer('Zones');
-    if (!zonesLayer) return;
+    if (!map) return;
+    const zonesLayer = map.getObjectLayer('Zones') ||
+      map.getObjectLayer('Regiões') ||
+      map.getObjectLayer('Zonas') ||
+      map.getObjectLayer('zones');
+    if (!zonesLayer || !zonesLayer.objects) return;
 
     for (const obj of zonesLayer.objects) {
+      if (!obj) continue;
+      const props = this._readProps(obj.properties);
+      const name = obj.name || props.name || 'Zona';
       this.zones.push({
-        name: obj.name,
+        name: name,
         bounds: new Phaser.Geom.Rectangle(obj.x, obj.y, obj.width, obj.height)
       });
     }
@@ -869,7 +1198,7 @@ export default class WorldScene extends Phaser.Scene {
       map.getObjectLayer('Warps') ||
       map.getObjectLayer('Doors');
 
-    if (portalLayer) {
+    if (portalLayer && portalLayer.objects && portalLayer.objects.length > 0) {
       this._portals = portalLayer.objects.map(obj => {
         const props = this._readProps(obj.properties);
         return {
@@ -912,12 +1241,179 @@ export default class WorldScene extends Phaser.Scene {
     }
   }
 
+  _loadNPCs(map) {
+    this._clearNPCs();
+    if (!map) return;
+
+    const npcObjects = [];
+
+    // 1. Camada dedicada 'NPCs'
+    const npcLayer = map.getObjectLayer('NPCs') ||
+      map.getObjectLayer('Npcs') ||
+      map.getObjectLayer('npcs') ||
+      map.getObjectLayer('Characters');
+
+    if (npcLayer && Array.isArray(npcLayer.objects)) {
+      npcObjects.push(...npcLayer.objects);
+    }
+
+    // 2. Objetos com type === 'npc' em outras camadas
+    if (map.objects) {
+      for (const layer of map.objects) {
+        if (!layer || layer.name === 'NPCs' || !layer.objects) continue;
+        for (const obj of layer.objects) {
+          if (obj && (obj.type === 'npc' || obj.type === 'NPC')) {
+            npcObjects.push(obj);
+          }
+        }
+      }
+    }
+
+    for (const obj of npcObjects) {
+      if (!obj) continue;
+      const props = this._readProps(obj.properties);
+
+      let dialogue = props.dialogue || props.text || ['Olá, treinador!'];
+      if (typeof dialogue === 'string') {
+        try {
+          const parsed = JSON.parse(dialogue);
+          dialogue = Array.isArray(parsed) ? parsed : [dialogue];
+        } catch (e) {
+          dialogue = [dialogue];
+        }
+      }
+
+      let team = props.team || null;
+      if (typeof team === 'string') {
+        try { team = JSON.parse(team); } catch (e) { team = null; }
+      }
+
+      let shopItems = props.shopItems || null;
+      if (typeof shopItems === 'string') {
+        try { shopItems = JSON.parse(shopItems); } catch (e) { shopItems = null; }
+      }
+
+      const npcData = {
+        id: obj.id ? String(obj.id) : (obj.name || `npc_${obj.x}_${obj.y}`),
+        name: props.name || obj.name || 'NPC',
+        sprite: props.sprite || props.spriteKey || 'npc_oak',
+        direction: props.direction || 'down',
+        npcType: props.npcType || props.type || 'dialogue',
+        dialogue,
+        visionRange: Number(props.visionRange) || 3,
+        rewardMoney: Number(props.rewardMoney) || 200,
+        rewardExp: Number(props.rewardExp) || 150,
+        cooldown: Number(props.cooldown) || 300,
+        team,
+        winDialogue: props.winDialogue || 'Você é forte...',
+        lossDialogue: props.lossDialogue || 'Ainda precisa treinar mais!',
+        shopItems
+      };
+
+      const npc = new NPC(this, obj.x, obj.y, npcData);
+      this.npcs.set(npc.id, npc);
+
+      // Colisão sólida para o jogador não atravessar o NPC
+      if (this.localPlayer) {
+        const col = this.physics.add.collider(this.localPlayer, npc);
+        this.activeColliders.push(col);
+      }
+    }
+  }
+
+  _clearNPCs() {
+    if (this.npcs) {
+      for (const npc of this.npcs.values()) {
+        if (npc && npc.destroy) {
+          npc.destroy();
+        }
+      }
+      this.npcs.clear();
+    } else {
+      this.npcs = new Map();
+    }
+    this.nearbyNpc = null;
+  }
+
+  startTrainerBattle(npc) {
+    if (this.battleUI?.isOpen || this.isTransitioning) return;
+
+    this.isTransitioning = true;
+    this.currentBattleNpc = npc;
+
+    if (npc) {
+      npc.isEngaging = true;
+      npc.hasSpottedPlayer = true;
+    }
+
+    // Garante que qualquer caixa de diálogo seja fechada imediatamente
+    if (this.dialogueBox && this.dialogueBox.isOpen) {
+      this.dialogueBox.close();
+    }
+    const overworldDlg = document.getElementById('fr-dialogue-box');
+    if (overworldDlg) overworldDlg.classList.add('hidden');
+
+    if (this.localPlayer?.body) {
+      this.localPlayer.body.setVelocity(0, 0);
+      this.localPlayer.playIdle?.();
+    }
+
+    this.cameras.main.flash(450, 255, 255, 255);
+
+    this.time.delayedCall(460, () => {
+      SocketClient.emit('npc:battle_start', {
+        npcId: npc.id,
+        trainerData: npc.trainerData
+      });
+    });
+  }
+
+  onBattleFinished(result) {
+    this.isTransitioning = false;
+
+    if (!result || !result.isTrainer) {
+      this.currentBattleNpc = null;
+      return;
+    }
+
+    const npc = result.npc || this.currentBattleNpc;
+    this.currentBattleNpc = null;
+
+    if (result.winner === 'player') {
+      if (npc) {
+        npc.setBattleResult?.('win');
+      }
+
+      const dlg = result.trainerDialogue || npc?.trainerData?.winDialogue || 'Você é muito forte... Continue treinando!';
+      const npcName = result.trainerName || npc?.name || 'Treinador';
+
+      this.time.delayedCall(350, () => {
+        if (this.dialogueBox && (!this.battleUI || !this.battleUI.isOpen)) {
+          this.dialogueBox.show(npcName, [dlg]);
+        }
+      });
+    } else if (result.winner === 'opponent') {
+      if (npc) {
+        npc.setBattleResult?.('loss');
+      }
+
+      const dlg = result.trainerDialogue || npc?.trainerData?.lossDialogue || 'Haha! Ainda precisa treinar mais!';
+      const npcName = result.trainerName || npc?.name || 'Treinador';
+
+      this.time.delayedCall(350, () => {
+        if (this.dialogueBox && (!this.battleUI || !this.battleUI.isOpen)) {
+          this.dialogueBox.show(npcName, [dlg]);
+        }
+      });
+    }
+  }
+
   _handleInteract() {
     // If typing in an input field or chat is open, do nothing
     if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
       return;
     }
-    if (this.isChatting) return;
+    if (this.isChatting || this.isTransitioning || this.battleUI?.isOpen) return;
 
     if (this.dialogueBox) {
       if (this.dialogueBox.isOpen) {
@@ -927,6 +1423,11 @@ export default class WorldScene extends Phaser.Scene {
       if (this.dialogueBox.justClosed) {
         return;
       }
+    }
+
+    if (this.nearbyNpc) {
+      this.nearbyNpc.interact(this.localPlayer);
+      return;
     }
 
     if (this.nearbySign) {
@@ -1241,31 +1742,56 @@ export default class WorldScene extends Phaser.Scene {
     this.nearbySign = closestSign;
 
     // -------------------------------------------------------------------------
-    // ZONE DETECTION
+    // NPC PROXIMITY & LINE OF SIGHT
     // -------------------------------------------------------------------------
+    let closestNpc = null;
+    let minNpcDist = 64;
 
-    if (this.zones.length > 0) {
-
+    if (this.npcs && this.npcs.size > 0 && this.localPlayer && (!this.dialogueBox || !this.dialogueBox.isOpen) && !this.isTransitioning && (!this.battleUI || !this.battleUI.isOpen)) {
       const px = this.localPlayer.x;
       const py = this.localPlayer.y;
 
+      for (const npc of this.npcs.values()) {
+        if (!npc || !npc.active) continue;
+
+        // Linha de visão para NPCs de combate
+        npc.checkLineOfSight(this.localPlayer);
+
+        const dist = Phaser.Math.Distance.Between(px, py, npc.x, npc.y);
+        if (dist < minNpcDist) {
+          minNpcDist = dist;
+          closestNpc = npc;
+        }
+      }
+    }
+    this.nearbyNpc = closestNpc;
+
+    // -------------------------------------------------------------------------
+    // ZONE DETECTION
+    // -------------------------------------------------------------------------
+
+    if (this.zones.length > 0 && this.localPlayer) {
+      const px = this.localPlayer.x;
+      const py = this.localPlayer.y;
+
+      let currentMatchingZone = null;
       for (const zone of this.zones) {
-
-        if (
-          zone.bounds.contains(
-            px,
-            py
-          )
-        ) {
-
-          if (this.currentZone !== zone.name) {
-            this.currentZone = zone.name;
-            this._updateHUD(zone.name);
-            this._showZoneBanner(zone.name);
-          }
-
+        if (zone.bounds.contains(px, py)) {
+          currentMatchingZone = zone;
           break;
         }
+      }
+
+      if (currentMatchingZone) {
+        if (this.currentZone !== currentMatchingZone.name) {
+          this.currentZone = currentMatchingZone.name;
+          const formatted = this._formatZoneName(currentMatchingZone.name);
+          this._updateHUD(formatted);
+        }
+      } else if (this.currentZone !== null) {
+        this.currentZone = null;
+        const defaultName = this._formatZoneName(this.currentRoom?.name || 'Kanto');
+        this._updateHUD(defaultName);
       }
     }
 
@@ -1317,7 +1843,7 @@ export default class WorldScene extends Phaser.Scene {
 
   _updateHUD(roomName, playerName = null, money = null, playerObj = null) {
     const roomBadge = document.getElementById('hud-room-name');
-    if (roomBadge && roomName) roomBadge.innerText = roomName;
+    if (roomBadge && roomName) roomBadge.innerText = this._formatZoneName(roomName);
 
     if (playerName) {
       const pName = document.getElementById('hud-player-name');
@@ -1417,31 +1943,46 @@ export default class WorldScene extends Phaser.Scene {
     }
   }
 
-  _showZoneBanner(zoneName) {
-    if (!zoneName) return;
-    let el = document.getElementById('zone-banner-notification');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = 'zone-banner-notification';
-      el.style.cssText = 'position:fixed;top:24px;left:50%;transform:translateX(-50%) translateY(-20px);background:linear-gradient(135deg,rgba(20,24,33,0.95),rgba(15,18,25,0.98));border:2px solid rgba(255,215,0,0.8);border-radius:24px;padding:8px 24px;color:#ffffff;font-family:Outfit,sans-serif;font-size:16px;font-weight:700;letter-spacing:1px;box-shadow:0 8px 24px rgba(0,0,0,0.6),0 0 16px rgba(255,215,0,0.3);pointer-events:none;z-index:99999;opacity:0;transition:all 0.4s cubic-bezier(0.16,1,0.3,1);display:flex;align-items:center;gap:10px;';
-      document.body.appendChild(el);
+  _formatZoneName(name) {
+    if (!name) return 'Kanto';
+    let clean = String(name).trim();
+
+    if (/^route[_\s-]*(\d+)/i.test(clean)) {
+      const match = clean.match(/^route[_\s-]*(\d+)/i);
+      return `Rota ${match[1]}`;
     }
-    el.innerHTML = `
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffd700" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-        <circle cx="12" cy="10" r="3"></circle>
-      </svg>
-      <span>${zoneName}</span>
-    `;
-    requestAnimationFrame(() => {
-      el.style.opacity = '1';
-      el.style.transform = 'translateX(-50%) translateY(0)';
-    });
-    if (this._zoneBannerTimeout) clearTimeout(this._zoneBannerTimeout);
-    this._zoneBannerTimeout = setTimeout(() => {
-      el.style.opacity = '0';
-      el.style.transform = 'translateX(-50%) translateY(-20px)';
-    }, 3200);
+
+    const dict = {
+      'pallet town': 'Pallet Town',
+      'viridian city': 'Viridian City',
+      'pewter city': 'Pewter City',
+      'cerulean city': 'Cerulean City',
+      'vermilion city': 'Vermilion City',
+      'celadon city': 'Celadon City',
+      'fuchsia city': 'Fuchsia City',
+      'saffron city': 'Saffron City',
+      'cinnabar island': 'Cinnabar Island',
+      'indigo plateau': 'Indigo Plateau',
+      'viridian forest': 'Floresta de Viridian',
+      'mt. moon': 'Mt. Moon',
+      'mt moon': 'Mt. Moon',
+      'rock tunnel': 'Rock Tunnel',
+      'seafoam islands': 'Ilhas Seafoam',
+      'victory road': 'Victory Road',
+      'pokemon tower': 'Torre Pokémon',
+      'safari zone': 'Zona Safari',
+      'power plant': 'Usinas de Energia'
+    };
+
+    const lower = clean.toLowerCase().replace(/_/g, ' ');
+    if (dict[lower]) return dict[lower];
+
+    return clean.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  _showZoneBanner() {
+    const el = document.getElementById('zone-banner-notification');
+    if (el) el.remove();
   }
 }
 

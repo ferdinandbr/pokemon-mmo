@@ -69,23 +69,35 @@ export default class DialogueBox {
       const key = e.key.toLowerCase();
       if (key === ' ' || key === 'e' || key === 'enter') {
         e.preventDefault();
-        e.stopPropagation();
+        e.stopImmediatePropagation();
         this.advance();
       }
     }, true);
   }
 
   /**
-   * Show dialogue with title and message
+   * Show dialogue with title and message (single string or array of strings)
    * @param {string} title - Header/Name (e.g. "PALLET TOWN")
-   * @param {string} text - Body text (e.g. "Shades of your journey await!")
+   * @param {string|string[]} text - Body text or array of lines to advance one-by-one
    * @param {Function} onClose - Optional callback when dialogue closes
    */
   show(title = '', text = '', onClose = null) {
     this.isOpen = true;
     this.onCloseCallback = onClose;
-    this.currentFullText = text || '';
-    this.currentCharIndex = 0;
+
+    if (Array.isArray(text)) {
+      this.dialogueQueue = text.filter(t => typeof t === 'string' && t.trim().length > 0);
+    } else if (typeof text === 'string') {
+      this.dialogueQueue = [text];
+    } else {
+      this.dialogueQueue = [''];
+    }
+
+    if (this.dialogueQueue.length === 0) {
+      this.dialogueQueue = [''];
+    }
+
+    this.currentQueueIndex = 0;
 
     if (this.titleEl) {
       if (title && title.trim()) {
@@ -97,6 +109,19 @@ export default class DialogueBox {
       }
     }
 
+    this.container.classList.remove('hidden');
+    this.displayCurrentQueueItem();
+  }
+
+  displayCurrentQueueItem() {
+    if (this.currentQueueIndex >= this.dialogueQueue.length) {
+      this.close();
+      return;
+    }
+
+    this.currentFullText = this.dialogueQueue[this.currentQueueIndex];
+    this.currentCharIndex = 0;
+
     if (this.textEl) {
       this.textEl.textContent = '';
     }
@@ -106,7 +131,6 @@ export default class DialogueBox {
       this.arrowEl.style.visibility = 'hidden';
     }
 
-    this.container.classList.remove('hidden');
     this.startTyping();
   }
 
@@ -153,8 +177,14 @@ export default class DialogueBox {
       // If still typing, fast forward to complete message
       this.finishTyping();
     } else {
-      // Finished typing, close dialogue
-      this.close();
+      // Finished typing current line: advance to next line in queue
+      this.currentQueueIndex++;
+      if (this.currentQueueIndex < this.dialogueQueue.length) {
+        this.displayCurrentQueueItem();
+      } else {
+        // Queue finished: close dialogue
+        this.close();
+      }
     }
   }
 

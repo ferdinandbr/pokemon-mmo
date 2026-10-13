@@ -13,5 +13,6 @@ export const PLAYER_VISUAL = Object.freeze({
   shadowY: 19,
   shadowWidth: 16,
   shadowHeight: 7,
-  shadowAlpha: 0.3
+  shadowAlpha: 0.3,
+  nametagBaseDepth: 60000
 });

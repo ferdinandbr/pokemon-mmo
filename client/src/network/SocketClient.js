@@ -70,7 +70,8 @@ class SocketClient {
       'battle:started',
       'battle:start_failed',
       'battle:turn_result',
-      'battle:action_error'
+      'battle:action_error',
+      'session:replaced'
     ];
 
     for (const event of forwardEvents) {

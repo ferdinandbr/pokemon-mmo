@@ -2,6 +2,7 @@ const roomManager = require('../rooms/roomManager');
 const characterService = require('../services/characterService');
 const worldService = require('../services/worldService');
 const pokemonService = require('../services/pokemonService');
+const prisma = require('../database');
 
 function setupPlayerHandlers(io, socket) {
   socket.on('player:join', async (payload) => {
@@ -16,16 +17,35 @@ function setupPlayerHandlers(io, socket) {
         return socket.emit('error:msg', { message: 'Personagem não encontrado.' });
       }
 
-      // Safe position check for new map bounds (Always Kanto open world)
-      let targetRoomId = character.roomId === 'kanto' ? 'kanto' : 'kanto';
-      const roomDef = roomManager.getRoomDefinition('kanto');
+      // Safe position check for room bounds
+      const targetRoomId = (character.roomId && roomManager.getRoomDefinition(character.roomId)) ? character.roomId : 'kanto';
+      const roomDef = roomManager.getRoomDefinition(targetRoomId);
       let spawnX = character.x;
       let spawnY = character.y;
-      if (character.roomId !== 'kanto' || !spawnX || !spawnY || spawnX < 64 || spawnY < 64 || spawnX > (roomDef.width - 64) || spawnY > (roomDef.height - 64)) {
-        spawnX = roomDef.defaultSpawn.x;
-        spawnY = roomDef.defaultSpawn.y;
+      const minPadding = 16;
+      if (!spawnX || !spawnY || isNaN(spawnX) || isNaN(spawnY) || spawnX < minPadding || spawnY < minPadding || spawnX > (roomDef.width - minPadding) || spawnY > (roomDef.height - minPadding)) {
+        spawnX = roomDef.defaultSpawn?.x || 2016;
+        spawnY = roomDef.defaultSpawn?.y || 8608;
       }
 
+
+      // Check if character or user is already active in another session (Single session per char / user)
+      const existingPlayer = roomManager.getPlayerByCharacterId(character.id) || roomManager.getPlayerByUserId(socket.user.userId);
+      if (existingPlayer && existingPlayer.socketId !== socket.id) {
+        console.log(`[PlayerJoin] Desconectando sessão duplicada do personagem ${character.id} (socket: ${existingPlayer.socketId})`);
+        const oldSocket = io.sockets.sockets.get(existingPlayer.socketId);
+        if (oldSocket) {
+          oldSocket.emit('session:replaced', {
+            message: 'Este personagem entrou no mundo a partir de outra sessão.'
+          });
+          oldSocket.disconnect(true);
+        }
+        roomManager.removePlayer(existingPlayer.socketId);
+        socket.to(existingPlayer.roomId).emit('player:left', {
+          socketId: existingPlayer.socketId,
+          characterId: existingPlayer.characterId
+        });
+      }
 
       // Add to Room Manager
       const activeBuddyPkmn = (character.pokemon || []).find(p => p.isBuddy);
@@ -56,7 +76,7 @@ function setupPlayerHandlers(io, socket) {
         sprite: character.sprite,
         level: character.level || 1,
         exp: character.exp || 0,
-        roomId: 'kanto',
+        roomId: roomDef.id,
         x: spawnX,
         y: spawnY,
         direction: character.direction,
@@ -184,6 +204,208 @@ function setupPlayerHandlers(io, socket) {
       }).catch(err => console.error('Error saving character position on disconnect:', err));
 
       io.emit('server:stats', { onlineCount: roomManager.getTotalOnlineCount() });
+    }
+  });
+
+  // ─── 3. Starter Pokemon Choice (Prof. Carvalho) ──────────────────────────
+  socket.on('starter:choose', async (payload, callback) => {
+    try {
+      const player = roomManager.getPlayer(socket.id);
+      if (!player) {
+        if (typeof callback === 'function') callback({ success: false, message: 'Personagem não encontrado.' });
+        return;
+      }
+
+      const { speciesId } = payload || {};
+      const validStarters = [1, 4, 7]; // Bulbasaur, Charmander, Squirtle
+      if (!validStarters.includes(Number(speciesId))) {
+        if (typeof callback === 'function') callback({ success: false, message: 'Espécie de inicial inválida.' });
+        return;
+      }
+
+      // Verifica se o jogador já possui algum Pokémon
+      const existingCount = await prisma.pokemon.count({
+        where: { characterId: player.characterId }
+      });
+      if (existingCount > 0) {
+        if (typeof callback === 'function') callback({ success: false, message: 'Você já possui um Pokémon parceiro!' });
+        return;
+      }
+
+      // Criação segura do Pokémon inicial nível 5
+      const newPkmn = await pokemonService.createPokemon({
+        characterId: player.characterId,
+        speciesIdOrName: Number(speciesId),
+        level: 5,
+        targetLocation: 'party',
+        caughtLocation: 'Laboratório do Prof. Carvalho',
+        caughtBall: 'poke-ball',
+        obtainedMethod: 'starter',
+        forceBuddy: true
+      });
+
+      // Registra na Pokédex como 'caught' (capturado)
+      const starterSpeciesNames = { 1: 'Bulbasaur', 4: 'Charmander', 7: 'Squirtle' };
+      const speciesName = starterSpeciesNames[Number(speciesId)] || newPkmn.name;
+      await prisma.pokedexEntry.upsert({
+        where: {
+          characterId_pokemonNumber: {
+            characterId: player.characterId,
+            pokemonNumber: Number(speciesId)
+          }
+        },
+        update: {
+          status: 'caught',
+          caughtAt: new Date()
+        },
+        create: {
+          characterId: player.characterId,
+          pokemonNumber: Number(speciesId),
+          pokemonName: speciesName,
+          status: 'caught',
+          caughtAt: new Date()
+        }
+      });
+
+      // Marca introdução como concluída para players recém-criados
+      await characterService.completeIntro(player.characterId);
+
+      player.activeBuddy = {
+        id: newPkmn.id,
+        speciesId: newPkmn.speciesId,
+        name: newPkmn.nickname || newPkmn.species?.name || newPkmn.name,
+        level: newPkmn.level,
+        isShiny: newPkmn.isShiny,
+        sprite: String(newPkmn.speciesId).padStart(3, '0') + (newPkmn.isShiny ? '_shiny' : ''),
+        currentHp: newPkmn.currentHp,
+        maxHp: newPkmn.maxHp
+      };
+
+      // Atualiza outros jogadores na sala com o novo seguidor
+      io.to(player.roomId).emit('player:buddy_updated', {
+        socketId: socket.id,
+        characterId: player.characterId,
+        buddy: player.activeBuddy
+      });
+
+      // Retorna a nova party completa para o cliente
+      socket.emit('pokemon:data_response', {
+        success: true,
+        party: [newPkmn],
+        activeBuddy: player.activeBuddy
+      });
+
+      if (typeof callback === 'function') {
+        callback({ success: true, pokemon: newPkmn });
+      }
+    } catch (err) {
+      console.error('[Starter Choice Error]:', err);
+      if (typeof callback === 'function') {
+        callback({ success: false, message: err.message });
+      }
+    }
+  });
+
+  // ─── 4. Shop / Poké Mart Purchase ─────────────────────────────────────────
+  socket.on('shop:buy', async (payload, callback) => {
+    try {
+      const player = roomManager.getPlayer(socket.id);
+      if (!player) {
+        if (typeof callback === 'function') callback({ success: false, message: 'Jogador não encontrado.' });
+        return;
+      }
+
+      const { itemId, quantity = 1 } = payload || {};
+      const qty = Math.max(1, Math.min(99, parseInt(quantity, 10) || 1));
+
+      const ITEM_MAP = {
+        'poke-ball': 'Poké Ball',
+        'potion': 'Potion',
+        'antidote': 'Antidote',
+        'paralyze-heal': 'Paralyze Heal',
+        'escape-rope': 'Escape Rope'
+      };
+
+      const searchName = ITEM_MAP[itemId] || itemId;
+      const dbItem = await prisma.item.findFirst({
+        where: {
+          OR: [
+            { name: searchName },
+            { name: { contains: searchName } }
+          ]
+        }
+      });
+
+      const unitPrice = dbItem?.price || 200;
+      const totalCost = unitPrice * qty;
+
+      const character = await prisma.character.findUnique({
+        where: { id: player.characterId },
+        select: { money: true }
+      });
+
+      if (!character || character.money < totalCost) {
+        if (typeof callback === 'function') callback({ success: false, message: 'Dinheiro insuficiente.' });
+        return;
+      }
+
+      // Deduz dinheiro
+      const updatedChar = await prisma.character.update({
+        where: { id: player.characterId },
+        data: { money: { decrement: totalCost } },
+        select: { money: true }
+      });
+
+      // Atualiza ou insere no slot de inventário
+      if (dbItem) {
+        const existingSlot = await prisma.inventorySlot.findFirst({
+          where: { characterId: player.characterId, itemId: dbItem.id }
+        });
+
+        if (existingSlot) {
+          await prisma.inventorySlot.update({
+            where: { id: existingSlot.id },
+            data: { quantity: { increment: qty } }
+          });
+        } else {
+          const usedSlots = await prisma.inventorySlot.findMany({
+            where: { characterId: player.characterId },
+            select: { slotIndex: true }
+          });
+          const usedSet = new Set(usedSlots.map(s => s.slotIndex));
+          let freeIndex = 0;
+          while (usedSet.has(freeIndex) && freeIndex < 24) freeIndex++;
+
+          if (freeIndex < 24) {
+            await prisma.inventorySlot.create({
+              data: {
+                characterId: player.characterId,
+                itemId: dbItem.id,
+                quantity: qty,
+                slotIndex: freeIndex
+              }
+            });
+          }
+        }
+      }
+
+      socket.emit('money:updated', { money: updatedChar.money });
+
+      // Atualiza inventário completo do cliente
+      const fullInventory = await prisma.inventorySlot.findMany({
+        where: { characterId: player.characterId },
+        include: { item: true }
+      });
+      socket.emit('inventory:data', { items: fullInventory });
+
+      if (typeof callback === 'function') {
+        callback({ success: true, newMoney: updatedChar.money });
+      }
+    } catch (err) {
+      console.error('[Shop Buy Error]:', err);
+      if (typeof callback === 'function') {
+        callback({ success: false, message: err.message });
+      }
     }
   });
 }

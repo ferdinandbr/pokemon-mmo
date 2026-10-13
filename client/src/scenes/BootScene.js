@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { PRESET_TILESETS } from '../maps/tilesetsConfig';
+import { NPC_SPRITES } from '../maps/npcConfig';
 
 export default class BootScene extends Phaser.Scene {
   constructor() {
@@ -23,6 +24,14 @@ export default class BootScene extends Phaser.Scene {
       frameHeight: 48
     });
 
+    // ── NPC Spritesheets (32×48 per frame) ──
+    NPC_SPRITES.forEach(npc => {
+      this.load.spritesheet(npc.key, `/assets/characters/npcs/${npc.file}`, {
+        frameWidth: 32,
+        frameHeight: 48
+      });
+    });
+
     // ── Tiled map & tilesets ──
     const timestamp = Date.now();
     this.load.image('spz3zUx_scaled', `/assets/tilesets/spz3zUx_scaled.png?t=${timestamp}`);
@@ -42,6 +51,10 @@ export default class BootScene extends Phaser.Scene {
     }
 
     this.load.tilemapTiledJSON('kanto', `/assets/maps/kanto.json?t=${timestamp}`);
+    this.load.tilemapTiledJSON('pallet_player_house_1f', `/assets/maps/pallet_player_house_1f.json?t=${timestamp}`);
+    this.load.tilemapTiledJSON('pallet_player_house_2f', `/assets/maps/pallet_player_house_2f.json?t=${timestamp}`);
+    this.load.tilemapTiledJSON('pallet_oak_lab', `/assets/maps/pallet_oak_lab.json?t=${timestamp}`);
+    this.load.tilemapTiledJSON('pallet_rival_house', `/assets/maps/pallet_rival_house.json?t=${timestamp}`);
 
     // ── Pokémon Overworld Spritesheets (151 Gen 1, normal & shiny, 64×64 per frame) ──
     for (let id = 1; id <= 151; id++) {
@@ -142,6 +155,22 @@ export default class BootScene extends Phaser.Scene {
       // Up    (frames 12–15)
       this.anims.create({ key: `${prefix}_run_up`,  frames: this.anims.generateFrameNumbers(key, { frames: [12,13,14,15] }), frameRate: 11, repeat: -1 });
       this.anims.create({ key: `${prefix}_idle_up`, frames: [{ key, frame: 12 }], frameRate: 1 });
+    }
+
+    // ── Create directional animations for all NPC sprites ──
+    for (const npc of NPC_SPRITES) {
+      const key = npc.key;
+      this.anims.create({ key: `${key}_run_down`,  frames: this.anims.generateFrameNumbers(key, { frames: [0,1,2,3]   }), frameRate: 8, repeat: -1 });
+      this.anims.create({ key: `${key}_idle_down`, frames: [{ key, frame: 0  }], frameRate: 1 });
+
+      this.anims.create({ key: `${key}_run_left`,  frames: this.anims.generateFrameNumbers(key, { frames: [4,5,6,7]   }), frameRate: 8, repeat: -1 });
+      this.anims.create({ key: `${key}_idle_left`, frames: [{ key, frame: 4  }], frameRate: 1 });
+
+      this.anims.create({ key: `${key}_run_right`,  frames: this.anims.generateFrameNumbers(key, { frames: [8,9,10,11] }), frameRate: 8, repeat: -1 });
+      this.anims.create({ key: `${key}_idle_right`, frames: [{ key, frame: 8  }], frameRate: 1 });
+
+      this.anims.create({ key: `${key}_run_up`,  frames: this.anims.generateFrameNumbers(key, { frames: [12,13,14,15] }), frameRate: 8, repeat: -1 });
+      this.anims.create({ key: `${key}_idle_up`, frames: [{ key, frame: 12 }], frameRate: 1 });
     }
   }
 }

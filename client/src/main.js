@@ -70,9 +70,18 @@ game.events.once('ready', () => {
 
   if (worldSceneInstance) {
     if (chatUI) chatUI.worldScene = worldSceneInstance;
-    if (bagUI) bagUI.worldScene = worldSceneInstance;
-    if (pokemonStorageUI) pokemonStorageUI.worldScene = worldSceneInstance;
-    if (partyHUDUI) partyHUDUI.worldScene = worldSceneInstance;
+    if (bagUI) {
+      bagUI.worldScene = worldSceneInstance;
+      worldSceneInstance.bagUI = bagUI;
+    }
+    if (pokemonStorageUI) {
+      pokemonStorageUI.worldScene = worldSceneInstance;
+      worldSceneInstance.pokemonStorageUI = pokemonStorageUI;
+    }
+    if (partyHUDUI) {
+      partyHUDUI.worldScene = worldSceneInstance;
+      worldSceneInstance.partyHUDUI = partyHUDUI;
+    }
     if (moveLearnUI) moveLearnUI.worldScene = worldSceneInstance;
     if (battleUI) {
       battleUI.worldScene = worldSceneInstance;
@@ -292,6 +301,21 @@ function initApp() {
         if (data && data.hasCompletedIntro === false) {
           oakIntroUI.start(character);
         }
+      });
+
+      // Handle session replacement / forced disconnect from another machine/session
+      SocketClient.on('session:replaced', (data) => {
+        const message = data?.message || 'Sua sessão foi encerrada porque sua conta entrou em outro dispositivo.';
+        alert(message);
+        document.getElementById('hud')?.classList.add('hidden');
+        document.getElementById('hud-quick-bar')?.classList.add('hidden');
+        bgmManager.stop();
+        SocketClient.disconnect();
+        currentUser = null;
+        currentToken = null;
+        currentCharacter = null;
+        authUI.logout();
+        authUI.loginError.innerText = message;
       });
     },
     () => {

@@ -17,6 +17,7 @@ const setupPokemonHandlers = require('./src/sockets/pokemonHandler');
 const setupBattleHandlers = require('./src/sockets/battleHandler');
 
 const mapRoutes = require('./src/routes/mapRoutes');
+const encounterRoutes = require('./src/routes/encounterRoutes');
 const moveRegistry = require('./src/services/moves/MoveRegistry');
 
 const app = express();
@@ -35,6 +36,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use('/api/auth', authRoutes);
 app.use('/api/characters', charRoutes);
 app.use('/api/admin/map', mapRoutes);
+app.use('/api/admin/encounter-zones', encounterRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
@@ -64,6 +66,8 @@ const io = new Server(server, {
   }
 });
 
+app.set('io', io);
+
 // Socket.IO authentication middleware
 io.use((socket, next) => {
   const token = socket.handshake.auth?.token || socket.handshake.query?.token;
@@ -81,10 +85,28 @@ io.use((socket, next) => {
 });
 
 const worldService = require('./src/services/worldService');
+const roomManager = require('./src/rooms/roomManager');
 
 // Socket.IO connection event
 io.on('connection', (socket) => {
   console.log(`[Socket] Conexão estabelecida: ${socket.id} (Usuário ID: ${socket.user.userId})`);
+
+  // Desconecta qualquer sessão socket existente para este usuário
+  const userId = socket.user.userId;
+  if (userId) {
+    const sockets = Array.from(io.sockets.sockets.values());
+    for (const s of sockets) {
+      if (s.id !== socket.id && s.user && s.user.userId === userId) {
+        console.log(`[Session] Desconectando sessão antiga do usuário ID ${userId} (socket ${s.id})`);
+        s.emit('session:replaced', { message: 'Sua conta foi acessada em outra janela ou dispositivo.' });
+        const oldPlayer = roomManager.removePlayer(s.id);
+        if (oldPlayer) {
+          s.to(oldPlayer.roomId).emit('player:left', { socketId: s.id, characterId: oldPlayer.characterId });
+        }
+        s.disconnect(true);
+      }
+    }
+  }
 
   setupPlayerHandlers(io, socket);
   setupChatHandlers(io, socket);

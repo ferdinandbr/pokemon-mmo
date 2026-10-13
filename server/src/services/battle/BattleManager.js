@@ -8,6 +8,7 @@ const friendshipManager = require('../evolution/FriendshipManager');
 const damageCalculator = require('./DamageCalculator');
 const catchCalculator = require('./CatchCalculator');
 const moveEffectHandler = require('./MoveEffectHandler');
+const encounterService = require('../encounterService');
 
 // Common wild species for Kanto grasslands
 const WILD_GRASS_SPECIES = [
@@ -33,27 +34,46 @@ class BattleManager {
 
   /**
    * Generates a random wild Pokémon for battle.
+   * Resolves encounters dynamically via persistent DB encounter zones.
    */
-  async generateWildPokemon(minLevel = 2, maxLevel = 5) {
+  async generateWildPokemon(minLevel = 2, maxLevel = 5, context = {}) {
     await moveRegistry.ensureLoaded();
 
-    // Roll species by weight
-    const totalWeight = WILD_GRASS_SPECIES.reduce((acc, s) => acc + s.weight, 0);
-    let roll = Math.random() * totalWeight;
-    let chosenSpec = WILD_GRASS_SPECIES[0];
+    const { playerX, playerY, roomId, encounterMethod = 'grass', weather = 'clear', zoneId = null } = context || {};
 
-    for (const spec of WILD_GRASS_SPECIES) {
-      if (roll < spec.weight) {
-        chosenSpec = spec;
-        break;
-      }
-      roll -= spec.weight;
+    // Resolve encounter through database service
+    const resolved = await encounterService.resolveEncounter({
+      mapId: roomId || 'kanto',
+      playerX,
+      playerY,
+      encounterMethod,
+      weather,
+      zoneId
+    });
+
+    if (!resolved) {
+      throw new Error('Nenhuma área de spawn ativa nesta localização.');
     }
 
-    const species = await prisma.pokemonSpecies.findUnique({ where: { id: chosenSpec.id } });
-    const level = Math.floor(Math.random() * (maxLevel - minLevel + 1)) + minLevel;
+    const species = await prisma.pokemonSpecies.findUnique({ where: { id: resolved.speciesId } });
+    if (!species) {
+      throw new Error(`PokemonSpecies ID ${resolved.speciesId} não encontrado no banco.`);
+    }
 
-    const ivs = pokemonService.generateRandomIVs();
+    const minLvl = resolved.minLevel || minLevel;
+    const maxLvl = resolved.maxLevel || maxLevel;
+    const level = Math.floor(Math.random() * (maxLvl - minLvl + 1)) + minLvl;
+
+    // IV generation (High IV bonus check)
+    const isHighIvRoll = Math.random() * 100 < resolved.highIvChance;
+    const ivs = isHighIvRoll
+      ? { hp: 31, atk: 31, def: 31, spAtk: Math.floor(Math.random() * 32), spDef: Math.floor(Math.random() * 32), speed: 31 }
+      : pokemonService.generateRandomIVs();
+
+    // Shiny roll (with Shiny multiplier bonus)
+    const shinyOdds = Math.max(1, Math.floor(4096 / Math.max(0.1, resolved.shinyBonus)));
+    const isShiny = Math.floor(Math.random() * shinyOdds) === 0;
+
     const evs = { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, speed: 0 };
     const baseStats = {
       hp: species.baseHp,
@@ -72,7 +92,7 @@ class BattleManager {
       speciesId: species.id,
       name: species.name,
       level,
-      isShiny: pokemonService.isShinyRoll(),
+      isShiny,
       gender: Math.random() < 0.5 ? 'M' : 'F',
       currentHp: calculatedStats.hp,
       maxHp: calculatedStats.hp,
@@ -118,7 +138,16 @@ class BattleManager {
     const playerMon = party[activeIndex];
     const playerMonFormatted = pokemonService.formatPokemonForClient(playerMon);
 
-    const wildPokemon = await this.generateWildPokemon(2, 5);
+    const roomManager = require('../../rooms/roomManager');
+    const playerObj = roomManager.getPlayerByCharacterId ? roomManager.getPlayerByCharacterId(charId) : null;
+
+    const wildPokemon = await this.generateWildPokemon(2, 5, {
+      playerX: typeof context.playerX === 'number' ? context.playerX : (playerObj ? playerObj.x : null),
+      playerY: typeof context.playerY === 'number' ? context.playerY : (playerObj ? playerObj.y : null),
+      roomId: context.roomId || (playerObj ? playerObj.roomId : 'kanto'),
+      zoneId: context.zoneId,
+      encounterMethod: context.encounterMethod || 'grass'
+    });
 
     let locationName = 'Rota 1';
     try {
@@ -184,6 +213,137 @@ class BattleManager {
   }
 
   /**
+   * Inicia uma batalha contra Treinador / Bandido NPC.
+   */
+  async startTrainerBattle(characterId, context = {}) {
+    await moveRegistry.ensureLoaded();
+
+    const charId = Number(characterId);
+    if (this.sessions.has(charId)) {
+      return this.sessions.get(charId).getPublicState();
+    }
+
+    const party = await prisma.pokemon.findMany({
+      where: { characterId: charId, location: 'party' },
+      include: { species: true },
+      orderBy: { partySlot: 'asc' }
+    });
+
+    if (party.length === 0) {
+      throw new Error('Você não possui nenhum Pokémon na equipe!');
+    }
+
+    party.forEach(p => {
+      p.exp = Math.max(p.exp || 0, Math.pow(p.level, 3));
+    });
+
+    const activeIndex = party.findIndex(p => p.currentHp > 0);
+    if (activeIndex === -1) {
+      throw new Error('Todos os seus Pokémon estão desmaiados! Visite o Centro Pokémon.');
+    }
+
+    const playerMon = party[activeIndex];
+    const playerMonFormatted = pokemonService.formatPokemonForClient(playerMon);
+
+    // Geração do Pokémon do Treinador Adversário
+    const rawTeam = (Array.isArray(context.team) && context.team.length > 0)
+      ? context.team
+      : [{ speciesId: 19, level: 3 }];
+
+    const firstOpponent = rawTeam[0];
+    const oppSpeciesId = Number(firstOpponent.speciesId || 19);
+    const oppLevel = Number(firstOpponent.level || 3);
+
+    const oppSpecies = await prisma.pokemonSpecies.findUnique({ where: { id: oppSpeciesId } });
+    if (!oppSpecies) throw new Error('Espécie do Pokémon do treinador não encontrada.');
+
+    const ivs = { hp: 16, atk: 16, def: 16, spAtk: 16, spDef: 16, speed: 16 };
+    const evs = { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, speed: 0 };
+    const baseStats = {
+      hp: oppSpecies.baseHp,
+      atk: oppSpecies.baseAttack,
+      def: oppSpecies.baseDefense,
+      spAtk: oppSpecies.baseSpAtk,
+      spDef: oppSpecies.baseSpDef,
+      speed: oppSpecies.baseSpeed
+    };
+
+    const calculatedStats = pokemonService.calculateStats(baseStats, ivs, evs, oppLevel);
+    const movesInstances = moveManager.selectMovesForInitialLevel(oppSpecies, oppLevel);
+    const movesInflated = moveRegistry.inflateMovesList(movesInstances);
+
+    const opponentPokemon = {
+      speciesId: oppSpecies.id,
+      name: oppSpecies.name,
+      level: oppLevel,
+      isShiny: false,
+      gender: 'M',
+      currentHp: calculatedStats.hp,
+      maxHp: calculatedStats.hp,
+      stats: calculatedStats,
+      species: oppSpecies,
+      moves: movesInflated
+    };
+
+    const session = {
+      characterId: charId,
+      playerParty: party,
+      activePlayerIndex: activeIndex,
+      playerPokemon: playerMonFormatted,
+      wildPokemon: opponentPokemon,
+      runAttempts: 0,
+      turn: 1,
+      isEnded: false,
+      isTrainerBattle: true,
+      trainerName: context.trainerName || 'Treinador',
+      rewardMoney: Number(context.rewardMoney) || 200,
+      rewardExp: Number(context.rewardExp) || 150,
+      cooldown: Number(context.cooldown) || 300,
+      npcId: context.npcId || null,
+      winDialogue: context.winDialogue || 'Você é muito forte...',
+      lossDialogue: context.lossDialogue || 'Haha! Ainda precisa treinar mais!',
+
+      getPublicState: function () {
+        const pName = this.playerPokemon.nickname || this.playerPokemon.species?.name || 'Pokemon';
+        return {
+          battleId: `battle_tr_${charId}_${Date.now()}`,
+          isTrainer: true,
+          trainerName: this.trainerName,
+          winDialogue: this.winDialogue,
+          lossDialogue: this.lossDialogue,
+          activePlayerIndex: this.activePlayerIndex,
+          playerPokemon: {
+            ...this.playerPokemon,
+            name: pName,
+            isShiny: Boolean(this.playerPokemon.isShiny),
+            gender: this.playerPokemon.gender || 'M',
+            level: this.playerPokemon.level
+          },
+          wildPokemon: {
+            ...this.wildPokemon,
+            isShiny: false,
+            gender: this.wildPokemon.gender || 'M',
+            level: this.wildPokemon.level
+          },
+          turn: this.turn,
+          playerParty: this.playerParty.map(p => ({
+            id: p.id,
+            name: p.nickname || p.name,
+            level: p.level,
+            currentHp: p.currentHp,
+            maxHp: p.maxHp,
+            isFainted: p.currentHp <= 0,
+            sprite: String(p.speciesId).padStart(3, '0') + (p.isShiny ? '_shiny' : '')
+          }))
+        };
+      }
+    };
+
+    this.sessions.set(charId, session);
+    return session.getPublicState();
+  }
+
+  /**
    * Executes a turn in the battle.
    * 
    * @param {number} characterId
@@ -214,6 +374,15 @@ class BattleManager {
 
     // ─── ACTION: RUN (FUGIR) ──────────────────────────────────────────────────
     if (action.type === 'run') {
+      if (session.isTrainerBattle) {
+        events.push({
+          type: 'text',
+          message: 'Não é possível fugir de uma batalha contra outro treinador!'
+        });
+        session.isProcessingTurn = false;
+        return { events, battleEnded: false, state: session.getPublicState() };
+      }
+
       session.runAttempts++;
       const playerSpeed = playerMon.stats?.speed || 10;
       const wildSpeed = wildMon.stats?.speed || 10;
@@ -282,6 +451,11 @@ class BattleManager {
 
       // ─── ITEM: POKÉBOLA ──────────────────────────────────────────────────
       if (isPokeBall) {
+        if (session.isTrainerBattle) {
+          session.isProcessingTurn = false;
+          throw new Error('Não é permitido capturar o Pokémon de outro treinador!');
+        }
+
         // Decrement inventory
         if (slot.quantity > 1) {
           await prisma.inventorySlot.update({ where: { id: slot.id }, data: { quantity: slot.quantity - 1 } });
@@ -776,8 +950,13 @@ class BattleManager {
       // 2. Player Rewards (Trainer EXP & Poké-dollars)
       let playerRewards = null;
       try {
-        const playerExpGain = Math.max(10, Math.floor(defender.level * 18));
-        const playerMoneyGain = Math.max(20, Math.floor(defender.level * 35));
+        const playerExpGain = session.isTrainerBattle
+          ? (session.rewardExp || Math.max(30, Math.floor(defender.level * 35)))
+          : Math.max(10, Math.floor(defender.level * 18));
+        const playerMoneyGain = session.isTrainerBattle
+          ? (session.rewardMoney || Math.max(100, defender.level * 50))
+          : Math.max(20, Math.floor(defender.level * 35));
+
         playerRewards = await playerProgressionService.addPlayerExpAndMoney(
           session.characterId,
           playerExpGain,
@@ -911,6 +1090,10 @@ class BattleManager {
       events.push({
         type: 'battle_end',
         reason: 'victory',
+        winner: 'player',
+        isTrainer: Boolean(session.isTrainerBattle),
+        trainerName: session.trainerName,
+        trainerDialogue: session.winDialogue,
         levelUpResults,
         evolutionPrompts,
         playerRewards
@@ -1014,7 +1197,14 @@ class BattleManager {
           data: { currentHp: 20 } // temporary revive
         });
 
-        events.push({ type: 'battle_end', reason: 'blackout' });
+        events.push({
+          type: 'battle_end',
+          reason: 'blackout',
+          winner: 'opponent',
+          isTrainer: Boolean(session.isTrainerBattle),
+          trainerName: session.trainerName,
+          trainerDialogue: session.lossDialogue
+        });
         session.isEnded = true;
         this.sessions.delete(session.characterId);
       }

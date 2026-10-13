@@ -100,31 +100,7 @@ async function createCharacter({ userId, name, gender, sprite }) {
     }
   }
 
-  // Starter Pokédex entry (Pikachu #25 seen)
-  await prisma.pokedexEntry.create({
-    data: {
-      characterId: character.id,
-      pokemonNumber: 25,
-      pokemonName: 'Pikachu',
-      status: 'seen'
-    }
-  });
-
-  // Starter Pokemon in party (Pikachu Lv.5)
-  const pokemonService = require('./pokemonService');
-  await pokemonService.createPokemon({
-    characterId: character.id,
-    speciesIdOrName: 25,
-    level: 5,
-    forceBuddy: true,
-    caughtLocation: 'Laboratório Pokémon',
-    caughtLevel: 5,
-    caughtBall: 'poke-ball',
-    originalTrainerId: character.id,
-    originalTrainerName: character.name,
-    obtainedMethod: 'starter'
-  });
-
+  // Novo jogador inicia sem Pokémon prévio na equipe; o inicial será escolhido no Laboratório do Prof. Carvalho
   return getCharacterDetails(character.id);
 }
 

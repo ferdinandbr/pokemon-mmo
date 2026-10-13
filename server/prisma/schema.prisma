@@ -164,3 +164,20 @@ model Pokemon {
   createdAt   DateTime       @default(now())
 }
 
+model EncounterZone {
+  id            Int      @id @default(autoincrement())
+  mapId         String   // Map key (e.g., "pallet_town", "route_1", "kanto")
+  name          String   // Zone display name (e.g., "Rota 1 - Grama Alta")
+  encounterType String   @default("grass") // "grass", "water", "cave", "fishing"
+  rate          Int      @default(10)      // Base encounter rate % per step
+  x             Int      @default(0)       // Position X in pixels
+  y             Int      @default(0)       // Position Y in pixels
+  width         Int      @default(64)      // Zone width in pixels
+  height        Int      @default(64)      // Zone height in pixels
+  pokemonSpawns String   @default("[]")    // JSON array of species configs (speciesId, min/max level, weight, highIvChance, shinyBonus, timeOfDay, weather)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([mapId])
+}
+

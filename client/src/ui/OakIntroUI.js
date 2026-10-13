@@ -13,14 +13,33 @@ export default class OakIntroUI {
     this.dialogArrow = document.getElementById('oak-dialog-arrow');
     this.skipBtn = document.getElementById('oak-btn-skip');
     this.stage = document.querySelector('.oak-intro-stage');
+    this.thrownBall = document.getElementById('oak-thrown-ball');
+    this.ballImg = document.getElementById('oak-ball-img');
+    this.pkmnBurst = document.getElementById('oak-pkmn-burst');
 
     this.currentStep = 0;
     this.isTyping = false;
     this.typewriterTimer = null;
+    this.throwTimers = [];
     this.activeCharacter = null;
     this.currentFullText = '';
 
     this.bindEvents();
+  }
+
+  _clearThrowTimers() {
+    if (Array.isArray(this.throwTimers)) {
+      this.throwTimers.forEach(t => clearTimeout(t));
+      this.throwTimers = [];
+    }
+  }
+
+  _playSound(url, volume = 0.6) {
+    try {
+      const audio = new Audio(url);
+      audio.volume = volume;
+      audio.play().catch(() => {});
+    } catch (e) {}
   }
 
   bindEvents() {
@@ -54,6 +73,7 @@ export default class OakIntroUI {
   start(character) {
     this.activeCharacter = character;
     this.currentStep = 0;
+    this._clearThrowTimers();
 
     // Pick trainer sprite based on gender
     if (this.trainerSprite) {
@@ -63,11 +83,17 @@ export default class OakIntroUI {
 
     // Reset visual state
     this.screen.classList.remove('hidden');
-    this.profSprite.classList.remove('hidden', 'fade-out');
+    this.profSprite.src = '/assets/intro/introOak.png';
+    this.profSprite.classList.remove('hidden', 'fade-out', 'with-pkmn');
     this.profSprite.classList.add('fade-in');
     this.pkmnSprite.classList.add('hidden');
+    this.pkmnSprite.classList.remove('emerging');
     this.trainerSprite.classList.add('hidden');
     this.trainerSprite.classList.remove('shrink-down');
+    this.thrownBall?.classList.add('hidden');
+    this.thrownBall?.classList.remove('throwing');
+    this.pkmnBurst?.classList.add('hidden');
+    this.pkmnBurst?.classList.remove('active');
     this.dialogArrow.style.display = 'none';
 
     // Hide main in-game HUD during intro
@@ -96,12 +122,12 @@ export default class OakIntroUI {
       {
         speaker: 'PROF. CARVALHO',
         text: 'Meu nome é Carvalho! Mas todos me chamam carinhosamente de Professor Pokémon.',
-        visual: 'oak'
+        visual: 'oak_ball'
       },
       {
         speaker: 'PROF. CARVALHO',
         text: 'Este mundo é amplamente habitado por criaturas incríveis chamadas Pokémon!',
-        visual: 'pokemon'
+        visual: 'throw_ball'
       },
       {
         speaker: 'PROF. CARVALHO',
@@ -150,21 +176,88 @@ export default class OakIntroUI {
   }
 
   updateVisual(type) {
+    this._clearThrowTimers();
+
     if (type === 'oak') {
+      this.profSprite.src = '/assets/intro/introOak.png';
       this.profSprite.classList.remove('hidden', 'with-pkmn');
       this.pkmnSprite.classList.add('hidden');
       this.trainerSprite.classList.add('hidden');
-    } else if (type === 'pokemon') {
+      this.thrownBall?.classList.add('hidden');
+      this.thrownBall?.classList.remove('throwing');
+      this.pkmnBurst?.classList.add('hidden');
+      this.pkmnBurst?.classList.remove('active');
+    } else if (type === 'oak_ball') {
+      // Professor segura a Pokébola na mão (Image 2)
+      this.profSprite.src = '/assets/intro/introOak_ball.png';
+      this.profSprite.classList.remove('hidden', 'with-pkmn');
+      this.pkmnSprite.classList.add('hidden');
+      this.trainerSprite.classList.add('hidden');
+      this.thrownBall?.classList.add('hidden');
+      this.thrownBall?.classList.remove('throwing');
+      this.pkmnBurst?.classList.add('hidden');
+      this.pkmnBurst?.classList.remove('active');
+    } else if (type === 'throw_ball') {
+      // Inicia arremesso da Pokébola com efeitos visuais e som
+      this._playSound('/assets/audio/se/Battle throw.ogg', 0.7);
+
+      if (this.thrownBall && this.ballImg) {
+        this.ballImg.src = '/assets/battle/ball_00.png';
+        this.thrownBall.classList.remove('hidden');
+        this.thrownBall.classList.add('throwing');
+      }
+
+      // Carvalho move-se para a posição lateral de observação (Image 3)
+      this.profSprite.src = '/assets/intro/introOak.png';
       this.profSprite.classList.remove('hidden');
       this.profSprite.classList.add('with-pkmn');
-      this.pkmnSprite.classList.remove('hidden');
-      this.pkmnSprite.classList.add('bounce-in');
+
+      // Ponto de aterrissagem da Pokébola: abertura e clarão
+      const t1 = setTimeout(() => {
+        if (this.ballImg) {
+          this.ballImg.src = '/assets/battle/ball_00_open.png';
+        }
+        this._playSound('/assets/audio/se/Battle ball drop.ogg', 0.8);
+
+        if (this.pkmnBurst) {
+          this.pkmnBurst.classList.remove('hidden');
+          this.pkmnBurst.classList.add('active');
+        }
+
+        this.pkmnSprite.classList.remove('hidden');
+        this.pkmnSprite.classList.add('emerging');
+      }, 480);
+
+      // Finalização da transição: esconde a bola jogada e o clarão
+      const t2 = setTimeout(() => {
+        if (this.thrownBall) {
+          this.thrownBall.classList.add('hidden');
+          this.thrownBall.classList.remove('throwing');
+        }
+        if (this.pkmnBurst) {
+          this.pkmnBurst.classList.add('hidden');
+          this.pkmnBurst.classList.remove('active');
+        }
+        this.pkmnSprite.classList.remove('emerging');
+      }, 900);
+
+      this.throwTimers.push(t1, t2);
+    } else if (type === 'pokemon') {
+      this.profSprite.src = '/assets/intro/introOak.png';
+      this.profSprite.classList.remove('hidden');
+      this.profSprite.classList.add('with-pkmn');
+      this.pkmnSprite.classList.remove('hidden', 'emerging');
       this.trainerSprite.classList.add('hidden');
+      this.thrownBall?.classList.add('hidden');
+      this.thrownBall?.classList.remove('throwing');
+      this.pkmnBurst?.classList.add('hidden');
+      this.pkmnBurst?.classList.remove('active');
     } else if (type === 'trainer' || type === 'final') {
-      // No jogo original, o treinador fica sozinho na plataforma durante a apresentação e transição final
       this.profSprite.classList.add('hidden');
       this.profSprite.classList.remove('with-pkmn');
       this.pkmnSprite.classList.add('hidden');
+      this.thrownBall?.classList.add('hidden');
+      this.pkmnBurst?.classList.add('hidden');
       this.trainerSprite.classList.remove('hidden');
       if (type === 'trainer') {
         this.trainerSprite.classList.add('fade-in');
@@ -216,6 +309,7 @@ export default class OakIntroUI {
 
   finishIntro() {
     if (this.typewriterTimer) clearInterval(this.typewriterTimer);
+    this._clearThrowTimers();
 
     // Efeito de encolhimento clássico do treinador ao entrar no mundo
     if (this.trainerSprite && !this.trainerSprite.classList.contains('hidden')) {

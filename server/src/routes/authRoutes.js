@@ -13,10 +13,29 @@ router.post('/register', async (req, res) => {
   }
 });
 
+const roomManager = require('../rooms/roomManager');
+
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     const result = await authService.login({ email, password });
+
+    // Disconnect active socket session for this user if present
+    const io = req.app.get('io');
+    if (io && result.user && result.user.id) {
+      const sockets = Array.from(io.sockets.sockets.values());
+      for (const s of sockets) {
+        if (s.user && s.user.userId === result.user.id) {
+          s.emit('session:replaced', { message: 'Sua conta foi acessada em outro dispositivo/navegador.' });
+          const oldPlayer = roomManager.removePlayer(s.id);
+          if (oldPlayer) {
+            s.to(oldPlayer.roomId).emit('player:left', { socketId: s.id, characterId: oldPlayer.characterId });
+          }
+          s.disconnect(true);
+        }
+      }
+    }
+
     res.json(result);
   } catch (err) {
     res.status(401).json({ error: err.message });
