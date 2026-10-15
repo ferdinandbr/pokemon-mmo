@@ -199,7 +199,7 @@ export default class OakIntroUI {
       this.pkmnBurst?.classList.remove('active');
     } else if (type === 'throw_ball') {
       // Inicia arremesso da Pokébola com efeitos visuais e som
-      this._playSound('/assets/audio/se/Battle throw.ogg', 0.7);
+      this._playSound('/assets/audio/se/battle_throw.ogg', 0.7);
 
       if (this.thrownBall && this.ballImg) {
         this.ballImg.src = '/assets/battle/ball_00.png';
@@ -217,7 +217,7 @@ export default class OakIntroUI {
         if (this.ballImg) {
           this.ballImg.src = '/assets/battle/ball_00_open.png';
         }
-        this._playSound('/assets/audio/se/Battle ball drop.ogg', 0.8);
+        this._playSound('/assets/audio/se/battle_ball_drop.ogg', 0.8);
 
         if (this.pkmnBurst) {
           this.pkmnBurst.classList.remove('hidden');

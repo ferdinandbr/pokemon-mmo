@@ -29,7 +29,32 @@ class BattleManager {
    * Gets active battle session for character.
    */
   getSession(characterId) {
-    return this.sessions.get(Number(characterId)) || null;
+    const charId = Number(characterId);
+    const session = this.sessions.get(charId);
+    if (!session) return null;
+    if (session.isEnded) {
+      this.sessions.delete(charId);
+      return null;
+    }
+    // Stale session cleanup: if battle has been inactive for > 45 seconds without any turn action
+    if (session.lastActionAt && (Date.now() - session.lastActionAt > 45000)) {
+      session.isEnded = true;
+      this.sessions.delete(charId);
+      return null;
+    }
+    return session;
+  }
+
+  /**
+   * Safely terminates and removes an active battle session.
+   */
+  endSession(characterId) {
+    const charId = Number(characterId);
+    if (this.sessions.has(charId)) {
+      const session = this.sessions.get(charId);
+      if (session) session.isEnded = true;
+      this.sessions.delete(charId);
+    }
   }
 
   /**
@@ -167,6 +192,8 @@ class BattleManager {
       runAttempts: 0,
       turn: 1,
       isEnded: false,
+      createdAt: Date.now(),
+      lastActionAt: Date.now(),
       caughtLocation: locationName,
       trainerName: context.playerName || null,
 
@@ -190,20 +217,26 @@ class BattleManager {
             isShiny: Boolean(this.wildPokemon.isShiny),
             currentHp: this.wildPokemon.currentHp,
             maxHp: this.wildPokemon.maxHp,
-            status: this.wildPokemon.status || null
+            status: this.wildPokemon.status || null,
+            moves: this.wildPokemon.moves || []
           },
-          playerParty: this.playerParty.map(p => ({
-            id: p.id,
-            speciesId: p.speciesId,
-            name: p.nickname || p.species?.name || p.name,
-            level: p.level,
-            gender: p.gender || 'M',
-            isShiny: Boolean(p.isShiny),
-            currentHp: p.currentHp,
-            maxHp: p.maxHp,
-            status: p.status || null,
-            isFainted: p.currentHp <= 0
-          }))
+          playerParty: this.playerParty.map(p => {
+            const formatted = pokemonService.formatPokemonForClient(p);
+            return {
+              ...formatted,
+              id: p.id,
+              speciesId: p.speciesId,
+              name: p.nickname || p.species?.name || p.name,
+              level: p.level,
+              gender: p.gender || 'M',
+              isShiny: Boolean(p.isShiny),
+              currentHp: p.currentHp,
+              maxHp: p.maxHp,
+              status: p.status || null,
+              isFainted: p.currentHp <= 0,
+              moves: formatted ? formatted.moves : []
+            };
+          })
         };
       }
     };
@@ -294,6 +327,8 @@ class BattleManager {
       runAttempts: 0,
       turn: 1,
       isEnded: false,
+      createdAt: Date.now(),
+      lastActionAt: Date.now(),
       isTrainerBattle: true,
       trainerName: context.trainerName || 'Treinador',
       rewardMoney: Number(context.rewardMoney) || 200,
@@ -323,18 +358,28 @@ class BattleManager {
             ...this.wildPokemon,
             isShiny: false,
             gender: this.wildPokemon.gender || 'M',
-            level: this.wildPokemon.level
+            level: this.wildPokemon.level,
+            moves: this.wildPokemon.moves || []
           },
           turn: this.turn,
-          playerParty: this.playerParty.map(p => ({
-            id: p.id,
-            name: p.nickname || p.name,
-            level: p.level,
-            currentHp: p.currentHp,
-            maxHp: p.maxHp,
-            isFainted: p.currentHp <= 0,
-            sprite: String(p.speciesId).padStart(3, '0') + (p.isShiny ? '_shiny' : '')
-          }))
+          playerParty: this.playerParty.map(p => {
+            const formatted = pokemonService.formatPokemonForClient(p);
+            return {
+              ...formatted,
+              id: p.id,
+              speciesId: p.speciesId,
+              name: p.nickname || p.species?.name || p.name || 'Pokemon',
+              level: p.level,
+              gender: p.gender || 'M',
+              isShiny: Boolean(p.isShiny),
+              currentHp: p.currentHp,
+              maxHp: p.maxHp,
+              status: p.status || null,
+              isFainted: p.currentHp <= 0,
+              moves: formatted ? formatted.moves : [],
+              sprite: String(p.speciesId).padStart(3, '0') + (p.isShiny ? '_shiny' : '')
+            };
+          })
         };
       }
     };
@@ -355,6 +400,7 @@ class BattleManager {
     if (!session || session.isEnded) {
       throw new Error('Nenhuma batalha ativa encontrada.');
     }
+    session.lastActionAt = Date.now();
 
     const events = [];
     const playerMon = session.playerPokemon;
@@ -368,11 +414,138 @@ class BattleManager {
 
     try {
       // Se o Pokémon do jogador estiver desmaiado, apenas a ação de troca (switch) é permitida!
-      if (playerMon.currentHp <= 0 && action.type !== 'switch') {
+      if (playerMon.currentHp <= 0 && action.type !== 'switch' && action.type !== 'conclude') {
         throw new Error('Seu Pokémon desmaiou! Escolha outro Pokémon da sua equipe para continuar.');
       }
 
-    // ─── ACTION: RUN (FUGIR) ──────────────────────────────────────────────────
+      // ─── PERSIST REAL-TIME BATTLE DAMAGE TAKEN BY PLAYER PARTY ────────────
+      if (Array.isArray(action.partyHp) && action.partyHp.length > 0) {
+        for (const hpItem of action.partyHp) {
+          if (hpItem && hpItem.id) {
+            const finalHp = Math.max(0, Math.round(Number(hpItem.currentHp) || 0));
+            await prisma.pokemon.update({
+              where: { id: Number(hpItem.id) },
+              data: { currentHp: finalHp }
+            }).catch(e => console.error('[BattleManager] Erro ao persistir HP pós-batalha:', e));
+
+            const sessionMon = (session.playerParty || []).find(p => p.id === Number(hpItem.id));
+            if (sessionMon) {
+              sessionMon.currentHp = finalHp;
+              sessionMon.isFainted = finalHp <= 0;
+            }
+          }
+        }
+      }
+
+      // ─── ACTION: RUN (FUGIR) ──────────────────────────────────────────────────
+      
+      // ⚔️ ACTION: CONCLUDE (REAL-TIME ARENA BATTLE CONCLUSION)
+      if (action.type === 'conclude' || action.type === 'realtime_finish') {
+        const winner = action.winner || 'player';
+        if (winner === 'player') {
+        const defender = session.wildPokemon;
+        const baseExp = defender?.species?.baseExp || 64;
+        const baseExpGain = Math.max(6, Math.floor(((baseExp * (defender?.level || 5)) / 7) * 1.5));
+
+        let playerRewards = null;
+        try {
+          const playerExpGain = session.isTrainerBattle
+            ? (session.rewardExp || Math.max(30, Math.floor((defender?.level || 5) * 35)))
+            : Math.max(10, Math.floor((defender?.level || 5) * 18));
+          const playerMoneyGain = session.isTrainerBattle
+            ? (session.rewardMoney || Math.max(100, (defender?.level || 5) * 50))
+            : Math.max(20, Math.floor((defender?.level || 5) * 35));
+
+          playerRewards = await playerProgressionService.addPlayerExpAndMoney(
+            characterId,
+            playerExpGain,
+            playerMoneyGain
+          );
+        } catch (e) {
+          console.error('[BattleManager] Erro ao conceder recompensa:', e);
+        }
+
+        try {
+          if (playerMon?.id) await friendshipManager.addFriendship(playerMon.id, 1);
+        } catch (e) {}
+
+        const partyMembers = Array.isArray(session.playerParty) && session.playerParty.length > 0
+          ? session.playerParty
+          : [playerMon];
+
+        const levelUpResults = [];
+        const evolutionPrompts = [];
+
+        for (const partyMon of partyMembers) {
+          if (partyMon.currentHp <= 0) continue;
+          const isAttacker = partyMon.id === playerMon.id;
+          const gainedExp = isAttacker ? baseExpGain : Math.max(3, Math.floor(baseExpGain * 0.5));
+
+          events.push({
+            type: 'exp_gain',
+            pokemonId: partyMon.id,
+            amount: gainedExp,
+            isAttacker,
+            message: `${partyMon.nickname || partyMon.species?.name || partyMon.name} ganhou ${gainedExp} EXP!`
+          });
+
+          try {
+            const baseExpVal = Math.max(partyMon.exp || 0, Math.pow(partyMon.level, 3));
+            const curExp = baseExpVal + gainedExp;
+            partyMon.exp = curExp;
+            await prisma.pokemon.update({ where: { id: partyMon.id }, data: { exp: curExp } });
+
+            let currentLevel = partyMon.level;
+            let levelsGained = 0;
+            while (currentLevel + levelsGained < 100 && curExp >= Math.pow(currentLevel + levelsGained + 1, 3)) {
+              levelsGained++;
+            }
+
+            if (levelsGained > 0) {
+              const levelUpResult = await pokemonProgressionService.levelUpPokemon({
+                characterId,
+                pokemonId: partyMon.id,
+                levelsToAdd: levelsGained
+              });
+              levelUpResults.push(levelUpResult);
+            }
+          } catch (e) {
+            console.error('[BattleManager] Erro no level up:', e);
+          }
+        }
+
+        events.push({
+          type: 'battle_end',
+          reason: 'victory',
+          winner: 'player',
+          isTrainer: Boolean(session.isTrainerBattle),
+          trainerName: session.trainerName,
+          trainerDialogue: session.winDialogue,
+          levelUpResults,
+          evolutionPrompts,
+          playerRewards
+        });
+        session.isEnded = true;
+        this.sessions.delete(characterId);
+        return { events, battleEnded: true, winner: 'player', playerRewards };
+      } else {
+        events.push({
+          type: 'blackout',
+          message: 'Todos os seus Pokémon desmaiaram! Você correu para o Centro Pokémon.'
+        });
+        events.push({ type: 'battle_end', reason: 'blackout', winner: 'opponent' });
+        try {
+          await prisma.pokemon.updateMany({
+            where: { characterId, location: 'party' },
+            data: { currentHp: 0 }
+          });
+        } catch (_) {}
+        session.isEnded = true;
+        this.sessions.delete(characterId);
+        return { events, battleEnded: true, winner: 'opponent' };
+      }
+    }
+  
     if (action.type === 'run') {
       if (session.isTrainerBattle) {
         events.push({
@@ -383,32 +556,14 @@ class BattleManager {
         return { events, battleEnded: false, state: session.getPublicState() };
       }
 
-      session.runAttempts++;
-      const playerSpeed = playerMon.stats?.speed || 10;
-      const wildSpeed = wildMon.stats?.speed || 10;
-
-      // Gen 3 Run Formula
-      const F = Math.floor((playerSpeed * 128) / wildSpeed) + 30 * session.runAttempts;
-      const canRun = F > 255 || Math.floor(Math.random() * 256) < F;
-
-      if (canRun) {
-        events.push({
-          type: 'text',
-          message: 'Você fugiu da batalha com segurança!'
-        });
-        events.push({ type: 'battle_end', reason: 'run' });
-        this.sessions.delete(characterId);
-        return { events, battleEnded: true };
-      } else {
-        events.push({
-          type: 'text',
-          message: 'Não conseguiu escapar!'
-        });
-        // Wild attacks after failed escape
-        await this._executeWildAttack(session, events);
-        session.turn++;
-        return { events, battleEnded: session.isEnded, state: session.getPublicState() };
-      }
+      events.push({
+        type: 'text',
+        message: 'Você fugiu da batalha com segurança!'
+      });
+      events.push({ type: 'battle_end', reason: 'run' });
+      session.isEnded = true;
+      this.sessions.delete(characterId);
+      return { events, battleEnded: true };
     }
 
     // ─── ACTION: ITEM (QUICK ITEM OU MOCHILA: POKEBALL / CURA / REVIVE) ─────────
@@ -784,7 +939,14 @@ class BattleManager {
       }
 
       if (targetIndex === session.activePlayerIndex) {
-        throw new Error('Este Pokémon já está em batalha!');
+        return {
+          events: [{
+            type: 'message',
+            message: `${session.playerPokemon?.nickname || session.playerPokemon?.species?.name || 'Este Pokémon'} já está em batalha!`
+          }],
+          battleEnded: session.isEnded,
+          state: session.getPublicState()
+        };
       }
 
       const isForcedSwitch = session.playerPokemon.currentHp <= 0;

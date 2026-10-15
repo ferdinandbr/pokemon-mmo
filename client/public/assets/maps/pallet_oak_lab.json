@@ -16,7 +16,7 @@
     {
       "firstgid": 1,
       "name": "Interior general",
-      "image": "/assets/tilesets/Interior general.png",
+      "image": "/assets/tilesets/interior_general.png",
       "imagewidth": 2176,
       "imageheight": 1156,
       "tilewidth": 32,
@@ -28,7 +28,7 @@
     },
     {
       "name": "Outside4 Winter",
-      "image": "/assets/tilesets/Outside4 Winter.png",
+      "image": "/assets/tilesets/outside4_winter.png",
       "firstgid": 2177,
       "tilewidth": 32,
       "tileheight": 32,
@@ -41,7 +41,7 @@
     },
     {
       "name": "Outside2 Summer",
-      "image": "/assets/tilesets/Outside2 Summer.png",
+      "image": "/assets/tilesets/outside2_summer.png",
       "firstgid": 6721,
       "tilewidth": 32,
       "tileheight": 32,

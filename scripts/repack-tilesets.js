@@ -10,13 +10,13 @@ if (!fs.existsSync(backupDir)) {
 }
 
 const toRepack = [
-  { file: 'Outside2 Summer.png', srcCols: 8, totalTiles: 4544, destCols: 64 },
-  { file: 'Outside3 Autumn.png', srcCols: 8, totalTiles: 4544, destCols: 64 },
-  { file: 'Outside4 Winter.png', srcCols: 8, totalTiles: 4544, destCols: 64 },
-  { file: 'Outside.png', srcCols: 8, totalTiles: 4016, destCols: 64 },
-  { file: 'Caves.png', srcCols: 8, totalTiles: 1704, destCols: 64 },
-  { file: 'Gyms interior.png', srcCols: 8, totalTiles: 1264, destCols: 64 },
-  { file: 'Interior general.png', srcCols: 8, totalTiles: 2120, destCols: 64 }
+  { file: 'outside2_summer.png', srcCols: 8, totalTiles: 4544, destCols: 64 },
+  { file: 'outside3_autumn.png', srcCols: 8, totalTiles: 4544, destCols: 64 },
+  { file: 'outside4_winter.png', srcCols: 8, totalTiles: 4544, destCols: 64 },
+  { file: 'outside.png', srcCols: 8, totalTiles: 4016, destCols: 64 },
+  { file: 'caves.png', srcCols: 8, totalTiles: 1704, destCols: 64 },
+  { file: 'gyms_interior.png', srcCols: 8, totalTiles: 1264, destCols: 64 },
+  { file: 'interior_general.png', srcCols: 8, totalTiles: 2120, destCols: 64 }
 ];
 
 async function run() {

@@ -1,3 +1,5 @@
+@import './battle/battle_arena_2d.css';
+
 /* ==========================================================================
    POKÉMON BATTLE SYSTEM — HUD-THEMED (Dark Glass + Cyan Accents)
    Layout inspired by PokeMMO reference image
@@ -212,13 +214,15 @@
   pointer-events: auto !important;
 }
 
-/* Player Databox: Bottom Left — raised above the taller command bar */
+/* Player Databox: Top Left (Opposite to Enemy Databox at Top Right) */
 .swsh-databox.swsh-player-hud {
-  bottom: 182px;
-  left: 60px;
+  top: 75px;
+  bottom: auto;
+  left: 75px;
   width: 300px;
+  z-index: 35;
   transform: scale(1.15);
-  transform-origin: bottom left;
+  transform-origin: top left;
 }
 
 .swsh-databox.swsh-player-hud.databox-hidden-left {
@@ -651,58 +655,505 @@
   pointer-events: none;
 }
 
-/* ─── 4. UNIFIED COMMAND BAR (fixed height, overworld HUD dark theme) ── */
+/* ─── 4. UNIFIED COMMAND BAR (Border-free text choices with hover) ── */
 .swsh-command-bar {
   position: absolute;
-  bottom: 16px;
-  left: 50%;
-  right: auto;
-  transform: translateX(-50%);
-  width: min(700px, calc(100% - 48px));
-  height: 150px;
-  background: linear-gradient(165deg, rgba(16, 22, 36, 0.96) 0%, rgba(9, 13, 22, 0.98) 100%);
-  border: 1.5px solid rgba(0, 229, 255, 0.3);
-  border-radius: 12px;
-  box-shadow:
-    0 20px 50px rgba(0, 0, 0, 0.85),
-    0 0 35px rgba(0, 229, 255, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  bottom: 24px;
+  right: 48px;
+  width: 320px;
+  height: 96px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
   display: flex;
   align-items: stretch;
-  gap: 10px;
-  padding: 10px 14px;
+  justify-content: flex-end;
+  padding: 0;
   z-index: 30;
   box-sizing: border-box;
-  transition: all 0.25s ease;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: visible;
+}
+
+/* Mode Fight: Dock to bottom-left cleanly, leaving space for the action cluster at bottom-right */
+.swsh-command-bar.mode-fight {
+  right: auto;
+  left: 28px;
+  width: 240px;
+  height: 60px;
+}
+
+.bbar-action-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  font-weight: 800;
+  color: #00e5ff;
+  background: #141724;
+  border: 1.5px solid #1a2034;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.6);
+  transition: all 0.15s ease;
+}
+
+.bbar-action-pill:hover {
+  border-color: #00e5ff;
+  background: rgba(0, 229, 255, 0.15);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+/* ─── 4.4. TOP COMBAT ACTION TICKER (Directly below Opponent & Player Databoxes) ─ */
+.combat-ticker-wrap {
+  position: absolute;
+  top: 154px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 34;
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
+  width: min(720px, calc(100% - 40px));
+}
+
+.combat-ticker-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 22px;
+  background: linear-gradient(135deg, rgba(13, 21, 37, 0.94) 0%, rgba(9, 14, 25, 0.96) 100%);
+  border: 1.5px solid rgba(0, 229, 255, 0.4);
+  border-radius: 24px;
+  box-shadow: 
+    0 8px 26px rgba(0, 0, 0, 0.75),
+    0 0 16px rgba(0, 229, 255, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.combat-ticker-banner.ticker-pulse {
+  animation: tickerBannerPulse 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes tickerBannerPulse {
+  0% { transform: scale(0.96); }
+  50% { transform: scale(1.03); border-color: #00e5ff; }
+  100% { transform: scale(1); }
+}
+
+.combat-ticker-icon {
+  font-size: 16px;
+  line-height: 1;
+  filter: drop-shadow(0 0 6px rgba(0, 229, 255, 0.6));
+}
+
+.combat-ticker-text {
+  font-family: var(--font-pixel, 'Press Start 2P', monospace);
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+  line-height: 1.3;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+}
+
+.combat-ticker-text strong {
+  color: #38bdf8;
+  font-weight: 800;
+}
+
+/* ─── 4.5. BOTTOM RIGHT ACTION CLUSTER (2x2 Container matching reference) ─── */
+.battle-action-cluster {
+  position: absolute;
+  bottom: 24px;
+  right: 28px;
+  width: 500px;
+  height: 172px;
+  background: linear-gradient(145deg, #121929 0%, #0a0f1c 100%);
+  border: 2px solid #233554;
+  border-radius: 18px;
+  box-shadow: 
+    0 16px 40px rgba(0, 0, 0, 0.85),
+    0 0 24px rgba(0, 229, 255, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 0 16px rgba(0, 0, 0, 0.6);
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 16px 26px;
+  box-sizing: border-box;
+  z-index: 35;
+  pointer-events: auto;
+  user-select: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.battle-action-cluster.hidden {
+  display: none !important;
+}
+
+/* Card Layout Matching Image 2 with Colors/Glow of Image 3 */
+.battle-skill-card {
+  position: relative;
+  background: linear-gradient(135deg, #0e1526 0%, #080d18 100%);
+  border: 1.5px solid #1a273e;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 
+    inset 0 0 10px rgba(0, 0, 0, 0.75),
+    0 2px 8px rgba(0, 0, 0, 0.5);
+  box-sizing: border-box;
   overflow: hidden;
 }
 
-.swsh-command-bar::before {
-  content: '';
+/* Card Bevel Shape & Spacing away from center defense button */
+.battle-skill-card.slot-0 {
+  border-top-left-radius: 16px;
+  padding: 8px 24px 8px 12px;
+}
+.battle-skill-card.slot-1 {
+  border-top-right-radius: 16px;
+  padding: 8px 12px 8px 24px;
+}
+.battle-skill-card.slot-2 {
+  border-bottom-left-radius: 16px;
+  padding: 8px 24px 8px 12px;
+}
+.battle-skill-card.slot-3 {
+  border-bottom-right-radius: 16px;
+  padding: 8px 12px 8px 24px;
+}
+
+.battle-skill-card:hover:not(.empty-slot):not(.no-pp):not(.on-cooldown) {
+  transform: translateY(-1px) scale(1.02);
+  border-color: #00e5ff;
+  box-shadow: 
+    0 0 16px rgba(0, 229, 255, 0.4),
+    inset 0 0 8px rgba(0, 229, 255, 0.15);
+}
+
+.battle-skill-card:active:not(.empty-slot):not(.on-cooldown) {
+  transform: scale(0.98);
+}
+
+.battle-skill-card.card-pressed {
+  transform: scale(0.95);
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.7);
+}
+
+.battle-skill-card.empty-slot {
+  background: rgba(15, 23, 42, 0.45);
+  border: 1.5px dashed rgba(0, 229, 255, 0.2);
+  box-shadow: none;
+  cursor: default;
+  opacity: 0.5;
+}
+
+.battle-skill-card.no-pp {
+  opacity: 0.5;
+  filter: grayscale(0.8);
+  cursor: not-allowed;
+}
+
+/* Disabled & Non-clickable Aspect on Cooldown (LoL Style - Image 2) */
+.battle-skill-card.on-cooldown,
+.battle-def-center-btn.on-cooldown {
+  filter: grayscale(0.55) brightness(0.65) !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  transform: none !important;
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.9) !important;
+}
+
+/* Row 1: Name (Left) and PP (Right) */
+.bsc-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.bsc-name {
+  font-family: var(--font-pixel, 'Press Start 2P', monospace);
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+  letter-spacing: 0.4px;
+}
+
+.bsc-pp {
+  font-family: var(--font-pixel, 'Press Start 2P', monospace);
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.bsc-pp.low {
+  color: #f59e0b;
+}
+
+.bsc-pp.empty {
+  color: #ef4444;
+}
+
+/* Row 2: Type Pill + Category Pill (Left) and PWR / ACC (Right) */
+.bsc-row-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.bsc-badges-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Type Pill (like Grass / Normal tag in Image 2) */
+.bsc-type-pill {
+  font-family: var(--font-pixel, monospace);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+  color: #ffffff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 1px 3px rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+/* Type Pill Specific Solid Colors */
+.type-pill-grass    { background: #569b2d; }
+.type-pill-fire     { background: #dc4424; }
+.type-pill-water    { background: #3b82f6; }
+.type-pill-electric { background: #eab308; }
+.type-pill-normal   { background: #8e9477; }
+.type-pill-ice      { background: #38bdf8; }
+.type-pill-fighting { background: #c2410c; }
+.type-pill-poison   { background: #9333ea; }
+.type-pill-ground   { background: #b45309; }
+.type-pill-flying   { background: #60a5fa; }
+.type-pill-psychic  { background: #ec4899; }
+.type-pill-bug      { background: #84cc16; }
+.type-pill-rock     { background: #78716c; }
+.type-pill-ghost    { background: #6b21a8; }
+.type-pill-dragon   { background: #6366f1; }
+.type-pill-steel    { background: #64748b; }
+.type-pill-dark     { background: #3f3f46; }
+.type-pill-fairy    { background: #f472b6; }
+
+/* Category Pill (ESPECIAL, FÍSICO, EFEITO) */
+.bsc-cat-pill {
+  font-family: var(--font-pixel, monospace);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #94a3b8;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  padding: 1px 5px;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.cat-pill-physical { color: #f97316; border-color: rgba(249, 115, 22, 0.35); }
+.cat-pill-special  { color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); }
+.cat-pill-status   { color: #c084fc; border-color: rgba(192, 132, 252, 0.35); }
+
+/* PWR & ACC Stats on Right Side */
+.bsc-stats-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bsc-stat-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-pixel, monospace);
+}
+
+.bsc-stat-k {
+  font-size: 8px;
+  font-weight: 800;
+  color: #64748b;
+  letter-spacing: 0.5px;
+}
+
+.bsc-stat-v {
+  font-size: 10px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+/* ─── CENTRAL DEFENSE BUTTON (Matching other cards: colors, outlines, squircle bevel) ─── */
+.battle-def-center-btn {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #00e5ff 0%, #38bdf8 100%);
-  box-shadow: 0 0 10px #00e5ff;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #0e1526 0%, #080d18 100%);
+  border: 1.5px solid #1a273e;
+  box-shadow: 
+    inset 0 0 10px rgba(0, 0, 0, 0.75),
+    0 4px 12px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 40;
+  padding: 0;
+  outline: none;
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.battle-def-center-btn:hover:not(.on-cooldown) {
+  transform: translate(-50%, -50%) scale(1.06);
+  border-color: #00e5ff;
+  box-shadow: 
+    0 0 16px rgba(0, 229, 255, 0.45),
+    inset 0 0 8px rgba(0, 229, 255, 0.15);
+}
+
+.battle-def-center-btn:active:not(.on-cooldown) {
+  transform: translate(-50%, -50%) scale(0.96);
+}
+
+.battle-def-center-btn.active-guard {
+  border-color: #00e5ff;
+  background: linear-gradient(135deg, #072538 0%, #051424 100%);
+  box-shadow: 
+    0 0 20px rgba(0, 229, 255, 0.75),
+    inset 0 0 12px rgba(0, 229, 255, 0.35);
+}
+
+.battle-def-center-btn.guard-broken {
+  border-color: #ef4444;
+  background: linear-gradient(135deg, #3d0c0c 0%, #1e0606 100%);
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.7);
+  animation: defShakeBroken 0.4s ease-out;
+}
+
+.def-center-inner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   pointer-events: none;
 }
 
-.swsh-command-bar > .swsh-dialogue-area,
-.swsh-command-bar > .swsh-action-container {
-  position: relative;
-  z-index: 1;
+.def-center-hotkey {
+  position: absolute;
+  top: -8px;
+  font-family: var(--font-pixel, monospace);
+  font-size: 7.5px;
+  font-weight: 800;
+  color: #00e5ff;
+  text-shadow: 0 1px 3px #000;
 }
 
-/* Dialogue area (left, flexible) */
-.swsh-dialogue-area {
-  flex: 1 1 0;
-  display: flex;
+.def-center-icon {
+  font-size: 16px;
+  line-height: 1;
+  margin-top: 3px;
+}
+
+.def-center-lbl {
+  font-family: var(--font-pixel, monospace);
+  font-size: 8px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1;
+  margin-top: 3px;
+  letter-spacing: 0.5px;
+}
+
+/* Subtle Stamina Gauge Track at the bottom of Defense Button */
+.def-meter-bar-track {
+  position: absolute;
+  bottom: 3px;
+  left: 6px;
+  right: 6px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.def-meter-bar-fill {
+  height: 100%;
+  width: 100%;
+  background: #00e5ff;
+  border-radius: 2px;
+  transition: width 0.12s ease, background 0.2s ease;
+}
+
+/* ─── LoL-Style Clock Radial Wipe Cooldown Overlay (Image 2) ─── */
+.cluster-cd-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
   align-items: center;
-  min-width: 0;
-  padding: 0 4px;
-  box-sizing: border-box;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 20;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.cluster-cd-overlay .cd-timer-txt {
+  font-family: var(--font-pixel, 'Press Start 2P', monospace);
+  font-size: 16px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 
+    0 0 3px #000,
+    0 2px 4px #000,
+    0 0 8px rgba(0, 0, 0, 0.95);
+  letter-spacing: 0.5px;
+  z-index: 25;
+}
+
+/* Dialogue area (kept for compatibility) */
+.swsh-dialogue-area {
+  display: none !important;
 }
 
 .swsh-dialogue-area.full-width-dialogue {
@@ -773,21 +1224,63 @@
 
 /* ─── 5. ACTIONS INSIDE THE BAR (Fire Red 2x2 Placa Style) ─────────────── */
 .swsh-action-container {
-  flex: 0 0 300px;
-  width: 300px;
+  flex: 0 0 320px;
+  width: 320px;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
 }
 
-/* Fight mode: moves take over the whole bar, dialogue area hides */
+/* Fight mode: dialogue remains on the left showing combat text, actions show fight controls */
 .swsh-command-bar.mode-fight .swsh-dialogue-area {
-  display: none;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .swsh-command-bar.mode-fight .swsh-action-container {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   width: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.swsh-fight-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+}
+
+.swsh-fight-controls.hidden {
+  display: none !important;
+}
+
+.sfc-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sfc-title {
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  font-weight: 800;
+  color: #00e5ff;
+  letter-spacing: 0.5px;
+}
+
+.sfc-hint {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: #94a3b8;
+}
+
+.swsh-fight-controls .swsh-back-btn {
+  height: 38px;
+  padding: 0 16px;
+  width: auto;
+  min-width: 110px;
 }
 
 /* 4 Main Action Buttons in a 2x2 Grid (transparent — the bar is the placa) */
@@ -806,16 +1299,20 @@
   box-sizing: border-box;
 }
 
+.swsh-main-menu.hidden {
+  display: none !important;
+}
+
 .swsh-action-btn {
   height: 100%;
   width: 100%;
-  border-radius: 8px;
-  background: #141724;
-  border: 1.5px solid #1a2034;
-  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.6);
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
   display: flex;
   align-items: center;
-  padding: 0 6px 0 8px;
+  padding: 4px 8px;
   cursor: pointer;
   outline: none;
   transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
@@ -827,12 +1324,13 @@
 .swsh-action-btn .swsh-btn-arrow {
   color: #00e5ff;
   font-family: var(--font-hud, 'Press Start 2P', monospace, sans-serif);
-  font-size: 9px;
+  font-size: 10px;
   opacity: 0;
-  transform: translateX(-3px);
-  transition: all 0.12s ease;
+  transform: translateX(-4px);
+  transition: all 0.14s ease;
   flex-shrink: 0;
-  margin-right: 5px;
+  margin-right: 6px;
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.8);
 }
 
 .swsh-action-btn:hover .swsh-btn-arrow,
@@ -846,8 +1344,8 @@
 }
 
 .swsh-action-btn .swsh-btn-lbl {
-  font-family: var(--font-pixel);
-  font-size: 13px;
+  font-family: var(--font-pixel, 'Press Start 2P', monospace);
+  font-size: 14px;
   font-weight: 800;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -856,32 +1354,36 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: #94a3b8;
+  transition: all 0.16s ease;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.95);
 }
 
-/* Action labels: HUD style — white pixel text */
+/* Action labels: Pure text with glowing hover */
 .swsh-action-btn.btn-fight .swsh-btn-lbl,
 .swsh-action-btn.btn-bag .swsh-btn-lbl,
 .swsh-action-btn.btn-pokemon .swsh-btn-lbl,
 .swsh-action-btn.btn-run .swsh-btn-lbl {
-  color: #ffffff;
+  color: #cbd5e1;
 }
 
-.swsh-action-btn.btn-fight:hover,
-.swsh-action-btn.btn-fight.active,
-.swsh-action-btn.btn-bag:hover,
-.swsh-action-btn.btn-bag.active,
-.swsh-action-btn.btn-pokemon:hover,
-.swsh-action-btn.btn-pokemon.active,
-.swsh-action-btn.btn-run:hover,
-.swsh-action-btn.btn-run.active {
-  background: rgba(0, 229, 255, 0.12);
-  border-color: rgba(0, 229, 255, 0.85);
-  box-shadow: 0 0 14px rgba(0, 229, 255, 0.4);
-  transform: scale(1.03);
+.swsh-action-btn:hover .swsh-btn-lbl,
+.swsh-action-btn.active .swsh-btn-lbl {
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.8), 0 2px 4px #000;
+  transform: translateX(2px);
+}
+
+.swsh-action-btn:hover,
+.swsh-action-btn.active {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  transform: none;
 }
 
 .swsh-action-btn:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 /* ─── 6. FIGHT MOVE SUBMENU (expanded inside the bar) ─────────────────── */
@@ -1642,7 +2144,7 @@
   box-sizing: border-box;
 }
 
-.battle-pbc.pkmn-box-cell:hover:not(.in-battle):not(.is-fainted):not(.empty-cell) {
+.battle-pbc.pkmn-box-cell:hover:not(.in-battle):not(.is-fainted):not(.empty-cell):not(.is-disabled) {
   background: rgba(0, 229, 255, 0.12);
   border-color: rgba(0, 229, 255, 0.6);
   transform: scale(1.04);
@@ -1657,10 +2159,44 @@
 }
 
 .battle-pbc.pkmn-box-cell.is-fainted {
-  opacity: 0.5;
+  opacity: 0.45;
   filter: grayscale(0.8);
   border-color: rgba(239, 68, 68, 0.4) !important;
   cursor: not-allowed;
+}
+
+.battle-pbc.pkmn-box-cell.is-disabled {
+  opacity: 0.36 !important;
+  filter: grayscale(0.8) !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
+  background: rgba(12, 16, 25, 0.65) !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.battle-pbc.pkmn-box-cell.is-disabled:hover {
+  transform: none !important;
+  background: rgba(12, 16, 25, 0.65) !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
+  box-shadow: none !important;
+}
+
+.battle-pbc.pkmn-box-cell.revive-target {
+  cursor: pointer !important;
+  opacity: 1 !important;
+  filter: none !important;
+  border-color: #00e5ff !important;
+  background: rgba(0, 229, 255, 0.10) !important;
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.35) !important;
+  animation: revivePulse 1.4s infinite alternate ease-in-out;
+}
+
+.battle-pbc.pkmn-box-cell.revive-target:hover {
+  transform: scale(1.06) !important;
+  border-color: #38bdf8 !important;
+  background: rgba(0, 229, 255, 0.22) !important;
+  box-shadow: 0 0 18px rgba(0, 229, 255, 0.55) !important;
 }
 
 .battle-pbc.pkmn-box-cell.empty-cell {
@@ -1894,13 +2430,46 @@
 .type-bg-dark     { background: #50413f !important; }
 .type-bg-fairy    { background: #ef70ef !important; }
 
-.type-card-fire:hover     { border-color: #e62829 !important; box-shadow: 0 0 14px rgba(230, 40, 41, 0.4) !important; }
-.type-card-water:hover    { border-color: #2980ef !important; box-shadow: 0 0 14px rgba(41, 128, 239, 0.4) !important; }
-.type-card-grass:hover    { border-color: #3fa129 !important; box-shadow: 0 0 14px rgba(63, 161, 41, 0.4) !important; }
-.type-card-electric:hover { border-color: #fac000 !important; box-shadow: 0 0 14px rgba(250, 192, 0, 0.4) !important; }
-.type-card-ice:hover      { border-color: #3dcef3 !important; box-shadow: 0 0 14px rgba(61, 206, 243, 0.4) !important; }
-.type-card-psychic:hover  { border-color: #ef4179 !important; box-shadow: 0 0 14px rgba(239, 65, 121, 0.4) !important; }
-.type-card-dragon:hover   { border-color: #5060e1 !important; box-shadow: 0 0 14px rgba(80, 96, 225, 0.4) !important; }
+/* ─── 8. TYPE EMBLEN & CARD STYLES (Matching Reference Screenshot) ───────── */
+/* Glowing Card Borders & Ambient Gradients */
+.battle-skill-card.type-card-fire       { border-color: rgba(230, 40, 41, 0.7); box-shadow: inset 0 0 12px rgba(230, 40, 41, 0.25), 0 0 14px rgba(230, 40, 41, 0.35); }
+.battle-skill-card.type-card-water      { border-color: rgba(41, 128, 239, 0.7); box-shadow: inset 0 0 12px rgba(41, 128, 239, 0.25), 0 0 14px rgba(41, 128, 239, 0.35); }
+.battle-skill-card.type-card-grass      { border-color: rgba(63, 161, 41, 0.7); box-shadow: inset 0 0 12px rgba(63, 161, 41, 0.25), 0 0 14px rgba(63, 161, 41, 0.35); }
+.battle-skill-card.type-card-electric   { border-color: rgba(250, 192, 0, 0.7); box-shadow: inset 0 0 12px rgba(250, 192, 0, 0.25), 0 0 14px rgba(250, 192, 0, 0.35); }
+.battle-skill-card.type-card-normal     { border-color: rgba(144, 153, 161, 0.55); box-shadow: inset 0 0 10px rgba(144, 153, 161, 0.2), 0 0 10px rgba(144, 153, 161, 0.25); }
+.battle-skill-card.type-card-ice        { border-color: rgba(61, 206, 243, 0.7); box-shadow: inset 0 0 12px rgba(61, 206, 243, 0.25), 0 0 14px rgba(61, 206, 243, 0.35); }
+.battle-skill-card.type-card-fighting   { border-color: rgba(255, 128, 0, 0.7); box-shadow: inset 0 0 12px rgba(255, 128, 0, 0.25), 0 0 14px rgba(255, 128, 0, 0.35); }
+.battle-skill-card.type-card-poison     { border-color: rgba(145, 65, 203, 0.7); box-shadow: inset 0 0 12px rgba(145, 65, 203, 0.25), 0 0 14px rgba(145, 65, 203, 0.35); }
+.battle-skill-card.type-card-ground     { border-color: rgba(145, 81, 33, 0.7); box-shadow: inset 0 0 12px rgba(145, 81, 33, 0.25), 0 0 14px rgba(145, 81, 33, 0.35); }
+.battle-skill-card.type-card-flying     { border-color: rgba(129, 185, 239, 0.7); box-shadow: inset 0 0 12px rgba(129, 185, 239, 0.25), 0 0 14px rgba(129, 185, 239, 0.35); }
+.battle-skill-card.type-card-psychic    { border-color: rgba(239, 65, 121, 0.7); box-shadow: inset 0 0 12px rgba(239, 65, 121, 0.25), 0 0 14px rgba(239, 65, 121, 0.35); }
+.battle-skill-card.type-card-bug        { border-color: rgba(145, 161, 25, 0.7); box-shadow: inset 0 0 12px rgba(145, 161, 25, 0.25), 0 0 14px rgba(145, 161, 25, 0.35); }
+.battle-skill-card.type-card-rock       { border-color: rgba(175, 169, 129, 0.7); box-shadow: inset 0 0 12px rgba(175, 169, 129, 0.25), 0 0 14px rgba(175, 169, 129, 0.35); }
+.battle-skill-card.type-card-ghost      { border-color: rgba(112, 65, 112, 0.7); box-shadow: inset 0 0 12px rgba(112, 65, 112, 0.25), 0 0 14px rgba(112, 65, 112, 0.35); }
+.battle-skill-card.type-card-dragon     { border-color: rgba(80, 96, 225, 0.75); box-shadow: inset 0 0 12px rgba(80, 96, 225, 0.25), 0 0 14px rgba(80, 96, 225, 0.4); }
+.battle-skill-card.type-card-steel      { border-color: rgba(96, 161, 184, 0.7); box-shadow: inset 0 0 12px rgba(96, 161, 184, 0.25), 0 0 14px rgba(96, 161, 184, 0.35); }
+.battle-skill-card.type-card-dark       { border-color: rgba(90, 80, 80, 0.7); box-shadow: inset 0 0 12px rgba(90, 80, 80, 0.25), 0 0 14px rgba(90, 80, 80, 0.35); }
+.battle-skill-card.type-card-fairy      { border-color: rgba(239, 112, 239, 0.7); box-shadow: inset 0 0 12px rgba(239, 112, 239, 0.25), 0 0 14px rgba(239, 112, 239, 0.35); }
+
+/* Emblem Backgrounds & SVG glow */
+.type-emblem-fire       { background: radial-gradient(circle at 35% 35%, #591616 0%, #200808 100%) !important; border-color: rgba(230, 40, 41, 0.7) !important; box-shadow: 0 0 10px rgba(230, 40, 41, 0.5) !important; }
+.type-emblem-water      { background: radial-gradient(circle at 35% 35%, #0f3660 0%, #06182c 100%) !important; border-color: rgba(41, 128, 239, 0.7) !important; box-shadow: 0 0 10px rgba(41, 128, 239, 0.5) !important; }
+.type-emblem-grass      { background: radial-gradient(circle at 35% 35%, #184410 0%, #081d06 100%) !important; border-color: rgba(63, 161, 41, 0.7) !important; box-shadow: 0 0 10px rgba(63, 161, 41, 0.5) !important; }
+.type-emblem-electric   { background: radial-gradient(circle at 35% 35%, #5a4600 0%, #221a00 100%) !important; border-color: rgba(250, 192, 0, 0.7) !important; box-shadow: 0 0 10px rgba(250, 192, 0, 0.5) !important; }
+.type-emblem-normal     { background: radial-gradient(circle at 35% 35%, #2a3442 0%, #10151c 100%) !important; border-color: rgba(144, 153, 161, 0.6) !important; box-shadow: 0 0 8px rgba(144, 153, 161, 0.35) !important; }
+.type-emblem-ice        { background: radial-gradient(circle at 35% 35%, #0f4854 0%, #061c22 100%) !important; border-color: rgba(61, 206, 243, 0.7) !important; box-shadow: 0 0 10px rgba(61, 206, 243, 0.5) !important; }
+.type-emblem-fighting   { background: radial-gradient(circle at 35% 35%, #592e00 0%, #221200 100%) !important; border-color: rgba(255, 128, 0, 0.7) !important; box-shadow: 0 0 10px rgba(255, 128, 0, 0.5) !important; }
+.type-emblem-poison     { background: radial-gradient(circle at 35% 35%, #42185c 0%, #1a0825 100%) !important; border-color: rgba(145, 65, 203, 0.7) !important; box-shadow: 0 0 10px rgba(145, 65, 203, 0.5) !important; }
+.type-emblem-ground     { background: radial-gradient(circle at 35% 35%, #46250e 0%, #1a0c04 100%) !important; border-color: rgba(145, 81, 33, 0.7) !important; box-shadow: 0 0 10px rgba(145, 81, 33, 0.5) !important; }
+.type-emblem-flying     { background: radial-gradient(circle at 35% 35%, #254a6b 0%, #0d1e2e 100%) !important; border-color: rgba(129, 185, 239, 0.7) !important; box-shadow: 0 0 10px rgba(129, 185, 239, 0.5) !important; }
+.type-emblem-psychic    { background: radial-gradient(circle at 35% 35%, #5c142c 0%, #24050e 100%) !important; border-color: rgba(239, 65, 121, 0.7) !important; box-shadow: 0 0 10px rgba(239, 65, 121, 0.5) !important; }
+.type-emblem-bug        { background: radial-gradient(circle at 35% 35%, #3c440a 0%, #161a03 100%) !important; border-color: rgba(145, 161, 25, 0.7) !important; box-shadow: 0 0 10px rgba(145, 161, 25, 0.5) !important; }
+.type-emblem-rock       { background: radial-gradient(circle at 35% 35%, #433f2e 0%, #1a1811 100%) !important; border-color: rgba(175, 169, 129, 0.7) !important; box-shadow: 0 0 10px rgba(175, 169, 129, 0.5) !important; }
+.type-emblem-ghost      { background: radial-gradient(circle at 35% 35%, #341a34 0%, #140814 100%) !important; border-color: rgba(112, 65, 112, 0.7) !important; box-shadow: 0 0 10px rgba(112, 65, 112, 0.5) !important; }
+.type-emblem-dragon     { background: radial-gradient(circle at 35% 35%, #182260 0%, #080c26 100%) !important; border-color: rgba(80, 96, 225, 0.75) !important; box-shadow: 0 0 12px rgba(80, 96, 225, 0.6) !important; }
+.type-emblem-steel      { background: radial-gradient(circle at 35% 35%, #22424d 0%, #0b1a20 100%) !important; border-color: rgba(96, 161, 184, 0.7) !important; box-shadow: 0 0 10px rgba(96, 161, 184, 0.5) !important; }
+.type-emblem-dark       { background: radial-gradient(circle at 35% 35%, #2a2221 0%, #100b0b 100%) !important; border-color: rgba(90, 80, 80, 0.7) !important; box-shadow: 0 0 10px rgba(90, 80, 80, 0.5) !important; }
+.type-emblem-fairy      { background: radial-gradient(circle at 35% 35%, #591b59 0%, #220822 100%) !important; border-color: rgba(239, 112, 239, 0.7) !important; box-shadow: 0 0 10px rgba(239, 112, 239, 0.5) !important; }
 
 /* ─── 9. FIRERED FAINT ANIMATION ─────────────────────────────────────────── */
 @keyframes fireRedFaintSink {

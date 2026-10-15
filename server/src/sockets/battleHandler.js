@@ -74,6 +74,10 @@ function setupBattleHandlers(io, socket) {
   socket.on('battle:action', async (payload) => {
     try {
       const player = roomManager.getPlayer(socket.id);
+      if (!player || !player.characterId) {
+        return socket.emit('battle:action_error', { message: 'Personagem não conectado à sala.' });
+      }
+
       const { action } = payload || {};
       if (!action || !action.type) return;
 
@@ -248,6 +252,18 @@ function setupBattleHandlers(io, socket) {
     } catch (err) {
       console.error('[Battle Socket Error battle:quick_item]:', err);
       socket.emit('battle:action_error', { message: err.message });
+    }
+  });
+
+  // ─── 4. Client Battle Exited / Closed ──────────────────────────────────
+  socket.on('battle:exit', () => {
+    try {
+      const player = roomManager.getPlayer(socket.id);
+      if (player && player.characterId) {
+        battleManager.endSession(player.characterId);
+      }
+    } catch (err) {
+      console.warn('[Battle Socket Warning battle:exit]:', err.message);
     }
   });
 }

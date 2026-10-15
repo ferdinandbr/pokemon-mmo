@@ -14,10 +14,16 @@ function setupInventoryHandlers(io, socket) {
 
       const activeBattle = battleManager.getSession(player.characterId);
       if (activeBattle && !activeBattle.isEnded) {
-        return socket.emit('inventory:used_result', {
-          success: false,
-          message: 'Você está em batalha! Use os itens pelo menu de combate ou atalho de batalha.'
-        });
+        // If battle is actively happening right now (< 25s), inform player
+        if (activeBattle.lastActionAt && (Date.now() - activeBattle.lastActionAt < 25000)) {
+          return socket.emit('inventory:used_result', {
+            success: false,
+            message: 'Você está em batalha! Use os itens pelo menu de combate ou atalho de batalha.'
+          });
+        } else {
+          // Stale/orphaned session: safely clean up so player is not blocked
+          battleManager.endSession(player.characterId);
+        }
       }
 
       const { slotIndex, itemId } = payload;

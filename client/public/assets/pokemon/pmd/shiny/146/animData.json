@@ -1,0 +1,269 @@
+{
+  "shadowSize": 2,
+  "anims": {
+    "Walk": {
+      "name": "Walk",
+      "frameWidth": 80,
+      "frameHeight": 96,
+      "durations": [
+        8,
+        10,
+        8,
+        10
+      ],
+      "frameCount": 4,
+      "rushFrame": null,
+      "hitFrame": null,
+      "returnFrame": null
+    },
+    "Attack": {
+      "name": "Attack",
+      "frameWidth": 104,
+      "frameHeight": 136,
+      "durations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "frameCount": 14,
+      "rushFrame": null,
+      "hitFrame": 6,
+      "returnFrame": 9
+    },
+    "Strike": {
+      "name": "Strike",
+      "frameWidth": 104,
+      "frameHeight": 104,
+      "durations": [
+        2,
+        2,
+        2,
+        2,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "frameCount": 14,
+      "rushFrame": 2,
+      "hitFrame": 5,
+      "returnFrame": 8
+    },
+    "Shoot": {
+      "name": "Shoot",
+      "frameWidth": 96,
+      "frameHeight": 96,
+      "durations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "frameCount": 16,
+      "rushFrame": null,
+      "hitFrame": 6,
+      "returnFrame": 10
+    },
+    "Hover": {
+      "name": "Hover",
+      "frameWidth": 80,
+      "frameHeight": 96,
+      "durations": [
+        1,
+        3,
+        1,
+        3,
+        1,
+        3,
+        1,
+        3,
+        3,
+        3,
+        3
+      ],
+      "frameCount": 11,
+      "rushFrame": null,
+      "hitFrame": 3,
+      "returnFrame": 8
+    },
+    "Sleep": {
+      "name": "Sleep",
+      "frameWidth": 48,
+      "frameHeight": 64,
+      "durations": [
+        30,
+        35
+      ],
+      "frameCount": 2,
+      "rushFrame": null,
+      "hitFrame": null,
+      "returnFrame": null
+    },
+    "Hurt": {
+      "name": "Hurt",
+      "frameWidth": 80,
+      "frameHeight": 120,
+      "durations": [
+        2,
+        8
+      ],
+      "frameCount": 2,
+      "rushFrame": null,
+      "hitFrame": null,
+      "returnFrame": null
+    },
+    "Idle": {
+      "name": "Idle",
+      "frameWidth": 80,
+      "frameHeight": 96,
+      "durations": [
+        8,
+        12,
+        8,
+        12
+      ],
+      "frameCount": 4,
+      "rushFrame": null,
+      "hitFrame": null,
+      "returnFrame": null
+    },
+    "Swing": {
+      "name": "Swing",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "durations": [
+        2,
+        1,
+        2,
+        2,
+        3,
+        2,
+        2,
+        1,
+        1
+      ],
+      "frameCount": 9,
+      "rushFrame": null,
+      "hitFrame": 5,
+      "returnFrame": 5
+    },
+    "Double": {
+      "name": "Double",
+      "frameWidth": 96,
+      "frameHeight": 120,
+      "durations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        3,
+        3,
+        3,
+        2,
+        3,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "frameCount": 16,
+      "rushFrame": null,
+      "hitFrame": null,
+      "returnFrame": null
+    },
+    "Hop": {
+      "name": "Hop",
+      "frameWidth": 80,
+      "frameHeight": 152,
+      "durations": [
+        2,
+        1,
+        2,
+        3,
+        4,
+        4,
+        3,
+        2,
+        1,
+        2
+      ],
+      "frameCount": 10,
+      "rushFrame": null,
+      "hitFrame": 9,
+      "returnFrame": null
+    },
+    "Charge": {
+      "name": "Charge",
+      "frameWidth": 96,
+      "frameHeight": 104,
+      "durations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "frameCount": 10,
+      "rushFrame": null,
+      "hitFrame": 5,
+      "returnFrame": 9
+    },
+    "Rotate": {
+      "name": "Rotate",
+      "frameWidth": 80,
+      "frameHeight": 88,
+      "durations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "frameCount": 9,
+      "rushFrame": null,
+      "hitFrame": 8,
+      "returnFrame": null
+    }
+  }
+}

@@ -425,6 +425,29 @@ class PokemonService {
         }
       });
     }
+
+    // If moving a buddy to storage, transfer buddy status to first alive party pokemon
+    if (targetLocation === 'storage' && pkmn.isBuddy) {
+      await prisma.pokemon.update({
+        where: { id: pokemonId },
+        data: { isBuddy: false }
+      });
+      const firstParty = await prisma.pokemon.findFirst({
+        where: { characterId, location: 'party' },
+        orderBy: { partySlot: 'asc' }
+      });
+      if (firstParty) {
+        await prisma.pokemon.update({
+          where: { id: firstParty.id },
+          data: { isBuddy: true }
+        });
+        await this.updateCharacterEquipmentBuddy(characterId, firstParty);
+      } else {
+        await this.updateCharacterEquipmentBuddy(characterId, null);
+      }
+    }
+
+    return await this.getCharacterPokemonData(characterId);
   }
 
   /**

@@ -1175,58 +1175,62 @@ export default class BagUI {
 
         let isDisabled = false;
         let hintText = '';
-        let statusTagHtml = '';
 
         if (isRevive) {
           if (!isFainted) {
             isDisabled = true;
             hintText = 'não está desmaiado';
-            statusTagHtml = '<span class="pbc-tag-status disabled">NÃO DESMAIADO</span>';
           } else {
-            statusTagHtml = '<span class="pbc-tag-status revive-active">REVIVER</span>';
             hintText = 'Reviver Pokémon';
           }
         } else if (isPotion) {
           if (isFainted) {
             isDisabled = true;
             hintText = 'está desmaiado! Use um Revive';
-            statusTagHtml = '<span class="pbc-tag-status fainted">DESMAIADO</span>';
           } else if (isFullHp) {
             isDisabled = true;
             hintText = 'já está com o HP máximo';
-            statusTagHtml = '<span class="pbc-tag-status disabled">HP CHEIO</span>';
           } else {
-            statusTagHtml = '';
             hintText = 'Curar HP';
           }
         } else if (isCandy) {
           if (isMaxLvl) {
             isDisabled = true;
             hintText = 'já atingiu o Nível Máximo (100)';
-            statusTagHtml = '<span class="pbc-tag-status disabled">NÍVEL MÁX</span>';
           } else {
-            statusTagHtml = '';
             hintText = 'Usar Doce';
           }
         } else if (isStatusHeal) {
           if (isFainted) {
             isDisabled = true;
             hintText = 'está desmaiado! Use um Revive';
-            statusTagHtml = '<span class="pbc-tag-status fainted">DESMAIADO</span>';
           } else if (pkmn.status && pkmn.status !== 'NONE') {
-            statusTagHtml = '';
             hintText = 'Curar Status';
           } else {
             isDisabled = true;
             hintText = 'não possui nenhum problema de status';
-            statusTagHtml = '<span class="pbc-tag-status disabled">SEM STATUS</span>';
           }
         } else {
-          statusTagHtml = '';
           hintText = 'Usar Item';
         }
 
-        cell.className = `battle-pbc pkmn-box-cell ${isDisabled ? 'is-disabled' : 'selectable'} ${isFainted ? 'is-fainted' : ''}`;
+        const cellClasses = ['battle-pbc', 'pkmn-box-cell'];
+        if (isDisabled) {
+          cellClasses.push('is-disabled');
+        } else {
+          cellClasses.push('selectable');
+          if (isRevive) {
+            cellClasses.push('revive-target');
+          }
+        }
+
+        // Fainted visual (grayscale / red border) ONLY applies when fainted is an invalid target (e.g. potions/status)
+        // When using Revive, the fainted Pokemon is the unlocked, active target!
+        if (isFainted && !isRevive) {
+          cellClasses.push('is-fainted');
+        }
+
+        cell.className = cellClasses.join(' ');
 
         const speciesId = pkmn.speciesId || pkmn.species?.id || 1;
         const fmtId = String(speciesId).padStart(3, '0');
@@ -1248,7 +1252,6 @@ export default class BagUI {
             </div>
             <span class="pbc-hp-num">${curHp}/${maxHp}</span>
           </div>
-          ${statusTagHtml}
         `;
 
         cell.addEventListener('click', () => {

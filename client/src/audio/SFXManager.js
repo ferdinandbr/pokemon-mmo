@@ -101,28 +101,28 @@ class SFXManager {
 
   // Pre-configured Battle SFX
   playThrow() {
-    return this.play('Battle throw.ogg', 0.85);
+    return this.play('battle_throw.ogg', 0.85);
   }
 
   playBallOpen() {
-    return this.play('Battle recall.wav', 0.8);
+    return this.play('battle_recall.wav', 0.8);
   }
 
   playBallDrop() {
-    return this.play('Battle ball drop.ogg', 0.8);
+    return this.play('battle_ball_drop.ogg', 0.8);
   }
 
   playBallShake() {
-    return this.play('Battle ball shake.wav', 0.85);
+    return this.play('battle_ball_shake.wav', 0.85);
   }
 
   playDamage(effectiveness = 'normal') {
     if (effectiveness === 'super') {
-      return this.play('Battle damage super.ogg', 0.85);
+      return this.play('battle_damage_super.ogg', 0.85);
     } else if (effectiveness === 'weak') {
-      return this.play('Battle damage weak.ogg', 0.8);
+      return this.play('battle_damage_weak.ogg', 0.8);
     }
-    return this.play('Battle damage normal.ogg', 0.8);
+    return this.play('battle_damage_normal.ogg', 0.8);
   }
 
   playAttackHit() {
@@ -130,31 +130,31 @@ class SFXManager {
   }
 
   playFaint() {
-    return this.play('Battle flee.ogg', 0.8);
+    return this.play('battle_flee.ogg', 0.8);
   }
 
   playFlee() {
-    return this.play('Battle flee.ogg', 0.85);
+    return this.play('battle_flee.ogg', 0.85);
   }
 
   playCursor() {
-    return this.play('GUI sel cursor.ogg', 0.6);
+    return this.play('gui_sel_cursor.ogg', 0.6);
   }
 
   playDecision() {
-    return this.play('GUI sel decision.ogg', 0.7);
+    return this.play('gui_sel_decision.ogg', 0.7);
   }
 
   playCancel() {
-    return this.play('GUI sel cancel.ogg', 0.7);
+    return this.play('gui_sel_cancel.ogg', 0.7);
   }
 
   playVictory(bgmManager = null) {
-    return this.playME('Battle victory wild.ogg', bgmManager, 0.9);
+    return this.playME('battle_victory_wild.ogg', bgmManager, 0.9);
   }
 
   playCatchSuccess(bgmManager = null) {
-    return this.playME('Battle capture success.ogg', bgmManager, 0.95);
+    return this.playME('battle_capture_success.ogg', bgmManager, 0.95);
   }
 }
 

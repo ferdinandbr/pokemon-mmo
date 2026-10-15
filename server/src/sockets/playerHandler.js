@@ -3,6 +3,7 @@ const characterService = require('../services/characterService');
 const worldService = require('../services/worldService');
 const pokemonService = require('../services/pokemonService');
 const prisma = require('../database');
+const battleManager = require('../services/battle/BattleManager');
 
 function setupPlayerHandlers(io, socket) {
   socket.on('player:join', async (payload) => {
@@ -46,6 +47,9 @@ function setupPlayerHandlers(io, socket) {
           characterId: existingPlayer.characterId
         });
       }
+
+      // Clear any leftover battle session upon entering the overworld
+      battleManager.endSession(character.id);
 
       // Add to Room Manager
       const activeBuddyPkmn = (character.pokemon || []).find(p => p.isBuddy);
@@ -193,6 +197,7 @@ function setupPlayerHandlers(io, socket) {
   socket.on('disconnect', async () => {
     const player = roomManager.removePlayer(socket.id);
     if (player) {
+      battleManager.endSession(player.characterId);
       socket.to(player.roomId).emit('player:left', { socketId: socket.id, characterId: player.characterId });
 
       // Save position upon disconnect

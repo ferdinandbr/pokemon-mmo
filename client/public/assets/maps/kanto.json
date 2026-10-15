@@ -26,7 +26,7 @@
     },
     {
       "name": "Outside1 Spring",
-      "image": "/assets/tilesets/Outside1 Spring.png",
+      "image": "/assets/tilesets/outside1_spring.png",
       "firstgid": 1729,
       "tilewidth": 32,
       "tileheight": 32,
@@ -39,7 +39,7 @@
     },
     {
       "name": "Outside2 Summer",
-      "image": "/assets/tilesets/Outside2 Summer.png",
+      "image": "/assets/tilesets/outside2_summer.png",
       "firstgid": 6273,
       "tilewidth": 32,
       "tileheight": 32,
@@ -52,7 +52,7 @@
     },
     {
       "name": "Interior general",
-      "image": "/assets/tilesets/Interior general.png",
+      "image": "/assets/tilesets/interior_general.png",
       "firstgid": 10817,
       "tilewidth": 32,
       "tileheight": 32,
@@ -1306031,7 +1306031,7 @@
             },
             {
               "name": "pokemonSpawns",
-              "value": "[{\"speciesId\":16,\"minLevel\":2,\"maxLevel\":4,\"morningChance\":60,\"afternoonChance\":55,\"dayChance\":55,\"nightChance\":35,\"dawnChance\":25,\"madrugadaChance\":25,\"times\":{\"morning\":60,\"afternoon\":55,\"day\":55,\"night\":35,\"dawn\":25,\"madrugada\":25},\"timeOfDay\":[\"morning\",\"afternoon\",\"day\",\"night\",\"dawn\"],\"weight\":60,\"highIvChance\":0,\"shinyBonus\":1},{\"speciesId\":19,\"minLevel\":2,\"maxLevel\":5,\"morningChance\":40,\"afternoonChance\":45,\"dayChance\":45,\"nightChance\":65,\"dawnChance\":75,\"madrugadaChance\":75,\"times\":{\"morning\":40,\"afternoon\":45,\"day\":45,\"night\":65,\"dawn\":75,\"madrugada\":75},\"timeOfDay\":[\"morning\",\"afternoon\",\"day\",\"night\",\"dawn\"],\"weight\":75,\"highIvChance\":0,\"shinyBonus\":1}]"
+              "value": "[{\"speciesId\":16,\"minLevel\":2,\"maxLevel\":4,\"morningChance\":60,\"afternoonChance\":55,\"dayChance\":55,\"nightChance\":35,\"dawnChance\":25,\"madrugadaChance\":25,\"times\":{\"morning\":60,\"afternoon\":55,\"day\":55,\"night\":35,\"dawn\":25,\"madrugada\":25},\"timeOfDay\":[\"morning\",\"afternoon\",\"day\",\"night\",\"dawn\"],\"weight\":60,\"highIvChance\":0,\"shinyBonus\":1},{\"speciesId\":19,\"minLevel\":2,\"maxLevel\":5,\"morningChance\":40,\"afternoonChance\":45,\"dayChance\":45,\"nightChance\":65,\"dawnChance\":75,\"madrugadaChance\":75,\"times\":{\"morning\":40,\"afternoon\":45,\"day\":45,\"night\":65,\"dawn\":75,\"madrugada\":75},\"timeOfDay\":[\"morning\",\"afternoon\",\"day\",\"night\",\"dawn\"],\"weight\":75,\"highIvChance\":0,\"shinyBonus\":1},{\"speciesId\":4,\"minLevel\":2,\"maxLevel\":5,\"morningChance\":25,\"afternoonChance\":25,\"dayChance\":25,\"nightChance\":25,\"dawnChance\":25,\"madrugadaChance\":25,\"times\":{\"morning\":25,\"afternoon\":25,\"day\":25,\"night\":25,\"dawn\":25,\"madrugada\":25},\"timeOfDay\":[\"morning\",\"afternoon\",\"day\",\"night\",\"dawn\"],\"weight\":25,\"highIvChance\":0,\"shinyBonus\":1},{\"speciesId\":77,\"minLevel\":2,\"maxLevel\":5,\"morningChance\":25,\"afternoonChance\":25,\"dayChance\":25,\"nightChance\":25,\"dawnChance\":25,\"madrugadaChance\":25,\"times\":{\"morning\":25,\"afternoon\":25,\"day\":25,\"night\":25,\"dawn\":25,\"madrugada\":25},\"timeOfDay\":[\"morning\",\"afternoon\",\"day\",\"night\",\"dawn\"],\"weight\":25,\"highIvChance\":0,\"shinyBonus\":1},{\"speciesId\":128,\"minLevel\":2,\"maxLevel\":5,\"morningChance\":25,\"afternoonChance\":25,\"dayChance\":25,\"nightChance\":25,\"dawnChance\":25,\"madrugadaChance\":25,\"times\":{\"morning\":25,\"afternoon\":25,\"day\":25,\"night\":25,\"dawn\":25,\"madrugada\":25},\"timeOfDay\":[\"morning\",\"afternoon\",\"day\",\"night\",\"dawn\"],\"weight\":25,\"highIvChance\":0,\"shinyBonus\":1}]"
             }
           ]
         },

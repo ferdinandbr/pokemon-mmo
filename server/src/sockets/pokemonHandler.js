@@ -79,6 +79,15 @@ function setupPokemonHandlers(io, socket) {
         targetBox
       );
 
+      if (updatedData) {
+        player.activeBuddy = updatedData.activeBuddy || null;
+        io.to(player.roomId).emit('player:buddy_updated', {
+          playerId: socket.id,
+          characterId: player.characterId,
+          buddy: player.activeBuddy
+        });
+      }
+
       socket.emit('pokemon:data_response', { success: true, ...updatedData });
     } catch (err) {
       console.error('[Socket Error pokemon:move_slot]:', err);

@@ -11,14 +11,14 @@ if (!fs.existsSync(backupDir)) {
 }
 
 const tilesetList = [
-  { file: 'Outside1 Spring.png', srcCols: 64, totalTiles: 4544, name: 'Outside1 Spring' },
-  { file: 'Outside2 Summer.png', srcCols: 64, totalTiles: 4544, name: 'Outside2 Summer' },
-  { file: 'Outside3 Autumn.png', srcCols: 64, totalTiles: 4544, name: 'Outside3 Autumn' },
-  { file: 'Outside4 Winter.png', srcCols: 64, totalTiles: 4544, name: 'Outside4 Winter' },
-  { file: 'Outside.png', srcCols: 64, totalTiles: 4016, name: 'Outside' },
-  { file: 'Caves.png', srcCols: 64, totalTiles: 1704, name: 'Caves' },
-  { file: 'Gyms interior.png', srcCols: 64, totalTiles: 1264, name: 'Gyms interior' },
-  { file: 'Interior general.png', srcCols: 64, totalTiles: 2120, name: 'Interior general' }
+  { file: 'outside1_spring.png', srcCols: 64, totalTiles: 4544, name: 'Outside1 Spring' },
+  { file: 'outside2_summer.png', srcCols: 64, totalTiles: 4544, name: 'Outside2 Summer' },
+  { file: 'outside3_autumn.png', srcCols: 64, totalTiles: 4544, name: 'Outside3 Autumn' },
+  { file: 'outside4_winter.png', srcCols: 64, totalTiles: 4544, name: 'Outside4 Winter' },
+  { file: 'outside.png', srcCols: 64, totalTiles: 4016, name: 'Outside' },
+  { file: 'caves.png', srcCols: 64, totalTiles: 1704, name: 'Caves' },
+  { file: 'gyms_interior.png', srcCols: 64, totalTiles: 1264, name: 'Gyms interior' },
+  { file: 'interior_general.png', srcCols: 64, totalTiles: 2120, name: 'Interior general' }
 ];
 
 async function extrude() {

@@ -13,7 +13,7 @@ const REGION_BGM_MAP = {
   'saffron_city': '/assets/audio/bgm/018-Field01.mid',
   'fuchsia_city': '/assets/audio/bgm/Safari.mid',
   'cinnabar_island': '/assets/audio/bgm/cinnabar.mid',
-  'indigo_plateau': '/assets/audio/bgm/Battle Elite.mid',
+  'indigo_plateau': '/assets/audio/bgm/battle_elite.mid',
 
   // Rotas
   'route_1': '/assets/audio/bgm/route.mid',
@@ -29,14 +29,14 @@ const REGION_BGM_MAP = {
   'route_11': '/assets/audio/bgm/route.mid',
 
   // Temas especiais
-  'intro': '/assets/audio/bgm/Radio - Oak.mid',
+  'intro': '/assets/audio/bgm/radio_oak.mid',
   'title': '/assets/audio/bgm/Title.mid',
   'oak_lab': '/assets/audio/bgm/Lab.mid',
-  'battle_wild': '/assets/audio/bgm/Battle wild.mid',
-  'battle_trainer': '/assets/audio/bgm/Battle trainer.mid',
+  'battle_wild': '/assets/audio/bgm/battle_wild.mid',
+  'battle_trainer': '/assets/audio/bgm/battle_trainer.mid',
   'gym': '/assets/audio/bgm/gym.mid',
-  'pokecenter': '/assets/audio/bgm/Poke Center.mid',
-  'pokemart': '/assets/audio/bgm/Poke Mart.mid',
+  'pokecenter': '/assets/audio/bgm/poke_center.mid',
+  'pokemart': '/assets/audio/bgm/poke_mart.mid',
   'bicycle': '/assets/audio/bgm/Bicycle.mid',
   'surfing': '/assets/audio/bgm/Surfing.mid'
 };
@@ -49,8 +49,14 @@ class BGMManager {
     this.volume = parseFloat(localStorage.getItem('pokemmo_bgm_volume') || '0.35');
     this.pendingTrack = null;
     this.isLoading = false;
+    this.isStopped = false;
+    this._currentRequestId = 0;
 
-    // Attach unlock listener for browser autoplay restrictions
+    if (typeof window !== 'undefined') {
+      window._bgmManager = this;
+    }
+
+    // Attach unlock listener for browser autoplay restrictions (fires only until unlocked)
     this._attachUnlockHandler();
   }
 
@@ -70,6 +76,11 @@ class BGMManager {
   }
 
   _attachUnlockHandler() {
+    if (typeof window === 'undefined') return;
+
+    const events = ['click', 'keydown', 'touchstart', 'pointerdown'];
+    let unlocked = false;
+
     const unlock = async () => {
       this._initSynth();
       const ctx = this.synth?.getAudioContext?.();
@@ -79,21 +90,23 @@ class BGMManager {
         } catch (e) {}
       }
 
-      if (this.pendingTrack) {
+      // Once successfully resumed, remove the unlock listeners completely
+      if (!unlocked && ctx && ctx.state === 'running') {
+        unlocked = true;
+        events.forEach((evt) => {
+          try { window.removeEventListener(evt, unlock, { capture: true }); } catch (e) {}
+        });
+      }
+
+      // If a track was queued before user gesture, play it now
+      if (this.pendingTrack && !this.isStopped) {
         const track = this.pendingTrack;
         this.pendingTrack = null;
         this.playUrl(track);
-      } else if (this.currentTrack && this.synth) {
-        const status = this.synth.getPlayStatus?.();
-        if (!status || !status.play) {
-          try {
-            this.synth.playMIDI();
-          } catch (e) {}
-        }
       }
     };
 
-    ['click', 'keydown', 'touchstart', 'pointerdown'].forEach((evt) => {
+    events.forEach((evt) => {
       window.addEventListener(evt, unlock, { capture: true, passive: true });
     });
   }
@@ -115,11 +128,22 @@ class BGMManager {
   }
 
   /**
-   * Toca um arquivo MIDI direto pela URL de forma confiável via ArrayBuffer
+   * Toca um arquivo MIDI direto pela URL de forma confiável via ArrayBuffer.
+   * Garante que APENAS UMA música toque por vez: interrompe qualquer BGM anterior ou ME ativo.
    * @param {string} trackUrl
    */
   async playUrl(trackUrl) {
     if (!trackUrl) return;
+
+    this.isStopped = false;
+    const requestId = ++this._currentRequestId;
+
+    // 1. Interrompe qualquer música HTMLAudio tocando no SoundManager (ex: vitória/fanfarra)
+    try {
+      if (typeof window !== 'undefined' && window._soundManager?.stopMusic) {
+        window._soundManager.stopMusic();
+      }
+    } catch (e) {}
 
     this._initSynth();
     const ctx = this.synth?.getAudioContext?.();
@@ -131,7 +155,7 @@ class BGMManager {
 
     if (this.currentTrack === trackUrl && this.synth) {
       const status = this.synth.getPlayStatus?.();
-      if (status && status.play) return; // Já está tocando
+      if (status && status.play) return; // Já está tocando exatamente esta trilha
     }
 
     if (ctx && ctx.state === 'suspended') {
@@ -140,22 +164,27 @@ class BGMManager {
       return;
     }
 
-    if (this.isLoading) {
-      this.pendingTrack = trackUrl;
-      return;
+    // 2. Para a trilha atual do sintetizador antes de carregar a próxima
+    if (this.synth) {
+      try { this.synth.stopMIDI(); } catch (e) {}
     }
 
+    this.currentTrack = trackUrl;
     this.isLoading = true;
-    try {
-      this.stop();
-      this.currentTrack = trackUrl;
 
-      // Baixa os bytes do MIDI diretamente como ArrayBuffer (100% síncrono e confiável no sintetizador)
+    try {
+      // Baixa os bytes do MIDI diretamente como ArrayBuffer
       const res = await fetch(trackUrl);
       if (!res.ok) throw new Error(`Status HTTP ${res.status}`);
       const arrayBuffer = await res.arrayBuffer();
 
+      // Se outra música foi solicitada ou stop() foi chamado durante o download, aborte!
+      if (this._currentRequestId !== requestId || this.isStopped) {
+        return;
+      }
+
       if (this.synth) {
+        this.synth.stopMIDI();
         this.synth.loadMIDI(arrayBuffer);
         this.synth.setLoop(1);
         this.synth.setMasterVol(this.isMuted ? 0 : this.volume);
@@ -163,18 +192,23 @@ class BGMManager {
         console.log(`[BGMManager] 🎵 Tocando trilha sonora: ${trackUrl}`);
       }
     } catch (err) {
-      console.warn(`[BGMManager] Não foi possível reproduzir trilha ${trackUrl}:`, err);
+      if (this._currentRequestId === requestId) {
+        console.warn(`[BGMManager] Não foi possível reproduzir trilha ${trackUrl}:`, err);
+      }
     } finally {
-      this.isLoading = false;
-      if (this.pendingTrack && this.pendingTrack !== trackUrl) {
-        const next = this.pendingTrack;
-        this.pendingTrack = null;
-        this.playUrl(next);
+      if (this._currentRequestId === requestId) {
+        this.isLoading = false;
       }
     }
   }
 
-  stop() {
+  stop(clearCurrent = true) {
+    this._currentRequestId++;
+    if (clearCurrent) {
+      this.isStopped = true;
+      this.currentTrack = null;
+      this.pendingTrack = null;
+    }
     if (this.synth) {
       try {
         this.synth.stopMIDI();

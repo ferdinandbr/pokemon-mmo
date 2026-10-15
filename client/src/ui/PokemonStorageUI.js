@@ -170,10 +170,10 @@ export default class PokemonStorageUI {
 
   listenNetwork() {
     SocketClient.on('pokemon:data_response', (data) => {
-      if (data.success) {
-        this.party = data.party || [];
-        this.storage = data.storage || [];
-        this.activeBuddy = data.activeBuddy || null;
+      if (data && data.success) {
+        if (Array.isArray(data.party)) this.party = data.party;
+        if (Array.isArray(data.storage)) this.storage = data.storage;
+        if (data.activeBuddy !== undefined) this.activeBuddy = data.activeBuddy || null;
         if (this.isOpen) {
           this._refreshAll();
           if (this.selectedPokemon) {
