@@ -1878,10 +1878,10 @@
     "semantic_hash": "f19842938ce58dd019724d70d3989c52"
   },
   "client/src/battle/battleEngine.js": {
-    "mtime": 1792448863.6463187,
-    "seen": 1792451641.8640525,
-    "ast_hash": "99cea7a1ed3a5ed089bee53216660026",
-    "semantic_hash": "99cea7a1ed3a5ed089bee53216660026"
+    "mtime": 1792554081.103847,
+    "seen": 1792554374.580443,
+    "ast_hash": "861f9fdb9a1056102cbc6b007e399735",
+    "semantic_hash": ""
   },
   "client/src/battle/battleHud.js": {
     "mtime": 1792359477.0176926,
@@ -1980,10 +1980,10 @@
     "semantic_hash": "73a077a959b3042271b577c6c90e46c4"
   },
   "client/src/entities/RemotePlayer.js": {
-    "mtime": 1791737542.2116723,
-    "seen": 1792451641.8640525,
-    "ast_hash": "71fe8d57f2400a53ec369aee4cbc4e89",
-    "semantic_hash": "71fe8d57f2400a53ec369aee4cbc4e89"
+    "mtime": 1792553884.756161,
+    "seen": 1792554374.5854318,
+    "ast_hash": "53baf6ef42f8f897d3339c964628e1d1",
+    "semantic_hash": ""
   },
   "client/src/entities/TallGrassManager.js": {
     "mtime": 1790722350.7235193,
@@ -2052,10 +2052,10 @@
     "semantic_hash": ""
   },
   "client/src/scenes/WorldScene.js": {
-    "mtime": 1791839917.9200869,
-    "seen": 1792451641.8640525,
-    "ast_hash": "e6752c6548fef9a59e294cb9dfe2d6e9",
-    "semantic_hash": "e6752c6548fef9a59e294cb9dfe2d6e9"
+    "mtime": 1792553953.375072,
+    "seen": 1792554374.5886643,
+    "ast_hash": "8f16ae2c3fee6bcb26f2b02a053f9039",
+    "semantic_hash": ""
   },
   "client/src/systems/DayNightManager.js": {
     "mtime": 1790956701.398584,
@@ -2100,10 +2100,10 @@
     "semantic_hash": "c1230e6ed8bea2ff4db6294896d12ff4"
   },
   "client/src/ui/BattleUI.js": {
-    "mtime": 1792196915.8014457,
-    "seen": 1792451641.8640525,
-    "ast_hash": "cb5c01907c31ce9e703cef39d25223e4",
-    "semantic_hash": "cb5c01907c31ce9e703cef39d25223e4"
+    "mtime": 1792554152.7240188,
+    "seen": 1792554374.5893042,
+    "ast_hash": "460b8d0d84677a23417ff1343c311891",
+    "semantic_hash": ""
   },
   "client/src/ui/CharacterUI.js": {
     "mtime": 1791466631.6593733,
@@ -2436,10 +2436,10 @@
     "semantic_hash": "c93ac47ef2c05d618e2d2ce250318f98"
   },
   "server/server.js": {
-    "mtime": 1791495899.0047238,
-    "seen": 1792451641.8640525,
-    "ast_hash": "fe89f09bebe1268191efb2aefac35719",
-    "semantic_hash": "fe89f09bebe1268191efb2aefac35719"
+    "mtime": 1792553874.3473835,
+    "seen": 1792554374.6150296,
+    "ast_hash": "2b71582c68665238d4410cd3ddb19b6e",
+    "semantic_hash": ""
   },
   "server/src/database.js": {
     "mtime": 1789268519.1321218,
@@ -2733,6 +2733,30 @@
     "mtime": 1792523883.307693,
     "seen": 1792525694.8279102,
     "ast_hash": "3ce3a91a764f7690fa54a371458e02c0",
+    "semantic_hash": ""
+  },
+  "client/src/ui/PlayerContextMenuUI.js": {
+    "mtime": 1792553903.2654357,
+    "seen": 1792554374.5928452,
+    "ast_hash": "7c290b93a6e64746c3c17883c22551dd",
+    "semantic_hash": ""
+  },
+  "client/src/ui/PvpChallengeModalUI.js": {
+    "mtime": 1792553922.825212,
+    "seen": 1792554374.5928452,
+    "ast_hash": "468bbcb4f33b85062f0563baae666528",
+    "semantic_hash": ""
+  },
+  "server/src/services/battle/PvpManager.js": {
+    "mtime": 1792553853.1086535,
+    "seen": 1792554374.6195836,
+    "ast_hash": "3c171e553553ab68e7012489a201a4f7",
+    "semantic_hash": ""
+  },
+  "server/src/sockets/pvpHandler.js": {
+    "mtime": 1792553861.6658587,
+    "seen": 1792554374.6265802,
+    "ast_hash": "e59d3539968892efeb0ca5f0209c7bcf",
     "semantic_hash": ""
   }
 }

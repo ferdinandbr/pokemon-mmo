@@ -12,6 +12,8 @@ export class BattleEngine {
     canvas,
     isTrainer = false,
     trainerSprite = 'boy_run',
+    isPvp = false,
+    onPvpAction = null,
     onStateChange,
     onLogMessage,
     onMatchEnd,
@@ -22,6 +24,8 @@ export class BattleEngine {
     this.ctx = canvas.getContext('2d');
     this.isTrainer = Boolean(isTrainer);
     this.trainerSprite = trainerSprite || 'boy_run';
+    this.isPvp = Boolean(isPvp);
+    this.onPvpAction = onPvpAction || null;
     this.onStateChange = onStateChange || (() => {});
     this.onLogMessage = onLogMessage || (() => {});
     this.onMatchEnd = onMatchEnd || (() => {});
@@ -88,6 +92,7 @@ export class BattleEngine {
     // AI cadence timers
     this.playerAutoTimer = 0;
     this.enemyAutoTimer = 1.2;
+    this.pvpMovementRelayTimer = 0;
 
     // Singleton tracking to prevent dual animation loops or duplicate entities
     if (typeof window !== 'undefined') {
@@ -334,11 +339,60 @@ export class BattleEngine {
     if (this.playerEntity && !this.playerEntity.isFainted) {
       this.recallPlayerPokemon(() => {
         this.deployPlayerPokemon(index);
+        if (this.isPvp && this.onPvpAction) {
+          this.onPvpAction({ type: 'switch', partyIndex: index });
+        }
       });
       return true;
     }
 
-    return this.deployPlayerPokemon(index);
+    const res = this.deployPlayerPokemon(index);
+    if (res && this.isPvp && this.onPvpAction) {
+      this.onPvpAction({ type: 'switch', partyIndex: index });
+    }
+    return res;
+  }
+
+  // Handle incoming remote action for enemyEntity in PvP mode
+  handleOpponentAction(action) {
+    if (!this.enemyEntity || this.enemyEntity.isFainted || !this.isPvp) return;
+
+    switch (action.type) {
+      case 'move':
+        if (typeof action.x === 'number' && typeof action.y === 'number') {
+          // Reconcile opponent position smoothly
+          this.enemyEntity.x = action.x;
+          this.enemyEntity.y = action.y;
+        }
+        if (typeof action.dirX === 'number' && typeof action.dirY === 'number') {
+          this.enemyEntity.moveManual(action.dirX, action.dirY, 0.033);
+        }
+        break;
+
+      case 'dodge':
+        this.enemyEntity.performEvasiveDodge(action.dirX || 0, action.dirY || 0);
+        break;
+
+      case 'physical':
+        this.enemyEntity.executePhysicalAttack();
+        break;
+
+      case 'defensive':
+        this.enemyEntity.executeDefenseAction();
+        break;
+
+      case 'skill':
+        if (typeof action.skillIndex === 'number') {
+          this.enemyEntity.executeSkill(action.skillIndex);
+        }
+        break;
+
+      case 'switch':
+        if (typeof action.partyIndex === 'number') {
+          this.switchEnemyPokemon(action.partyIndex);
+        }
+        break;
+    }
   }
 
   // Switch Enemy Pokémon for Trainer battles
@@ -481,14 +535,22 @@ export class BattleEngine {
   // Player Manual Actions (execute immediately when clicked!)
   executePlayerPhysical() {
     if (this.playerEntity && !this.battleEnded) {
-      return this.playerEntity.executePhysicalAttack();
+      const res = this.playerEntity.executePhysicalAttack();
+      if (res && this.isPvp && this.onPvpAction) {
+        this.onPvpAction({ type: 'physical' });
+      }
+      return res;
     }
     return false;
   }
 
   executePlayerDodge(dirX = 0, dirY = 0) {
     if (this.playerEntity && !this.battleEnded) {
-      return this.playerEntity.performEvasiveDodge(dirX, dirY);
+      const res = this.playerEntity.performEvasiveDodge(dirX, dirY);
+      if (res && this.isPvp && this.onPvpAction) {
+        this.onPvpAction({ type: 'dodge', dirX, dirY });
+      }
+      return res;
     }
     return false;
   }
@@ -496,6 +558,9 @@ export class BattleEngine {
   executePlayerBasicAttack() {
     if (this.playerEntity && !this.battleEnded) {
       const res = this.playerEntity.executePhysicalAttack();
+      if (res && this.isPvp && this.onPvpAction) {
+        this.onPvpAction({ type: 'physical' });
+      }
       this.onStateChange();
       return res;
     }
@@ -543,6 +608,9 @@ export class BattleEngine {
   executePlayerDefensive() {
     if (this.playerEntity && !this.battleEnded) {
       const def = this.playerEntity.executeDefenseAction();
+      if (def && this.isPvp && this.onPvpAction) {
+        this.onPvpAction({ type: 'defensive' });
+      }
       this.onStateChange();
       return def;
     }
@@ -551,7 +619,11 @@ export class BattleEngine {
 
   executePlayerSkill(index) {
     if (this.playerEntity && !this.battleEnded) {
-      return this.playerEntity.executeSkill(index);
+      const res = this.playerEntity.executeSkill(index);
+      if (res && this.isPvp && this.onPvpAction) {
+        this.onPvpAction({ type: 'skill', skillIndex: index });
+      }
+      return res;
     }
     return false;
   }
@@ -812,6 +884,23 @@ export class BattleEngine {
         this.playerEntity.updateTacticalAIMovement(dt);
       }
 
+      // Periodically relay movement and position in PvP mode (every 50ms)
+      if (this.isPvp && this.onPvpAction) {
+        this.pvpMovementRelayTimer -= dt;
+        if (this.pvpMovementRelayTimer <= 0) {
+          this.pvpMovementRelayTimer = 0.05;
+          if (moveInput.isMoving || this.playerEntity.vx !== 0 || this.playerEntity.vy !== 0) {
+            this.onPvpAction({
+              type: 'move',
+              dirX: moveInput.dirX,
+              dirY: moveInput.dirY,
+              x: Math.round(this.playerEntity.x),
+              y: Math.round(this.playerEntity.y)
+            });
+          }
+        }
+      }
+
       this.playerEntity.update(dt);
 
       // Auto-battle logic for player (only when explicitly enabled)
@@ -826,17 +915,22 @@ export class BattleEngine {
 
     if (this.enemyEntity && !this.enemyEntity.isFainted) {
       if (!this.isAwaitingSwitch) {
-        // Stable tactical movement for enemy AI (no random spinning/circling)
-        this.enemyEntity.updateTacticalAIMovement(dt);
-        this.enemyEntity.update(dt);
+        if (!this.isPvp) {
+          // Stable tactical movement for enemy AI in PvE (no random spinning/circling)
+          this.enemyEntity.updateTacticalAIMovement(dt);
+          this.enemyEntity.update(dt);
 
-        // Enemy AI decision cadence
-        if (!this.battleEnded && this.enemyEntity.actionCooldown <= 0) {
-          this.enemyAutoTimer -= dt;
-          if (this.enemyAutoTimer <= 0) {
-            this.enemyAutoTimer = 2.4;
-            this.executeEnemyAI(this.enemyEntity);
+          // Enemy AI decision cadence
+          if (!this.battleEnded && this.enemyEntity.actionCooldown <= 0) {
+            this.enemyAutoTimer -= dt;
+            if (this.enemyAutoTimer <= 0) {
+              this.enemyAutoTimer = 2.4;
+              this.executeEnemyAI(this.enemyEntity);
+            }
           }
+        } else {
+          // In PvP, enemy movement and actions are driven remotely via socket relay
+          this.enemyEntity.update(dt);
         }
       } else {
         // Opponent holds position and idles while player selects next Pokémon

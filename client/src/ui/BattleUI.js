@@ -129,6 +129,24 @@ export default class BattleUI {
       if (!_isActiveBattleInstance(this)) return;
       this.hud?.addLog(`⚠️ ${data?.message || 'Erro na ação de batalha.'}`, 'system');
     });
+
+    // PvP Opponent Action Relay
+    SocketClient.on('pvp:action_relay', (actionPayload) => {
+      if (!_isActiveBattleInstance(this)) return;
+      if (this.engine && this.engine.isPvp) {
+        this.engine.handleOpponentAction(actionPayload);
+      }
+    });
+
+    // PvP Opponent Disconnected (Victory by W.O.)
+    SocketClient.on('pvp:opponent_disconnected', (data) => {
+      if (!_isActiveBattleInstance(this)) return;
+      this.hud?.addLog(`🏆 ${data?.message || 'Oponente desconectou-se. Vitória concedida por W.O.!'}`, 'victory');
+      if (this.engine) {
+        this.engine.battleEnded = true;
+        this.handleMatchEnd('victory', this.engine?.playerEntity?.data);
+      }
+    });
   }
 
   setProcessingTurn(val) {
@@ -225,8 +243,12 @@ export default class BattleUI {
 
     this.engine = new BattleEngine({
       canvas,
-      isTrainer: Boolean(battleData.isTrainer),
+      isTrainer: Boolean(battleData.isTrainer || battleData.isPvp),
       trainerSprite,
+      isPvp: Boolean(battleData.isPvp),
+      onPvpAction: (action) => {
+        SocketClient.emit('pvp:action_relay', action);
+      },
       onStateChange: () => this.hud?.update(),
       onLogMessage: (msg, type) => this.hud?.addLog(msg, type),
       onMatchEnd: (outcome, winnerData) => this.handleMatchEnd(outcome, winnerData),
@@ -246,7 +268,7 @@ export default class BattleUI {
     const arenaKey = battleData.arena || battleData.arenaKey || 'arena_grass';
 
     this.engine.setupMatchup(playerPartyData, enemyPartyData, {
-      isWild: !battleData.isTrainer,
+      isWild: !battleData.isTrainer && !battleData.isPvp,
       timePhase,
       arenaKey,
     });
@@ -314,7 +336,7 @@ export default class BattleUI {
   }
 
   handleRun() {
-    if (this.battleState?.isTrainer) {
+    if (this.battleState?.isTrainer || this.battleState?.isPvp) {
       this.hud?.addLog('⚠️ Não é possível fugir de uma batalha contra outro treinador!', 'system');
       return;
     }
@@ -338,7 +360,26 @@ export default class BattleUI {
     this.hud?.showMatchResult(outcome, winnerData);
 
     const partyHp = this.engine ? this.engine.getPartyHpPayload() : [];
-    // Notify server to conclude and grant EXP, rewards, and persist battle results
+
+    if (this.battleState?.isPvp) {
+      // In PvP, send full party states to PvpManager to save battle history and persist HP
+      const finalPlayerParty = this.engine?.playerParty || [];
+      const finalEnemyParty = this.engine?.enemyParty || [];
+
+      SocketClient.emit('pvp:match_completed', {
+        matchId: this.battleState.matchId,
+        outcome,
+        finalPlayerParty,
+        finalEnemyParty,
+        isDisconnection: false
+      });
+
+      this._pendingExpGains = [];
+      this._pendingBattleSummary = null;
+      return;
+    }
+
+    // Notify server to conclude and grant EXP, rewards, and persist battle results for PvE
     SocketClient.emit('battle:action', {
       action: {
         type: 'conclude',

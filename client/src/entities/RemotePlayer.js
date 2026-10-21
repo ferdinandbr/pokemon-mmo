@@ -57,6 +57,16 @@ export default class RemotePlayer extends Phaser.GameObjects.Container {
 
     this.speechTimer = null;
 
+    // Enable click interaction for Context Menu (PvP Challenge, Profile, etc.)
+    this.setSize(32, 48);
+    this.setInteractive({ useHandCursor: true });
+    this.on('pointerdown', (pointer) => {
+      // Trigger context menu in WorldScene
+      if (this.scene && this.scene.onRemotePlayerClicked) {
+        this.scene.onRemotePlayerClicked(this, pointer);
+      }
+    });
+
     scene.add.existing(this);
     this.setDepth(100 + y / 10000);
     this.updateOverhead();

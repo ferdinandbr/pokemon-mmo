@@ -15,6 +15,7 @@ const setupChatHandlers = require('./src/sockets/chatHandler');
 const setupInventoryHandlers = require('./src/sockets/inventoryHandler');
 const setupPokemonHandlers = require('./src/sockets/pokemonHandler');
 const setupBattleHandlers = require('./src/sockets/battleHandler');
+const setupPvpHandlers = require('./src/sockets/pvpHandler');
 
 const mapRoutes = require('./src/routes/mapRoutes');
 const encounterRoutes = require('./src/routes/encounterRoutes');
@@ -113,6 +114,7 @@ io.on('connection', (socket) => {
   setupInventoryHandlers(io, socket);
   setupPokemonHandlers(io, socket);
   setupBattleHandlers(io, socket);
+  setupPvpHandlers(io, socket);
 
   socket.on('error', (err) => {
     console.error(`[Socket Error] ${socket.id}:`, err);

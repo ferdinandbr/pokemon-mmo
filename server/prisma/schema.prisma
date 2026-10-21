@@ -40,6 +40,9 @@ model Character {
   inventory InventorySlot[]
   pokedex   PokedexEntry[]
   pokemon   Pokemon[]
+
+  battlesAsPlayer1 PvpBattleHistory[] @relation("Player1Battles")
+  battlesAsPlayer2 PvpBattleHistory[] @relation("Player2Battles")
 }
 
 model Item {
@@ -179,5 +182,26 @@ model EncounterZone {
   updatedAt     DateTime @updatedAt
 
   @@index([mapId])
+}
+
+model PvpBattleHistory {
+  id               Int       @id @default(autoincrement())
+  player1Id        Int
+  player1          Character @relation("Player1Battles", fields: [player1Id], references: [id], onDelete: Cascade)
+  player2Id        Int
+  player2          Character @relation("Player2Battles", fields: [player2Id], references: [id], onDelete: Cascade)
+  winnerId         Int?      // Null if draw, or Character ID of winner
+  player1Level     Int
+  player2Level     Int
+  player1Party     String    // JSON array of Pokémon { speciesId, name, level, maxHp, currentHp, moves }
+  player2Party     String    // JSON array of Pokémon { speciesId, name, level, maxHp, currentHp, moves }
+  player1Survivors Int       @default(0) // Count of Pokémon with currentHp > 0
+  player2Survivors Int       @default(0) // Count of Pokémon with currentHp > 0
+  isDisconnection  Boolean   @default(false) // Whether battle ended via forfeit / disconnect
+  createdAt        DateTime  @default(now())
+
+  @@index([player1Id])
+  @@index([player2Id])
+  @@index([createdAt])
 }
 

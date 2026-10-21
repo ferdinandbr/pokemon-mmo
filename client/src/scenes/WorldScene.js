@@ -15,6 +15,8 @@ import bgmManager from '../audio/BGMManager';
 import NPC from '../entities/NPC';
 import StarterSelectionUI from '../ui/StarterSelectionUI';
 import ShopUI from '../ui/ShopUI';
+import PlayerContextMenuUI from '../ui/PlayerContextMenuUI';
+import PvpChallengeModalUI from '../ui/PvpChallengeModalUI';
 
 const LAYER_DEPTHS = {
   Water: 10,
@@ -108,6 +110,10 @@ export default class WorldScene extends Phaser.Scene {
     // UI Managers for NPCs
     this.starterSelectionUI = new StarterSelectionUI(this);
     this.shopUI = new ShopUI(this);
+
+    // PvP Context Menu and Challenge Modal
+    this.playerContextMenuUI = new PlayerContextMenuUI(this);
+    this.pvpChallengeModalUI = new PvpChallengeModalUI(this);
 
     // Day & Night cycle system
     this.dayNightManager = new DayNightManager(this);
@@ -1528,6 +1534,13 @@ export default class WorldScene extends Phaser.Scene {
     this.remotePlayers.clear();
     for (const follower of this.remoteFollowers.values()) follower.destroy();
     this.remoteFollowers.clear();
+  }
+
+  onRemotePlayerClicked(remotePlayer, pointer) {
+    if (!this.playerContextMenuUI) return;
+    const screenX = pointer?.event?.clientX || window.innerWidth / 2;
+    const screenY = pointer?.event?.clientY || window.innerHeight / 2;
+    this.playerContextMenuUI.show(remotePlayer, screenX, screenY);
   }
 
   // ─── Update loop ───────────────────────────────────────────────────────────
