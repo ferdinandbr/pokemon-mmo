@@ -29,16 +29,17 @@ router.get('/list', (req, res) => {
       'fuchsia_city', 'cinnabar_island', 'indigo_plateau'
     ];
 
-    const interiors = mapNames.filter(m => m.includes('_house') || m.includes('_lab') || m.includes('_interior') || m.includes('_mart') || m.includes('_center'));
-    const cities = mapNames.filter(m => !interiors.includes(m) && (CITIES_LIST.includes(m) || m.endsWith('_city') || m.endsWith('_town')));
-    const routes = mapNames.filter(m => !interiors.includes(m) && m.startsWith('route_')).sort((a, b) => {
+    const arenas = mapNames.filter(m => m.startsWith('arena_') || m.includes('arena'));
+    const interiors = mapNames.filter(m => !arenas.includes(m) && (m.includes('_house') || m.includes('_lab') || m.includes('_interior') || m.includes('_mart') || m.includes('_center')));
+    const cities = mapNames.filter(m => !arenas.includes(m) && !interiors.includes(m) && (CITIES_LIST.includes(m) || m.endsWith('_city') || m.endsWith('_town')));
+    const routes = mapNames.filter(m => !arenas.includes(m) && !interiors.includes(m) && m.startsWith('route_')).sort((a, b) => {
       const numA = parseInt(a.replace('route_', ''), 10) || 0;
       const numB = parseInt(b.replace('route_', ''), 10) || 0;
       return numA - numB;
     });
-    const root = mapNames.filter(m => !interiors.includes(m) && !cities.includes(m) && !routes.includes(m));
+    const root = mapNames.filter(m => !arenas.includes(m) && !interiors.includes(m) && !cities.includes(m) && !routes.includes(m));
 
-    res.json({ cities, routes, interiors, root });
+    res.json({ cities, routes, interiors, arenas, root });
   } catch (err) {
     console.error('[MapRoute Error GET /list]:', err);
     res.status(500).json({ error: 'Erro ao listar mapas: ' + err.message });

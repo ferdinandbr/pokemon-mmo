@@ -118,12 +118,26 @@ function checkRoute() {
     document.getElementById('hud')?.classList.add('hidden');
     document.getElementById('hud-quick-bar')?.classList.add('hidden');
 
-    // Pause world scene and start editor scene
-    game.scene.stop('WorldScene');
-    game.scene.start('EditorScene');
+    // Force hide loader immediately in editor mode
+    const loader = document.getElementById('game-loader');
+    if (loader) {
+      loader.classList.add('done');
+      loader.classList.add('hidden');
+    }
 
+    // Switch scene if WorldScene was active, or start EditorScene if BootScene is done
+    if (game.scene.isActive('WorldScene')) {
+      game.scene.stop('WorldScene');
+      game.scene.start('EditorScene');
+    } else if (!game.scene.isActive('BootScene') && !game.scene.isActive('EditorScene')) {
+      game.scene.start('EditorScene');
+    }
+
+    editorSceneInstance = game.scene.getScene('EditorScene');
     if (!editorUI) {
       editorUI = new EditorUI(editorSceneInstance);
+    } else {
+      editorUI.editorScene = editorSceneInstance;
     }
     editorUI.show();
 
@@ -133,8 +147,9 @@ function checkRoute() {
     const targetMap = params.get('map');
     if (targetMap && targetMap !== 'kanto') {
       setTimeout(() => {
+        editorSceneInstance = game.scene.getScene('EditorScene');
         editorSceneInstance?.loadMapByName(targetMap);
-      }, 200);
+      }, 300);
     }
   } else {
     document.body.classList.remove('editor-mode');
@@ -357,7 +372,7 @@ function initApp() {
 
   // Listen to hash changes for smooth route switching
   window.addEventListener('hashchange', () => {
-    if (window.location.hash === '#editor') {
+    if (window.location.hash.startsWith('#editor')) {
       checkRoute();
     } else {
       document.body.classList.remove('editor-mode');

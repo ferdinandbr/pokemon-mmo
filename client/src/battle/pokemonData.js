@@ -139,8 +139,8 @@ export function calculatePokemonStats(baseStats, level = 50, ivs = {}, evs = {},
 
   // Authentic HP Formula: floor(((2 * Base + IV + floor(EV / 4)) * Level) / 100) + Level + 10
   const rawHp = Math.floor(((2 * baseStats.hp + finalIvs.hp + Math.floor(finalEvs.hp / 4)) * level) / 100) + level + 10;
-  // Scaled for real-time arena combat duration (~450-700 HP)
-  const arenaHp = Math.round(rawHp * 3.6);
+  // Scaled for real-time arena combat duration (~500-750 HP for ~20-35s battles)
+  const arenaHp = Math.round(rawHp * 4.2);
 
   const calcStat = (key) => {
     const raw = Math.floor(((2 * baseStats[key] + finalIvs[key] + Math.floor(finalEvs[key] / 4)) * level) / 100) + 5;
@@ -160,11 +160,11 @@ export function calculatePokemonStats(baseStats, level = 50, ivs = {}, evs = {},
 
 // Calculate Movement Speed scaling from Pokémon Speed stat
 export function calculateMovementSpeed(speedStat) {
-  // Speed 30 -> 175 px/s
-  // Speed 80 -> 220 px/s
-  // Speed 100 -> 245 px/s
-  // Speed 130 -> 280 px/s
-  return Math.round(150 + (Math.max(20, Math.min(200, speedStat)) / 130) * 130);
+  // Speed 30 -> 180 px/s
+  // Speed 80 -> 217 px/s
+  // Speed 100 -> 230 px/s
+  // Speed 130 -> 250 px/s
+  return Math.round(165 + (Math.max(20, Math.min(200, speedStat)) / 130) * 85);
 }
 
 // Calculate Dodge Cooldown scaling from Pokémon Speed stat
@@ -176,14 +176,15 @@ export function calculateDodgeCooldown(speedStat) {
 
 // Calculate Attack Cooldown scaling from Move Power and Pokémon Speed stat
 export function calculateMoveCooldown(movePower, speedStat) {
-  // Power 0 (status/barrier): 4.0s base
-  // Power 40 (Tackle/Water Gun): 1.8s base
-  // Power 80 (Bite/Crunch): 3.5s base
-  // Power 120-150 (Hydro Pump/Hyper Beam): 7.5s - 9.0s base
+  // Dynamic & Fast-Paced Real-Time Combat Cadence:
+  // Power 0 (status/barrier): 2.8s base (down from 4.0s)
+  // Power 40 (Tackle/Water Gun): 1.25s base (down from 1.8s)
+  // Power 80 (Bite/Crunch): 2.4s base (down from 3.5s)
+  // Power 120-150 (Hydro Pump/Hyper Beam): 5.0s - 6.0s base (down from 7.5s - 9.0s)
   const power = Math.max(0, movePower || 0);
-  const base = power <= 0 ? 4.0 : Math.max(1.5, (power / 22) * 1.3);
+  const base = power <= 0 ? 2.8 : Math.max(1.1, (power / 26) * 1.05);
   const speedFactor = 100 / Math.max(50, speedStat * 0.75 + 25);
-  return Math.max(0.75, Math.round(base * speedFactor * 100) / 100);
+  return Math.max(0.60, Math.round(base * speedFactor * 100) / 100);
 }
 
 // Full Authentic Damage Formula for 2D Real-Time Combat
@@ -205,7 +206,7 @@ export function calculateCombatDamage(attacker, defender, move) {
   const atkStat = Math.max(1, Math.round(rawAtkStat * getStageMultiplier(atkStage)));
   const defStat = Math.max(1, Math.round(rawDefStat * getStageMultiplier(defStage)));
 
-  const level = attacker.level || 50;
+  const level = attacker.level || (attacker.data && attacker.data.level) || 50;
   const power = Math.max(15, move.power || 40);
 
   // STAB: Same Type Attack Bonus (1.5x)
@@ -214,16 +215,16 @@ export function calculateCombatDamage(attacker, defender, move) {
   // Type effectiveness
   const typeMult = getTypeMultiplier(move.type, defender.data.type1, defender.data.type2);
 
-  // Critical Hit (Base: ~6.25%, with high crit stage: ~12.5% to 50%)
+  // Critical Hit (Base: ~4.16% [1/24], Stage 1: 12.5% [1/8], Stage 2+: 25% [1/4])
   const critStage = (move.combatBehavior && move.combatBehavior.critStage) || 0;
-  const critChance = critStage >= 2 ? 0.50 : (critStage === 1 ? 0.20 : 0.08);
+  const critChance = critStage >= 2 ? 0.25 : (critStage === 1 ? 0.125 : 0.0416);
   const isCrit = Math.random() < critChance;
-  const critMult = isCrit ? 1.5 : 1.0;
+  const critMult = isCrit ? 1.35 : 1.0;
 
-  // Authentic Pokemon Damage Formula:
-  // Damage = ((((2 * Level / 5 + 2) * Power * A / D) / 50) + 2) * STAB * Type * Crit * Random(0.85, 1.0)
-  const baseDamage = (((2 * level / 5 + 2) * power * (atkStat / Math.max(1, defStat))) / 50) + 2;
-  const randomFactor = 0.85 + Math.random() * 0.15;
+  // Real-Time Action Combat Formula with 0.80 Pacing Factor (~20-35s tactical battles)
+  const COMBAT_PACING_FACTOR = 0.80;
+  const baseDamage = ((((2 * level / 5 + 2) * power * (atkStat / Math.max(1, defStat))) / 50) + 2) * COMBAT_PACING_FACTOR;
+  const randomFactor = 0.88 + Math.random() * 0.12;
   const finalDamage = Math.max(1, Math.round(baseDamage * stab * typeMult * critMult * randomFactor));
 
   return {
@@ -511,9 +512,12 @@ export function adaptPokemonForBattle(rawMon) {
     }
   }
 
-  // Inflate each move using comprehensive 621 moves database
+  // Inflate each move using comprehensive 621 moves database (filtering only active combat moves)
   const moves = rawMoveList.slice(0, 4).map((m, slotIdx) => {
-    const moveDef = getMoveData(m) || getMoveData(303); // Fallback to Tackle
+    let moveDef = getMoveData(m);
+    if (!moveDef || moveDef.activeCombatCompatible === false) {
+      moveDef = getMoveData(303); // Fallback to Tackle
+    }
     const pp = typeof m === 'object' && typeof m.pp === 'number' ? m.pp : moveDef.pp;
     const maxPp = typeof m === 'object' && typeof m.maxPp === 'number' ? m.maxPp : moveDef.pp;
     const cd = calculateMoveCooldown(moveDef.power, calculatedStats.speed);
@@ -527,6 +531,7 @@ export function adaptPokemonForBattle(rawMon) {
       category: moveDef.category,
       power: moveDef.power,
       accuracy: moveDef.accuracy,
+      activeCombatCompatible: moveDef.activeCombatCompatible !== false,
       pp,
       maxPp,
       description: moveDef.description,
@@ -536,6 +541,7 @@ export function adaptPokemonForBattle(rawMon) {
       cooldown: cd,
       currentCooldown: 0,
       visual: moveDef.visual ? {
+        ...moveDef.visual,
         file: moveDef.visual.file,
         cols: moveDef.visual.cols || 5,
         rows: moveDef.visual.rows || 2,

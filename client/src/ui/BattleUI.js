@@ -30,6 +30,19 @@ export default class BattleUI {
     this.initDOM();
     _claimBattleInstance(this);
     this.listenNetwork();
+
+    if (typeof window !== 'undefined') {
+      window._activeBattleUI = this;
+      window._startTestBattle = (playerSpecies = 6, enemySpecies = 131) => {
+        this.open({
+          isTrainer: false,
+          playerPokemon: { speciesId: playerSpecies, level: 35 },
+          playerParty: [{ speciesId: playerSpecies, level: 35 }],
+          enemyPokemon: { speciesId: enemySpecies, level: 30 },
+          enemyParty: [{ speciesId: enemySpecies, level: 30 }],
+        });
+      };
+    }
   }
 
   initDOM() {
@@ -230,9 +243,12 @@ export default class BattleUI {
     const timePhase = this.worldScene?.dayNightManager?.currentPhase ||
                       (typeof window !== 'undefined' ? window.dayNight?.currentPhase : null);
 
+    const arenaKey = battleData.arena || battleData.arenaKey || 'arena_grass';
+
     this.engine.setupMatchup(playerPartyData, enemyPartyData, {
       isWild: !battleData.isTrainer,
       timePhase,
+      arenaKey,
     });
 
     // Initialize 2D Battle HUD (Authentic PokéMMO Gen 5 / FireRed UI)
@@ -331,12 +347,43 @@ export default class BattleUI {
       }
     });
 
-    // Auto return to overworld after displaying dialog rewards and celebration fanfare
-    setTimeout(() => {
-      if (this.isOpen) {
-        this.close();
-      }
-    }, 4500);
+    // Collect EXP gains to broadcast and display in Overworld
+    const enemyMon = this.engine?.enemyEntity?.data;
+    const playerMon = this.engine?.playerEntity?.data;
+    const pName = playerMon?.name || 'Seu Pokémon';
+    const lvl = enemyMon?.level || 5;
+    const baseExp = enemyMon?.baseExp || 64;
+    const pokeExp = Math.max(6, Math.floor(((baseExp * lvl) / 7) * 1.5));
+    const trainerExp = Math.max(10, Math.floor(lvl * 18));
+    const gold = Math.max(20, Math.floor(lvl * 35));
+
+    this._pendingExpGains = [
+      { slotIndex: this.engine?.activePlayerIndex || 0, exp: pokeExp, name: pName }
+    ];
+    this._pendingBattleSummary = {
+      pokeExp,
+      trainerExp,
+      gold,
+      pName,
+      outcome
+    };
+
+    // User requirement: "quando finalizar a batalha não quero um timer para sair e sim esperar o clique do jogador"
+    // Wait for player to click either the finish button or the combat ticker/dialogue box
+    const finishBtn = document.getElementById('btn-result-finish');
+    if (finishBtn) {
+      finishBtn.onclick = () => {
+        if (this.isOpen) this.close();
+      };
+    }
+
+    const tickerBanner = document.getElementById('combat-ticker-banner');
+    if (tickerBanner) {
+      tickerBanner.style.cursor = 'pointer';
+      tickerBanner.onclick = () => {
+        if (this.isOpen) this.close();
+      };
+    }
   }
 
   close() {
@@ -403,6 +450,28 @@ export default class BattleUI {
 
     if (this.worldScene) {
       this.worldScene.isTransitioning = false;
+    }
+
+    // Broadcast battle result summary to System Chat
+    if (this._pendingBattleSummary && typeof window !== 'undefined' && window._chatUI) {
+      const summary = this._pendingBattleSummary;
+      if (summary.outcome === 'victory') {
+        window._chatUI.addSystemMessage(
+          `🎉 Vitória! +${summary.pokeExp} EXP para ${summary.pName} | +${summary.trainerExp} EXP de Treinador | +$${summary.gold}!`
+        );
+      }
+      this._pendingBattleSummary = null;
+    }
+
+    // Trigger floating +XP gain animation on the overworld Party HUD
+    if (this._pendingExpGains && this._pendingExpGains.length > 0) {
+      const partyHUDUI = this.worldScene?.partyHUDUI || (typeof window !== 'undefined' ? window._partyHUDUI : null);
+      if (partyHUDUI && typeof partyHUDUI.showXpGains === 'function') {
+        setTimeout(() => {
+          partyHUDUI.showXpGains(this._pendingExpGains);
+          this._pendingExpGains = null;
+        }, 350);
+      }
     }
 
     if (this._lastBattleOutcome) {

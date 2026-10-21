@@ -883,7 +883,7 @@ export default class PokemonStorageUI {
           <div class="det-origin-field">
             <span class="det-origin-lbl">Pokébola Utilizada</span>
             <span class="det-origin-val ball-val">
-              <img src="/assets/items/${ballSlug}.png" onerror="this.src='/assets/battle/icon_ball.png'" class="det-ball-icon" alt="" />
+              <img src="/assets/items/${ballSlug}.png" onerror="this.src='/assets/battle/ui/icon_ball.png'" class="det-ball-icon" alt="" />
               <span>${ballDisplayName}</span>
             </span>
           </div>

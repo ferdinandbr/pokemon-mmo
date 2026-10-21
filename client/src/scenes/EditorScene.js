@@ -126,6 +126,8 @@ export default class EditorScene extends Phaser.Scene {
     const initialJson = this.cache.json.get('kanto_raw_json');
     if (initialJson) {
       this.initMapData('kanto', initialJson);
+    } else {
+      this.loadMapByName('kanto');
     }
 
     // Disable context menu on canvas so right-click pan works without browser menu
@@ -986,8 +988,64 @@ export default class EditorScene extends Phaser.Scene {
 
   _drawSpawnObject(obj) {
     const props = this._readProps(obj.properties);
-    const method = props.encounterType || props.method || 'grass';
+    const role = props.role || (obj.name === 'player_spawn' ? 'player' : (obj.name === 'opponent_spawn' ? 'opponent' : null));
+    const isPlayer = role === 'player' || obj.type === 'spawn_local';
+    const isOpponent = role === 'opponent' || obj.type === 'spawn_opponent';
 
+    // Special distinct rendering for Arena Battle Spawns (Player Local and Opponent/Rival)
+    if (isPlayer || isOpponent) {
+      const cx = (obj.x || 0) + 16;
+      const cy = (obj.y || 0) + 16;
+      const facing = props.facing || (isPlayer ? 'right' : 'left');
+      const mainColor = isPlayer ? 0x00d4ff : 0xf43f5e;
+      const glowColor = isPlayer ? 0x38bdf8 : 0xfb7185;
+
+      // Outer glow & pulse ring
+      this.objectGraphics.fillStyle(mainColor, 0.22);
+      this.objectGraphics.fillCircle(cx, cy, 22);
+
+      // Main circular avatar base
+      this.objectGraphics.fillStyle(0x0f172a, 0.95);
+      this.objectGraphics.lineStyle(3, mainColor, 1);
+      this.objectGraphics.fillCircle(cx, cy, 15);
+      this.objectGraphics.strokeCircle(cx, cy, 15);
+
+      // Inner icon / character dot
+      this.objectGraphics.fillStyle(glowColor, 0.95);
+      this.objectGraphics.fillCircle(cx, cy, 6);
+
+      // Facing direction pointer arrow
+      this.objectGraphics.lineStyle(2.5, 0xffffff, 1);
+      if (facing === 'right') {
+        this.objectGraphics.lineBetween(cx + 6, cy, cx + 13, cy);
+        this.objectGraphics.lineBetween(cx + 10, cy - 4, cx + 13, cy);
+        this.objectGraphics.lineBetween(cx + 10, cy + 4, cx + 13, cy);
+      } else if (facing === 'left') {
+        this.objectGraphics.lineBetween(cx - 6, cy, cx - 13, cy);
+        this.objectGraphics.lineBetween(cx - 10, cy - 4, cx - 13, cy);
+        this.objectGraphics.lineBetween(cx - 10, cy + 4, cx - 13, cy);
+      } else if (facing === 'up') {
+        this.objectGraphics.lineBetween(cx, cy - 6, cx, cy - 13);
+        this.objectGraphics.lineBetween(cx - 4, cy - 10, cx, cy - 13);
+        this.objectGraphics.lineBetween(cx + 4, cy - 10, cx, cy - 13);
+      } else if (facing === 'down') {
+        this.objectGraphics.lineBetween(cx, cy + 6, cx, cy + 13);
+        this.objectGraphics.lineBetween(cx - 4, cy + 10, cx, cy + 13);
+        this.objectGraphics.lineBetween(cx + 4, cy + 10, cx, cy + 13);
+      }
+
+      // Tile grid footprint border (32x32)
+      this.objectGraphics.lineStyle(1.5, mainColor, 0.6);
+      this.objectGraphics.strokeRect(obj.x, obj.y, 32, 32);
+
+      if (this.selectedObject && this.selectedObject.id === obj.id) {
+        this.objectGraphics.lineStyle(3, 0xffffff, 1);
+        this.objectGraphics.strokeRect(obj.x - 2, obj.y - 2, 36, 36);
+      }
+      return;
+    }
+
+    const method = props.encounterType || props.method || 'grass';
     const w = obj.width || 64;
     const h = obj.height || 64;
 
@@ -1150,13 +1208,78 @@ export default class EditorScene extends Phaser.Scene {
     const spawnLayer = this.mapJsonData.layers.find(l => (l.name === 'PokemonSpawns' || l.name === 'Spawns' || l.name === 'Encounters') && l.type === 'objectgroup');
     if (!spawnLayer || !spawnLayer.objects) return null;
     for (const obj of spawnLayer.objects) {
-      const w = obj.width || 64;
-      const h = obj.height || 64;
+      const w = obj.width || 32;
+      const h = obj.height || 32;
       if (worldX >= obj.x && worldX <= obj.x + w && worldY >= obj.y && worldY <= obj.y + h) {
         return { ...obj, layerName: spawnLayer.name };
       }
     }
     return null;
+  }
+
+  getArenaSpawn(role = 'player') {
+    if (!this.mapJsonData) return null;
+    const spawnLayer = this.mapJsonData.layers.find(l => (l.name === 'Spawns' || l.name === 'PokemonSpawns') && l.type === 'objectgroup');
+    if (!spawnLayer || !spawnLayer.objects) return null;
+    return spawnLayer.objects.find(o => {
+      const p = this._readProps(o.properties);
+      return p.role === role || (role === 'player' && (o.name === 'player_spawn' || o.type === 'spawn_local')) ||
+             (role === 'opponent' && (o.name === 'opponent_spawn' || o.type === 'spawn_opponent'));
+    }) || null;
+  }
+
+  getOrCreateArenaSpawn(role = 'player', defaultX = 352, defaultY = 288, defaultFacing = null) {
+    let spawnLayer = this.mapJsonData.layers.find(l => (l.name === 'Spawns' || l.name === 'PokemonSpawns') && l.type === 'objectgroup');
+    if (!spawnLayer) {
+      spawnLayer = this._getOrCreateObjectLayer('Spawns');
+    }
+    let existing = this.getArenaSpawn(role);
+    if (!existing) {
+      const isPlayer = (role === 'player');
+      const facing = defaultFacing || (isPlayer ? 'right' : 'left');
+      existing = {
+        id: Date.now() + (isPlayer ? 1 : 2),
+        name: isPlayer ? 'player_spawn' : 'opponent_spawn',
+        type: isPlayer ? 'spawn_local' : 'spawn_opponent',
+        x: defaultX,
+        y: defaultY,
+        width: 32,
+        height: 32,
+        properties: [
+          { name: 'role', value: role },
+          { name: 'facing', value: facing }
+        ]
+      };
+      spawnLayer.objects.push(existing);
+    }
+    return existing;
+  }
+
+  setArenaSpawnPosition(role, x, y, facing = null) {
+    const spawn = this.getOrCreateArenaSpawn(role, x, y, facing);
+    spawn.x = x;
+    spawn.y = y;
+    if (facing) {
+      const facingProp = spawn.properties.find(p => p.name === 'facing');
+      if (facingProp) facingProp.value = facing;
+      else spawn.properties.push({ name: 'facing', value: facing });
+    }
+    this.drawObjects();
+    return spawn;
+  }
+
+  startPickingArenaSpawn(role) {
+    this.isPickingArenaSpawn = role;
+    if (this.sys.game.canvas) {
+      this.sys.game.canvas.style.cursor = 'crosshair';
+    }
+  }
+
+  stopPickingArenaSpawn() {
+    this.isPickingArenaSpawn = null;
+    if (this.sys.game.canvas) {
+      this.sys.game.canvas.style.cursor = (this.activeTool === 'hand') ? 'grab' : 'default';
+    }
   }
 
   startZoneRedraw(zone) {
@@ -1499,6 +1622,22 @@ export default class EditorScene extends Phaser.Scene {
       this.cursorGraphics.lineBetween(cx - 10, cy, cx + 10, cy);
       this.cursorGraphics.lineBetween(cx, cy - 10, cx, cy + 10);
       return;
+    } else if (this.isPickingArenaSpawn) {
+      // Interactive Arena Battle Spawn indicator (Cyan for Player, Crimson for Rival)
+      const isPlayer = (this.isPickingArenaSpawn === 'player');
+      const color = isPlayer ? 0x00d4ff : 0xf43f5e;
+      this.cursorGraphics.lineStyle(2.5, color, 1);
+      this.cursorGraphics.fillStyle(color, 0.35);
+      this.cursorGraphics.fillRect(snapX, snapY, tileW, tileH);
+      this.cursorGraphics.strokeRect(snapX, snapY, tileW, tileH);
+
+      const cx = snapX + tileW / 2;
+      const cy = snapY + tileH / 2;
+      this.cursorGraphics.fillStyle(color, 0.9);
+      this.cursorGraphics.fillCircle(cx, cy, 8);
+      this.cursorGraphics.lineStyle(2, 0xffffff, 1);
+      this.cursorGraphics.strokeCircle(cx, cy, 12);
+      return;
     } else if (this.activeTool === 'link') {
       // 1 grid hover indicator for Teleport (Purple)
       this.cursorGraphics.lineStyle(2, 0xba68c8, 1);
@@ -1533,6 +1672,25 @@ export default class EditorScene extends Phaser.Scene {
     this.pickPointerDownY = pointer.y;
     this.wasDraggingMap = false;
 
+    // Direct priority for Arena Battle Spawn Picking (Player / Rival)
+    if (this.isPickingArenaSpawn) {
+      const worldPoint = pointer.positionToCamera(this.cameras.main);
+      const tileW = this.map.tileWidth || 32;
+      const tileH = this.map.tileHeight || 32;
+      const tileX = Math.floor(worldPoint.x / tileW);
+      const tileY = Math.floor(worldPoint.y / tileH);
+      const snapX = tileX * tileW;
+      const snapY = tileY * tileH;
+
+      const role = this.isPickingArenaSpawn;
+      this.stopPickingArenaSpawn();
+      const updated = this.setArenaSpawnPosition(role, snapX, snapY);
+      if (this.onArenaSpawnUpdated) {
+        this.onArenaSpawnUpdated(role, snapX, snapY, updated);
+      }
+      return;
+    }
+
     // Pan with Middle Click, Right Click, Space + Click, or Hand tool
     const isRightClick = pointer.rightButtonDown() || pointer.button === 2 || (pointer.event && (pointer.event.button === 2 || pointer.event.buttons === 2));
     const isMiddleClick = pointer.middleButtonDown() || pointer.button === 1 || (pointer.event && (pointer.event.button === 1 || pointer.event.buttons === 4));
@@ -1556,6 +1714,8 @@ export default class EditorScene extends Phaser.Scene {
       const tileH = this.map.tileHeight || 32;
       const tileX = Math.floor(worldPoint.x / tileW);
       const tileY = Math.floor(worldPoint.y / tileH);
+      const snapX = tileX * tileW;
+      const snapY = tileY * tileH;
 
       // Alt + Click: Quick Eyedropper on current active layer
       if (pointer.event && pointer.event.altKey) {
@@ -1715,6 +1875,24 @@ export default class EditorScene extends Phaser.Scene {
     this.lastPaintedTileY = null;
 
     const distDownUp = Phaser.Math.Distance.Between(this.pickPointerDownX || 0, this.pickPointerDownY || 0, pointer.x, pointer.y);
+
+    if (this.isPickingArenaSpawn) {
+      if (distDownUp < 8 && !this.wasDraggingMap) {
+        const worldPoint = pointer.positionToCamera(this.cameras.main);
+        const tileW = this.map ? this.map.tileWidth : 32;
+        const tileH = this.map ? this.map.tileHeight : 32;
+        const snapX = Math.floor(worldPoint.x / tileW) * tileW;
+        const snapY = Math.floor(worldPoint.y / tileH) * tileH;
+        const role = this.isPickingArenaSpawn;
+        this.stopPickingArenaSpawn();
+
+        const updated = this.setArenaSpawnPosition(role, snapX, snapY);
+        if (this.onArenaSpawnUpdated) {
+          this.onArenaSpawnUpdated(role, snapX, snapY, updated);
+        }
+        return;
+      }
+    }
 
     if (this.isPickingPortalTarget) {
       if (distDownUp < 8 && !this.wasDraggingMap) {

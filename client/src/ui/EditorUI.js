@@ -182,14 +182,18 @@ export default class EditorUI {
       'fuchsia_city', 'cinnabar_island', 'indigo_plateau'
     ];
     const allKeys = Object.keys(ROOMS_CONFIG);
-    const cities = allKeys.filter(k => CITIES_LIST.includes(k) || k.endsWith('_city') || k.endsWith('_town'));
-    const routes = allKeys.filter(k => k.startsWith('route_')).sort((a, b) => {
+    const arenas = allKeys.filter(k => k.startsWith('arena_') || k.includes('arena'));
+    if (!arenas.includes('arena_grass')) arenas.unshift('arena_grass');
+    const interiors = allKeys.filter(k => !arenas.includes(k) && (k.includes('_house') || k.includes('_lab') || k.includes('_interior') || k.includes('_mart') || k.includes('_center')));
+    const cities = allKeys.filter(k => !arenas.includes(k) && !interiors.includes(k) && (CITIES_LIST.includes(k) || k.endsWith('_city') || k.endsWith('_town')));
+    const routes = allKeys.filter(k => !arenas.includes(k) && !interiors.includes(k) && k.startsWith('route_')).sort((a, b) => {
       const na = parseInt(a.replace('route_', ''), 10) || 0;
       const nb = parseInt(b.replace('route_', ''), 10) || 0;
       return na - nb;
     });
-    const root = allKeys.filter(k => !cities.includes(k) && !routes.includes(k));
-    return { cities, routes, root };
+    const root = allKeys.filter(k => !cities.includes(k) && !routes.includes(k) && !arenas.includes(k) && !interiors.includes(k));
+    if (!root.includes('kanto')) root.unshift('kanto');
+    return { cities, routes, interiors, arenas, root };
   }
 
   initHTML() {
@@ -653,6 +657,7 @@ export default class EditorUI {
             <select id="editor-zones-subtab-select" class="form-input" style="font-weight: 700; background: #1e293b; border: 1px solid #3b82f6; color: #fff; padding: 7px 10px; font-size: 12px; cursor: pointer; border-radius: 6px; width: 100%;">
               <option value="cities">Cidades & Rotas (Bounding Boxes)</option>
               <option value="spawns">Spawns de Pokémon (Áreas Pokéstop)</option>
+              <option value="arena">⚔️ Spawns de Batalha (Player & Rival)</option>
             </select>
           </div>
 
@@ -694,6 +699,106 @@ export default class EditorUI {
 
               <div id="editor-spawns-list" class="zones-scroll-list">
                 <!-- Dynamically populated -->
+              </div>
+            </div>
+          </div>
+
+          <!-- SUB-VIEW 3: Arena Battle Spawns Manager -->
+          <div id="zones-subview-arena" class="zones-subview hidden">
+            <div class="sidebar-section">
+              <div class="section-header">
+                <div class="section-title-group">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                  <h3>SPAWNS DA ARENA DE BATALHA</h3>
+                </div>
+              </div>
+              <p style="font-size: 11px; color: var(--fr-text-muted); margin-bottom: 10px;">Defina os pontos de spawn do jogador local e do oponente/rival para esta arena.</p>
+
+              <!-- PLAYER SPAWN CARD -->
+              <div class="arena-spawn-card player-card" style="background: rgba(14, 30, 54, 0.9); border: 1.5px solid #00d4ff; border-radius: 8px; padding: 10px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                  <span style="font-weight: 800; font-size: 11px; color: #00d4ff; display:flex; align-items:center; gap:5px;">
+                    <span>🔵</span> PLAYER (LOCAL)
+                  </span>
+                  <span id="arena-player-tile-badge" class="editor-badge" style="background: rgba(0, 212, 255, 0.2); color: #00d4ff; border: 1px solid #00d4ff;">Tile [11, 9]</span>
+                </div>
+                
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                  <div>
+                    <label style="font-size: 10px; color: #94a3b8; display:block; margin-bottom: 2px;">Posição X (px)</label>
+                    <input type="number" id="arena-player-x" class="form-input" style="height: 28px; font-size: 12px; width: 100%;" value="352" step="32" />
+                  </div>
+                  <div>
+                    <label style="font-size: 10px; color: #94a3b8; display:block; margin-bottom: 2px;">Posição Y (px)</label>
+                    <input type="number" id="arena-player-y" class="form-input" style="height: 28px; font-size: 12px; width: 100%;" value="288" step="32" />
+                  </div>
+                </div>
+
+                <div style="margin-bottom: 10px;">
+                  <label style="font-size: 10px; color: #94a3b8; display:block; margin-bottom: 2px;">Direção Inicial</label>
+                  <select id="arena-player-facing" class="form-input" style="height: 28px; font-size: 11px; width: 100%;">
+                    <option value="right">Direita ▶ (Padrão)</option>
+                    <option value="left">Esquerda ◀</option>
+                    <option value="up">Cima ▲</option>
+                    <option value="down">Baixo ▼</option>
+                  </select>
+                </div>
+
+                <div style="display:flex; gap: 6px;">
+                  <button id="btn-pick-player-spawn" class="editor-btn small" style="flex:1; height: 28px; font-size: 11px; background: rgba(0, 212, 255, 0.15); border-color: #00d4ff; color: #00d4ff;">
+                    🎯 Marcar no Clique
+                  </button>
+                  <button id="btn-focus-player-spawn" class="editor-btn small secondary" style="height: 28px; font-size: 11px;" title="Centralizar Câmera no Player">
+                    🔍 Focar
+                  </button>
+                </div>
+              </div>
+
+              <!-- RIVAL / OPPONENT SPAWN CARD -->
+              <div class="arena-spawn-card rival-card" style="background: rgba(45, 18, 24, 0.9); border: 1.5px solid #f43f5e; border-radius: 8px; padding: 10px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                  <label style="font-weight: 800; font-size: 11px; color: #f43f5e; display:flex; align-items:center; gap:5px; cursor:pointer;">
+                    <input type="checkbox" id="arena-rival-enabled" checked style="accent-color:#f43f5e; cursor:pointer;" />
+                    <span>🔴</span> RIVAL / OPONENTE
+                  </label>
+                  <span id="arena-rival-tile-badge" class="editor-badge" style="background: rgba(244, 63, 94, 0.2); color: #f43f5e; border: 1px solid #f43f5e;">Tile [21, 9]</span>
+                </div>
+
+                <div id="arena-rival-fields">
+                  <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                    <div>
+                      <label style="font-size: 10px; color: #94a3b8; display:block; margin-bottom: 2px;">Posição X (px)</label>
+                      <input type="number" id="arena-rival-x" class="form-input" style="height: 28px; font-size: 12px; width: 100%;" value="672" step="32" />
+                    </div>
+                    <div>
+                      <label style="font-size: 10px; color: #94a3b8; display:block; margin-bottom: 2px;">Posição Y (px)</label>
+                      <input type="number" id="arena-rival-y" class="form-input" style="height: 28px; font-size: 12px; width: 100%;" value="288" step="32" />
+                    </div>
+                  </div>
+
+                  <div style="margin-bottom: 10px;">
+                    <label style="font-size: 10px; color: #94a3b8; display:block; margin-bottom: 2px;">Direção Inicial</label>
+                    <select id="arena-rival-facing" class="form-input" style="height: 28px; font-size: 11px; width: 100%;">
+                      <option value="left">Esquerda ◀ (Padrão)</option>
+                      <option value="right">Direita ▶</option>
+                      <option value="up">Cima ▲</option>
+                      <option value="down">Baixo ▼</option>
+                    </select>
+                  </div>
+
+                  <div style="display:flex; gap: 6px;">
+                    <button id="btn-pick-rival-spawn" class="editor-btn small" style="flex:1; height: 28px; font-size: 11px; background: rgba(244, 63, 94, 0.15); border-color: #f43f5e; color: #f43f5e;">
+                      🎯 Marcar no Clique
+                    </button>
+                    <button id="btn-focus-rival-spawn" class="editor-btn small secondary" style="height: 28px; font-size: 11px;" title="Centralizar Câmera no Rival">
+                      🔍 Focar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div style="background: rgba(15, 23, 42, 0.6); border: 1px dashed rgba(255,255,255,0.15); border-radius: 6px; padding: 8px; font-size: 11px; color: #94a3b8; line-height: 1.4;">
+                💡 <b>Dica:</b> Você também pode <b>clicar e arrastar</b> os avatares do Player e do Rival diretamente no mapa com a ferramenta de Mão/Seleção! Depois clique em <b>SALVAR</b> no topo.
               </div>
             </div>
           </div>
@@ -1003,6 +1108,12 @@ export default class EditorUI {
                     <option value="water">Água (Surf)</option>
                     <option value="fishing">Pesca (Rod)</option>
                     <option value="cave">Caverna / Rocha</option>
+                  </select>
+                </div>
+                <div class="form-group" style="flex: 1.2;">
+                  <label>Arena de Batalha (Cenário)</label>
+                  <select id="spawn-prop-arena" class="form-input">
+                    <!-- Dinamicamente preenchido com as arenas existentes do projeto -->
                   </select>
                 </div>
                 <div class="form-group" style="flex: 1;">
@@ -1496,6 +1607,17 @@ export default class EditorUI {
       if (this.editorScene.cameras?.main) {
         this.editorScene._notifyZoom();
       }
+
+      if (mapName.startsWith('arena_') || mapName.includes('arena')) {
+        this.switchSidebarTab('zones');
+        this.switchZonesSubtab('arena');
+      }
+    };
+
+    this.editorScene.onArenaSpawnUpdated = (role, x, y, spawnObj) => {
+      document.getElementById('portal-picker-bar')?.classList.add('hidden');
+      this.renderArenaSpawnsView();
+      this.showToast(`🎯 Spawn do ${role === 'player' ? 'Player' : 'Rival'} posicionado em [${x}, ${y}]!`, 'success');
     };
 
     this.editorScene.onToast = (msg, type) => {
@@ -1809,6 +1931,103 @@ export default class EditorUI {
       this.showToast('Clique no mapa onde deseja posicionar o novo NPC.', 'info');
     });
 
+    // Arena Battle Spawns (Player & Rival) UI Controls
+    const updatePlayerSpawnFromUI = () => {
+      const x = parseInt(document.getElementById('arena-player-x')?.value, 10) || 0;
+      const y = parseInt(document.getElementById('arena-player-y')?.value, 10) || 0;
+      const facing = document.getElementById('arena-player-facing')?.value || 'right';
+      this.editorScene.setArenaSpawnPosition('player', x, y, facing);
+      this.renderArenaSpawnsView();
+    };
+
+    const updateRivalSpawnFromUI = () => {
+      const x = parseInt(document.getElementById('arena-rival-x')?.value, 10) || 0;
+      const y = parseInt(document.getElementById('arena-rival-y')?.value, 10) || 0;
+      const facing = document.getElementById('arena-rival-facing')?.value || 'left';
+      this.editorScene.setArenaSpawnPosition('opponent', x, y, facing);
+      this.renderArenaSpawnsView();
+    };
+
+    document.getElementById('arena-player-x')?.addEventListener('change', updatePlayerSpawnFromUI);
+    document.getElementById('arena-player-y')?.addEventListener('change', updatePlayerSpawnFromUI);
+    document.getElementById('arena-player-facing')?.addEventListener('change', updatePlayerSpawnFromUI);
+
+    document.getElementById('arena-rival-x')?.addEventListener('change', updateRivalSpawnFromUI);
+    document.getElementById('arena-rival-y')?.addEventListener('change', updateRivalSpawnFromUI);
+    document.getElementById('arena-rival-facing')?.addEventListener('change', updateRivalSpawnFromUI);
+
+    document.getElementById('arena-rival-enabled')?.addEventListener('change', (e) => {
+      const enabled = e.target.checked;
+      const spawnLayer = this.editorScene._getOrCreateObjectLayer('Spawns');
+      if (enabled) {
+        this.editorScene.getOrCreateArenaSpawn('opponent', 672, 288, 'left');
+      } else {
+        if (spawnLayer && spawnLayer.objects) {
+          spawnLayer.objects = spawnLayer.objects.filter(o => {
+            const p = this.editorScene._readProps(o.properties);
+            return p.role !== 'opponent' && o.name !== 'opponent_spawn' && o.type !== 'spawn_opponent';
+          });
+        }
+      }
+      this.editorScene.drawObjects();
+      this.renderArenaSpawnsView();
+      this.showToast(enabled ? '⚔️ Spawn do Rival ativado!' : '🗑️ Spawn do Rival desativado (batalha selvagem).', 'info');
+    });
+
+    document.getElementById('btn-pick-player-spawn')?.addEventListener('click', () => {
+      this.editorScene.startPickingArenaSpawn('player');
+      const pickerBar = document.getElementById('portal-picker-bar');
+      const badge = document.getElementById('portal-picker-mode-badge');
+      const instr = document.getElementById('portal-picker-instructions');
+      if (pickerBar && badge && instr) {
+        badge.textContent = '🔵 MARCAR SPAWN DO PLAYER';
+        badge.style.background = '#00d4ff';
+        badge.style.color = '#000';
+        instr.textContent = 'Clique no mapa onde o Player deve nascer na arena (use Botão Direito/Espaço para mover o mapa).';
+        pickerBar.classList.remove('hidden');
+      }
+      this.showToast('🎯 Clique em qualquer tile do mapa para posicionar o PLAYER.', 'info');
+    });
+
+    document.getElementById('btn-pick-rival-spawn')?.addEventListener('click', () => {
+      this.editorScene.startPickingArenaSpawn('opponent');
+      const pickerBar = document.getElementById('portal-picker-bar');
+      const badge = document.getElementById('portal-picker-mode-badge');
+      const instr = document.getElementById('portal-picker-instructions');
+      if (pickerBar && badge && instr) {
+        badge.textContent = '🔴 MARCAR SPAWN DO RIVAL';
+        badge.style.background = '#f43f5e';
+        badge.style.color = '#fff';
+        instr.textContent = 'Clique no mapa onde o Rival/Oponente deve nascer na arena (use Botão Direito/Espaço para mover o mapa).';
+        pickerBar.classList.remove('hidden');
+      }
+      this.showToast('🎯 Clique em qualquer tile do mapa para posicionar o RIVAL / OPONENTE.', 'info');
+    });
+
+    document.getElementById('btn-portal-picker-cancel')?.addEventListener('click', () => {
+      if (this.editorScene.isPickingArenaSpawn) {
+        this.editorScene.stopPickingArenaSpawn();
+        document.getElementById('portal-picker-bar')?.classList.add('hidden');
+        this.showToast('🚫 Marcação de spawn cancelada.', 'info');
+      }
+    });
+
+    document.getElementById('btn-focus-player-spawn')?.addEventListener('click', () => {
+      const pSpawn = this.editorScene.getArenaSpawn('player');
+      if (pSpawn && this.editorScene.cameras?.main) {
+        this.editorScene.cameras.main.centerOn(pSpawn.x + 16, pSpawn.y + 16);
+      }
+    });
+
+    document.getElementById('btn-focus-rival-spawn')?.addEventListener('click', () => {
+      const rSpawn = this.editorScene.getArenaSpawn('opponent');
+      if (rSpawn && this.editorScene.cameras?.main) {
+        this.editorScene.cameras.main.centerOn(rSpawn.x + 16, rSpawn.y + 16);
+      } else {
+        this.showToast('Spawn do rival está desativado.', 'warning');
+      }
+    });
+
     // Tileset Select, Quick Add & Upload
     document.getElementById('editor-tileset-select')?.addEventListener('change', (e) => {
       const val = e.target.value;
@@ -1842,7 +2061,8 @@ export default class EditorUI {
     document.getElementById('btn-find-similar-tiles')?.addEventListener('click', () => {
       if (this.activeGid) this.findSimilarOutsideTiles(this.activeGid, this.activeTileset);
     });
-    document.getElementById('btn-editor-reload')?.addEventListener('click', () => {
+    document.getElementById('btn-editor-reload')?.addEventListener('click', async () => {
+      await this.fetchMapsList();
       if (confirm('Recarregar mapa atual? Alterações não salvas serão perdidas.')) {
         this.editorScene.loadMapByName(this.editorScene.currentMapName);
       }
@@ -2160,7 +2380,7 @@ export default class EditorUI {
       const res = await fetch('/api/admin/map/list');
       if (res.ok) {
         const data = await res.json();
-        if (data && (data.cities?.length || data.routes?.length)) {
+        if (data && (data.cities?.length || data.routes?.length || data.arenas?.length || data.interiors?.length || data.root?.length)) {
           this.allMapsList = data;
         }
       }
@@ -2196,7 +2416,7 @@ export default class EditorUI {
       this.allMapsList.cities.forEach(city => {
         const opt = document.createElement('option');
         opt.value = city;
-        opt.textContent = city.replace('_', ' ').toUpperCase();
+        opt.textContent = city.replace(/_/g, ' ').toUpperCase();
         groupCities.appendChild(opt);
       });
       select.appendChild(groupCities);
@@ -2209,15 +2429,46 @@ export default class EditorUI {
       this.allMapsList.routes.forEach(route => {
         const opt = document.createElement('option');
         opt.value = route;
-        opt.textContent = route.replace('_', ' ').toUpperCase();
+        opt.textContent = route.replace(/_/g, ' ').toUpperCase();
         groupRoutes.appendChild(opt);
       });
       select.appendChild(groupRoutes);
     }
 
-    // Group 3: Other maps in root
+    // Group 3: Arenas de Batalha
+    if (this.allMapsList.arenas && this.allMapsList.arenas.length > 0) {
+      const groupArenas = document.createElement('optgroup');
+      groupArenas.label = 'Arenas de Batalha';
+      this.allMapsList.arenas.forEach(arena => {
+        const opt = document.createElement('option');
+        opt.value = arena;
+        opt.textContent = arena.replace(/_/g, ' ').toUpperCase();
+        groupArenas.appendChild(opt);
+      });
+      select.appendChild(groupArenas);
+    }
+
+    // Group 4: Interiores
+    if (this.allMapsList.interiors && this.allMapsList.interiors.length > 0) {
+      const groupInteriors = document.createElement('optgroup');
+      groupInteriors.label = 'Interiores';
+      this.allMapsList.interiors.forEach(interior => {
+        const opt = document.createElement('option');
+        opt.value = interior;
+        opt.textContent = interior.replace(/_/g, ' ').toUpperCase();
+        groupInteriors.appendChild(opt);
+      });
+      select.appendChild(groupInteriors);
+    }
+
+    // Group 5: Other maps in root
     if (this.allMapsList.root && this.allMapsList.root.length > 0) {
-      const remaining = this.allMapsList.root.filter(r => !this.allMapsList.cities.includes(r) && !this.allMapsList.routes.includes(r));
+      const remaining = this.allMapsList.root.filter(r => 
+        !this.allMapsList.cities?.includes(r) && 
+        !this.allMapsList.routes?.includes(r) && 
+        !this.allMapsList.arenas?.includes(r) &&
+        !this.allMapsList.interiors?.includes(r)
+      );
       if (remaining.length > 0) {
         const groupOther = document.createElement('optgroup');
         groupOther.label = 'Outros Mapas';
@@ -2239,7 +2490,13 @@ export default class EditorUI {
     if (!select) return;
 
     select.innerHTML = '';
-    const all = [...(this.allMapsList.cities || []), ...(this.allMapsList.routes || []), ...(this.allMapsList.root || [])];
+    const all = [
+      ...(this.allMapsList.cities || []),
+      ...(this.allMapsList.routes || []),
+      ...(this.allMapsList.interiors || []),
+      ...(this.allMapsList.arenas || []),
+      ...(this.allMapsList.root || [])
+    ];
     const unique = Array.from(new Set(all));
     unique.sort().forEach(mapId => {
       const opt = document.createElement('option');
@@ -3150,7 +3407,10 @@ export default class EditorUI {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18"></path></svg>
             <span>${name}</span>
           </span>
-          <span style="font-size:11px; font-weight:700;">${typeBadges[encounterType] || encounterType} (${rate}%)</span>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="display:inline-flex; align-items:center; gap:3px; background:rgba(59,130,246,0.18); border:1px solid rgba(59,130,246,0.4); color:#93c5fd; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:700;">⚔️ Arena: ${props.arena || 'grass'}</span>
+            <span style="font-size:11px; font-weight:700;">${typeBadges[encounterType] || encounterType} (${rate}%)</span>
+          </div>
         </div>
         <div style="margin: 6px 0; display:flex; flex-wrap:wrap; gap:4px;">
           ${speciesBadgesHtml || '<span style="color:#888; font-size:11px;">Nenhuma espécie configurada</span>'}
@@ -3178,6 +3438,68 @@ export default class EditorUI {
 
       container.appendChild(card);
     });
+  }
+
+  // ─── Arena Battle Spawns View (Player & Rival) ──────────────────────────
+
+  renderArenaSpawnsView() {
+    if (!this.editorScene.mapJsonData) return;
+
+    const tileW = (this.editorScene.map && this.editorScene.map.tileWidth) ? this.editorScene.map.tileWidth : 32;
+    const tileH = (this.editorScene.map && this.editorScene.map.tileHeight) ? this.editorScene.map.tileHeight : 32;
+
+    const playerSpawn = this.editorScene.getOrCreateArenaSpawn('player', 352, 288, 'right');
+    const rivalSpawn = this.editorScene.getArenaSpawn('opponent');
+
+    // Player inputs
+    const playerXInput = document.getElementById('arena-player-x');
+    const playerYInput = document.getElementById('arena-player-y');
+    const playerFacing = document.getElementById('arena-player-facing');
+    const playerBadge = document.getElementById('arena-player-tile-badge');
+
+    if (playerXInput) playerXInput.value = playerSpawn.x || 0;
+    if (playerYInput) playerYInput.value = playerSpawn.y || 0;
+    if (playerFacing) {
+      const pProps = this.editorScene._readProps(playerSpawn.properties);
+      playerFacing.value = pProps.facing || 'right';
+    }
+    if (playerBadge) {
+      const tX = Math.floor((playerSpawn.x || 0) / tileW);
+      const tY = Math.floor((playerSpawn.y || 0) / tileH);
+      playerBadge.textContent = `Tile [${tX}, ${tY}]`;
+    }
+
+    // Rival inputs
+    const rivalEnabled = document.getElementById('arena-rival-enabled');
+    const rivalFields = document.getElementById('arena-rival-fields');
+    const rivalXInput = document.getElementById('arena-rival-x');
+    const rivalYInput = document.getElementById('arena-rival-y');
+    const rivalFacing = document.getElementById('arena-rival-facing');
+    const rivalBadge = document.getElementById('arena-rival-tile-badge');
+
+    if (rivalEnabled) {
+      rivalEnabled.checked = !!rivalSpawn;
+    }
+    if (rivalFields) {
+      rivalFields.style.opacity = rivalSpawn ? '1' : '0.4';
+      rivalFields.style.pointerEvents = rivalSpawn ? 'auto' : 'none';
+    }
+
+    if (rivalSpawn) {
+      if (rivalXInput) rivalXInput.value = rivalSpawn.x || 0;
+      if (rivalYInput) rivalYInput.value = rivalSpawn.y || 0;
+      if (rivalFacing) {
+        const rProps = this.editorScene._readProps(rivalSpawn.properties);
+        rivalFacing.value = rProps.facing || 'left';
+      }
+      if (rivalBadge) {
+        const tX = Math.floor((rivalSpawn.x || 0) / tileW);
+        const tY = Math.floor((rivalSpawn.y || 0) / tileH);
+        rivalBadge.textContent = `Tile [${tX}, ${tY}]`;
+      }
+    } else {
+      if (rivalBadge) rivalBadge.textContent = `Desativado`;
+    }
   }
 
   async fetchSpeciesList() {
@@ -3641,13 +3963,14 @@ export default class EditorUI {
         this.copyZoneCache.set(key, {
           name,
           encounterType: props.encounterType || 'grass',
+          arena: props.arena || 'grass',
           rate: props.rate ?? 10,
           pokemonSpawns: spawns
         });
 
         const opt = document.createElement('option');
         opt.value = key;
-        opt.textContent = `${name} (${spawns.length} Pokémon - ${props.encounterType || 'grass'})`;
+        opt.textContent = `${name} (${spawns.length} Pokémon - ${props.encounterType || 'grass'} / Arena: ${props.arena || 'grass'})`;
         optGroupMap.appendChild(opt);
       });
 
@@ -3678,6 +4001,7 @@ export default class EditorUI {
             this.copyZoneCache.set(key, {
               name: z.name,
               encounterType: z.encounterMethod || 'grass',
+              arena: z.arena || z.arenaType || 'grass',
               rate: z.baseRate ?? 10,
               pokemonSpawns: spawns
             });
@@ -3718,10 +4042,14 @@ export default class EditorUI {
       }
     }
 
-    // Copiar método e taxa se definidos
+    // Copiar método, arena e taxa se definidos
     if (source.encounterType) {
       const typeInput = document.getElementById('spawn-prop-type');
       if (typeInput) typeInput.value = source.encounterType;
+    }
+    if (source.arena) {
+      const arenaInput = document.getElementById('spawn-prop-arena');
+      if (arenaInput) arenaInput.value = source.arena;
     }
     if (source.rate) {
       const rateInput = document.getElementById('spawn-prop-rate');
@@ -3733,6 +4061,49 @@ export default class EditorUI {
     this.updateSpawnPercentages();
 
     this.showToast(`Configuração copiada de "${source.name}" com sucesso! (${clonedList.length} Pokémon)`, 'success');
+  }
+
+  populateSpawnArenaSelect(selectedArena = 'arena_grass') {
+    const select = document.getElementById('spawn-prop-arena');
+    if (!select) return;
+
+    select.innerHTML = '';
+
+    // Coleta as arenas existentes dos mapas carregados/configurados
+    const existingArenas = new Set();
+    if (this.allMapsList?.arenas && Array.isArray(this.allMapsList.arenas)) {
+      this.allMapsList.arenas.forEach(a => existingArenas.add(a));
+    }
+    // Garante as arenas existentes no projeto
+    existingArenas.add('arena_grass');
+
+    const arenaLabels = {
+      arena_grass: 'Arena de Grama / Campo Aberto (arena_grass)',
+      arena_water: 'Arena Aquática / Lago (arena_water)',
+      arena_cave: 'Arena de Caverna / Rocha (arena_cave)',
+      arena_forest: 'Arena de Floresta / Bosque (arena_forest)',
+      arena_indoor: 'Estádio / Arena Fechada (arena_indoor)'
+    };
+
+    existingArenas.forEach(arenaKey => {
+      const opt = document.createElement('option');
+      opt.value = arenaKey;
+      const cleanName = arenaKey.replace(/_/g, ' ').toUpperCase();
+      opt.textContent = arenaLabels[arenaKey] || `Arena ${cleanName} (${arenaKey})`;
+      if (arenaKey === selectedArena || (selectedArena === 'grass' && arenaKey === 'arena_grass')) {
+        opt.selected = true;
+      }
+      select.appendChild(opt);
+    });
+
+    // Se a arena previamente configurada não estiver na lista (ex: caso seja um id customizado), preserva-a
+    if (selectedArena && ![...existingArenas].includes(selectedArena) && selectedArena !== 'grass') {
+      const customOpt = document.createElement('option');
+      customOpt.value = selectedArena;
+      customOpt.textContent = `Arena Personalizada (${selectedArena})`;
+      customOpt.selected = true;
+      select.appendChild(customOpt);
+    }
   }
 
   async openSpawnModal(spawn) {
@@ -3749,6 +4120,8 @@ export default class EditorUI {
     this.switchSpawnTab('map');
 
     const props = this.editorScene._readProps(spawn.properties);
+    this.populateSpawnArenaSelect(props.arena || 'arena_grass');
+
     document.getElementById('spawn-prop-name').value = props.name || spawn.name || '';
     document.getElementById('spawn-prop-type').value = props.encounterType || 'grass';
     document.getElementById('spawn-prop-rate').value = props.rate ?? 10;
@@ -4070,6 +4443,8 @@ export default class EditorUI {
       spawnLayer.objects.push(target);
     }
 
+    const arena = document.getElementById('spawn-prop-arena') ? document.getElementById('spawn-prop-arena').value : 'grass';
+
     target.name = name;
     target.x = x;
     target.y = y;
@@ -4078,6 +4453,7 @@ export default class EditorUI {
     target.properties = [
       { name: 'name', value: name },
       { name: 'encounterType', value: encounterType },
+      { name: 'arena', value: arena },
       { name: 'rate', value: rate },
       { name: 'pokemonSpawns', value: JSON.stringify(pokemonList) }
     ];
@@ -4480,6 +4856,7 @@ export default class EditorUI {
     } else if (tabName === 'zones') {
       this.renderZonesList();
       this.renderSpawnsList();
+      this.renderArenaSpawnsView();
     } else if (tabName === 'npcs') {
       this.renderNpcsList();
     }
@@ -4494,8 +4871,14 @@ export default class EditorUI {
 
     const citiesView = document.getElementById('zones-subview-cities');
     const spawnsView = document.getElementById('zones-subview-spawns');
+    const arenaView = document.getElementById('zones-subview-arena');
     if (citiesView) citiesView.classList.toggle('hidden', subtabName !== 'cities');
     if (spawnsView) spawnsView.classList.toggle('hidden', subtabName !== 'spawns');
+    if (arenaView) arenaView.classList.toggle('hidden', subtabName !== 'arena');
+
+    if (subtabName === 'arena') {
+      this.renderArenaSpawnsView();
+    }
   }
 
   // ─── Tools & Tilesets ─────────────────────────────────────────────────────

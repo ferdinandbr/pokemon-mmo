@@ -264,6 +264,10 @@ class EncounterService {
     const highIvChance = Number(chosenEntry.highIvChance) || 0;
     const shinyBonus = Number(chosenEntry.shinyBonus) || 1;
 
+    const arenaKey = matchingZone?.arena || 
+      (matchingZone?.encounterType === 'water' ? 'arena_water' : 
+      (matchingZone?.encounterType === 'cave' ? 'arena_cave' : 'arena_grass'));
+
     return {
       speciesId,
       minLevel: minLvl,
@@ -271,6 +275,7 @@ class EncounterService {
       highIvChance,
       shinyBonus,
       zoneName: matchingZone?.name || 'Wild Area',
+      arena: arenaKey,
       currentTimeOfDay,
       weather
     };

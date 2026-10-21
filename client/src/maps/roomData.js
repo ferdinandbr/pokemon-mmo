@@ -58,5 +58,17 @@ export const ROOMS_CONFIG = {
       "y": 224
     },
     "portals": []
+  },
+  "arena_grass": {
+    "id": "arena_grass",
+    "name": "Arena Grama (Battle)",
+    "tilemapKey": "arena_grass",
+    "width": 1024,
+    "height": 576,
+    "defaultSpawn": {
+      "x": 352,
+      "y": 288
+    },
+    "portals": []
   }
 };

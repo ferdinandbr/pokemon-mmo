@@ -123,7 +123,8 @@ class BattleManager {
       maxHp: calculatedStats.hp,
       stats: calculatedStats,
       species,
-      moves: movesInflated
+      moves: movesInflated,
+      arena: resolved?.arena || 'arena_grass'
     };
   }
 
@@ -189,6 +190,7 @@ class BattleManager {
       activePlayerIndex: activeIndex,
       playerPokemon: playerMonFormatted,
       wildPokemon,
+      arena: wildPokemon?.arena || 'arena_grass',
       runAttempts: 0,
       turn: 1,
       isEnded: false,
@@ -201,6 +203,7 @@ class BattleManager {
         const pName = this.playerPokemon.nickname || this.playerPokemon.species?.name || 'Pokemon';
         return {
           battleId: `battle_${charId}_${Date.now()}`,
+          arena: this.arena || this.wildPokemon?.arena || 'arena_grass',
           activePlayerIndex: this.activePlayerIndex,
           playerPokemon: {
             ...this.playerPokemon,
@@ -626,7 +629,9 @@ class BattleManager {
 
         const catchResult = catchCalculator.calculateCatch(wildMon, item.name, {
           turn: session.turn,
-          playerLevel: session.playerPokemon?.level
+          playerLevel: session.playerPokemon?.level,
+          isDizzy: Boolean(wildMon.isDizzy || session.isWildDizzy),
+          status: wildMon.status
         });
 
         events.push({

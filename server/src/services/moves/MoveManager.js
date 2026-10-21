@@ -166,7 +166,7 @@ class MoveManager {
 
     for (const entry of matching) {
       const def = moveRegistry.get(entry.moveInternalName);
-      if (def && !results.some(r => r.id === def.id)) {
+      if (def && def.activeCombatCompatible !== false && !results.some(r => r.id === def.id)) {
         results.push(def);
       }
     }
@@ -176,6 +176,8 @@ class MoveManager {
 
   /**
    * Builds the initial moveset (up to 4 moves) for a newly spawned or created Pokémon.
+   * Filters out moves incompatible with active combat. If a species has no eligible moves
+   * at level 1 (e.g. Cubone, Magikarp), it promotes the species' earliest active move to Level 1.
    * @param {Object} species
    * @param {number} level
    * @returns {Array<Object>} Array of clean PokemonMove instances
@@ -190,8 +192,20 @@ class MoveManager {
       learnset = [];
     }
 
+    // Filter only moves that are compatible with active combat
+    const combatCompatibleLearnset = learnset.filter(entry => {
+      const def = moveRegistry.get(entry.moveInternalName);
+      return !def || def.activeCombatCompatible !== false;
+    });
+
     // Filter all moves up to current level
-    const eligible = learnset.filter(m => m.level <= level);
+    const eligible = combatCompatibleLearnset.filter(m => m.level <= level);
+
+    // If no moves are eligible for this level, promote the species' first available active combat move to level 1
+    if (eligible.length === 0 && combatCompatibleLearnset.length > 0) {
+      const sorted = [...combatCompatibleLearnset].sort((a, b) => a.level - b.level);
+      eligible.push(sorted[0]);
+    }
 
     // Deduplicate keeping the most recent entry for each move
     const uniqueMap = new Map();
@@ -206,7 +220,9 @@ class MoveManager {
     const instances = [];
     for (const item of selected) {
       const def = moveRegistry.get(item.moveInternalName) || moveRegistry.getFallbackMove(item.moveInternalName);
-      instances.push(this.createInstance(def));
+      if (def && def.activeCombatCompatible !== false) {
+        instances.push(this.createInstance(def));
+      }
     }
 
     if (instances.length === 0) {

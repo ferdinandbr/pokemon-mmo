@@ -97,7 +97,6 @@ export class PartyHUDUI {
       const pkmn = this.party[i] || null;
       const slotEl = document.createElement('div');
       slotEl.dataset.slotIndex = i;
-
       if (pkmn) {
         slotEl.className = 'oph-slot has-pokemon';
 

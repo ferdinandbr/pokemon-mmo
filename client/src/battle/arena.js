@@ -15,13 +15,14 @@ export class BattleArena {
     this.imgHeight = 576;
 
     // Fixed grass clearing boundary in native 1024x576 16:9 image space
+    // Calibrated so Pokémon never wander under the top enemy HUD or bottom command bar/player HUD
     this.fieldCoords = {
-      left: 145,
-      right: 880,
-      top: 63,
-      bottom: 518,
+      left: 215,
+      right: 809,
+      top: 125,
+      bottom: 395,
       centerX: 512,
-      centerY: 290,
+      centerY: 260,
     };
 
     // Logical bounds are ALWAYS fixed to native coordinates!
@@ -34,12 +35,12 @@ export class BattleArena {
 
     this.centerX = this.fieldCoords.centerX;
     this.centerY = this.fieldCoords.centerY;
-    this.arenaWidth = this.bounds.maxX - this.bounds.minX; // 735 px
-    this.arenaHeight = this.bounds.maxY - this.bounds.minY; // 455 px
+    this.arenaWidth = this.bounds.maxX - this.bounds.minX; // 594 px
+    this.arenaHeight = this.bounds.maxY - this.bounds.minY; // 270 px
     this.radiusX = this.arenaWidth / 2;
     this.radiusY = this.arenaHeight / 2;
 
-    // Preload time-of-day grass arena backgrounds (Day, Dusk/Sunset, Night)
+    // Preload time-of-day grass arena backgrounds as fallback
     this.bgImages = {
       day: null,
       dusk: null,
@@ -49,6 +50,16 @@ export class BattleArena {
     this.bgImage = null;
     this.imageLoaded = false;
     this.initBackgrounds();
+
+    // Authentic Tiled Tilemap Support (arena_grass.json, etc.)
+    this.currentArenaKey = 'arena_grass';
+    this.mapLoaded = false;
+    this.mapCanvas = null;
+    this.overheadCanvas = null;
+    this.mapSpawns = null;
+    this.collisionGrid = null;
+    this.collisionTiles = [];
+    this.loadArenaMap('arena_grass');
 
     // Viewport projection parameters (scales drawing to screen without altering logic)
     this.scale = 1.0;
@@ -70,6 +81,144 @@ export class BattleArena {
     this.decalSystem = new DecalSystem(50);
 
     this.resize();
+  }
+
+  async loadArenaMap(arenaKey = 'arena_grass') {
+    if (!arenaKey) arenaKey = 'arena_grass';
+    this.currentArenaKey = arenaKey;
+    try {
+      const cleanKey = String(arenaKey).replace(/[^a-zA-Z0-9_\-]/g, '');
+      const response = await fetch(`/assets/maps/${cleanKey}.json?t=${Date.now()}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const mapData = await response.json();
+      await this.buildTilemapBuffers(mapData);
+      console.log(`[BattleArena] Mapa Tiled '${cleanKey}' carregado e renderizado com sucesso.`);
+    } catch (err) {
+      console.warn(`[BattleArena] Não foi possível carregar o mapa Tiled '${arenaKey}', usando fallback:`, err.message);
+      this.mapLoaded = false;
+    }
+  }
+
+  async buildTilemapBuffers(mapData) {
+    if (!mapData || !mapData.layers) return;
+
+    this.mapWidth = (mapData.width || 32) * (mapData.tilewidth || 32);
+    this.mapHeight = (mapData.height || 18) * (mapData.tileheight || 32);
+    this.tileWidth = mapData.tilewidth || 32;
+    this.tileHeight = mapData.tileheight || 32;
+
+    // 1. Preload tilesets
+    const tilesetEntries = [];
+    const loadPromises = (mapData.tilesets || []).map(async (ts) => {
+      let imgSrc = ts.image || '';
+      if (imgSrc.startsWith('../')) {
+        imgSrc = imgSrc.replace(/^(\.\.\/)+/, '/assets/');
+      } else if (!imgSrc.startsWith('/') && !imgSrc.startsWith('http')) {
+        imgSrc = `/assets/${imgSrc}`;
+      }
+      const img = new Image();
+      img.src = imgSrc;
+      await new Promise((resolve) => {
+        if (img.complete && img.naturalWidth > 0) resolve();
+        else {
+          img.onload = () => resolve();
+          img.onerror = () => {
+            console.warn(`[BattleArena] Falha ao carregar tileset ${imgSrc}`);
+            resolve();
+          };
+        }
+      });
+      tilesetEntries.push({
+        ...ts,
+        img,
+      });
+    });
+
+    await Promise.all(loadPromises);
+
+    // Sort tilesets descending by firstgid for matching
+    tilesetEntries.sort((a, b) => b.firstgid - a.firstgid);
+
+    // 2. Extract Spawns from Object Layer
+    const spawnsLayer = mapData.layers.find(l => (l.name === 'Spawns' || l.name === 'PokemonSpawns') && l.type === 'objectgroup');
+    if (spawnsLayer?.objects) {
+      const pSpawn = spawnsLayer.objects.find(o => o.name === 'player_spawn' || o.properties?.some(p => p.name === 'role' && p.value === 'player'));
+      const eSpawn = spawnsLayer.objects.find(o => o.name === 'opponent_spawn' || o.name === 'enemy_spawn' || o.name === 'rival_spawn' || o.properties?.some(p => p.name === 'role' && (p.value === 'opponent' || p.value === 'enemy')));
+      
+      this.mapSpawns = {
+        player: pSpawn ? { x: pSpawn.x, y: pSpawn.y, facing: 'right' } : null,
+        enemy: eSpawn ? { x: eSpawn.x, y: eSpawn.y, facing: 'left' } : null,
+      };
+    }
+
+    // 3. Extract Collisions from Tile Layer
+    const collisionLayer = mapData.layers.find(l => (l.name === 'Collision' || l.name === 'Collisions') && l.type === 'tilelayer');
+    this.collisionGrid = Array(mapData.height).fill(null).map(() => Array(mapData.width).fill(false));
+    this.collisionTiles = [];
+    if (collisionLayer?.data) {
+      collisionLayer.data.forEach((gid, idx) => {
+        if (gid > 0) {
+          const col = idx % mapData.width;
+          const row = Math.floor(idx / mapData.width);
+          this.collisionGrid[row][col] = true;
+          this.collisionTiles.push({ col, row, x: col * 32, y: row * 32, width: 32, height: 32 });
+        }
+      });
+    }
+
+    // 4. Create Offscreen Canvases for Ground/Objects and Overhead
+    const mapCanvas = document.createElement('canvas');
+    mapCanvas.width = this.imgWidth;
+    mapCanvas.height = this.imgHeight;
+    const mapCtx = mapCanvas.getContext('2d');
+    mapCtx.imageSmoothingEnabled = false;
+
+    const overheadCanvas = document.createElement('canvas');
+    overheadCanvas.width = this.imgWidth;
+    overheadCanvas.height = this.imgHeight;
+    const overheadCtx = overheadCanvas.getContext('2d');
+    overheadCtx.imageSmoothingEnabled = false;
+
+    const drawTileLayer = (layer, targetCtx) => {
+      if (!layer || !layer.data) return;
+      layer.data.forEach((gid, idx) => {
+        if (gid <= 0) return;
+        const ts = tilesetEntries.find(t => gid >= t.firstgid && gid < t.firstgid + t.tilecount);
+        if (!ts || !ts.img || !ts.img.complete) return;
+
+        const localId = gid - ts.firstgid;
+        const col = localId % ts.columns;
+        const row = Math.floor(localId / ts.columns);
+        const margin = ts.margin || 0;
+        const spacing = ts.spacing || 0;
+        const sx = margin + col * (ts.tilewidth + spacing);
+        const sy = margin + row * (ts.tileheight + spacing);
+
+        const destCol = idx % mapData.width;
+        const destRow = Math.floor(idx / mapData.width);
+        const dx = destCol * this.tileWidth;
+        const dy = destRow * this.tileHeight;
+
+        targetCtx.drawImage(
+          ts.img,
+          sx, sy, ts.tilewidth, ts.tileheight,
+          dx, dy, this.tileWidth, this.tileHeight
+        );
+      });
+    };
+
+    // Draw Ground & Objects layers
+    const groundLayer = mapData.layers.find(l => l.name === 'Ground' && l.type === 'tilelayer');
+    const objectsLayer = mapData.layers.find(l => l.name === 'Objects' && l.type === 'tilelayer');
+    const overheadLayer = mapData.layers.find(l => l.name === 'Overhead' && l.type === 'tilelayer');
+
+    drawTileLayer(groundLayer, mapCtx);
+    drawTileLayer(objectsLayer, mapCtx);
+    drawTileLayer(overheadLayer, overheadCtx);
+
+    this.mapCanvas = mapCanvas;
+    this.overheadCanvas = overheadCanvas;
+    this.mapLoaded = true;
   }
 
   initBackgrounds() {
@@ -147,22 +296,19 @@ export class BattleArena {
     this.drawHeight = Math.round(this.imgHeight * this.scale);
     this.drawX = Math.round((this.canvas.width - this.drawWidth) / 2);
     this.drawY = Math.round((this.canvas.height - this.drawHeight) / 2);
-
-    // CRITICAL GUARANTEE: this.bounds, this.centerX, this.centerY, this.arenaWidth,
-    // this.arenaHeight NEVER change! Gameplay units remain 100% constant and fair!
   }
 
   getSpawnPoints() {
     return {
       player: {
-        x: this.centerX - 190, // 322 px in fixed 1024x576 space
-        y: this.centerY,       // 290 px
-        facing: 'right',
+        x: this.mapSpawns?.player?.x ?? (this.centerX - 160), // 352 px in fixed 1024x576 space
+        y: this.mapSpawns?.player?.y ?? this.centerY,         // 288 px
+        facing: this.mapSpawns?.player?.facing ?? 'right',
       },
       enemy: {
-        x: this.centerX + 190, // 702 px in fixed 1024x576 space
-        y: this.centerY,       // 290 px
-        facing: 'left',
+        x: this.mapSpawns?.enemy?.x ?? (this.centerX + 160),   // 672 px in fixed 1024x576 space
+        y: this.mapSpawns?.enemy?.y ?? this.centerY,         // 288 px
+        facing: this.mapSpawns?.enemy?.facing ?? 'left',
       },
     };
   }
@@ -170,12 +316,15 @@ export class BattleArena {
   setTheme() {}
 
   triggerScreenShake(amount = 8) {
-    this.shakeIntensity = Math.max(this.shakeIntensity, amount);
+    // Screen shake desativado conforme solicitado: visão estável e fixa durante impactos
+    this.shakeIntensity = 0;
+    this.shakeOffsetX = 0;
+    this.shakeOffsetY = 0;
   }
 
-  addDecal(x, y, type = 'scorch', radius = 24, duration = 10.0) {
+  addDecal(x, y, type = 'crater_round', radius = 24, duration = 8.0, angle = 0) {
     if (this.decalSystem) {
-      this.decalSystem.addDecal(x, y, type, radius, duration);
+      this.decalSystem.addDecal(x, y, type, radius, duration, angle);
     }
   }
 
@@ -230,11 +379,49 @@ export class BattleArena {
     return { x: clampedX, y: clampedY, collided };
   }
 
-  // Resolve boundary collision with crisp bounce damping on white lines
+  // Resolve boundary collision with crisp bounce damping on white lines and tilemap obstacles
   resolveCollisions(entity) {
     if (!entity) return;
 
-    // 1. Resolve collision with static obstacles if any exist
+    // 1. Resolve collision with tilemap Collision layer tiles
+    if (this.collisionGrid && this.mapLoaded) {
+      const r = entity.radius || 18;
+      const minCol = Math.max(0, Math.floor((entity.x - r) / 32));
+      const maxCol = Math.min(31, Math.floor((entity.x + r) / 32));
+      const minRow = Math.max(0, Math.floor((entity.y - r) / 32));
+      const maxRow = Math.min(17, Math.floor((entity.y + r) / 32));
+
+      for (let row = minRow; row <= maxRow; row++) {
+        for (let col = minCol; col <= maxCol; col++) {
+          if (this.collisionGrid[row]?.[col]) {
+            const tileLeft = col * 32;
+            const tileTop = row * 32;
+            const closestX = Math.max(tileLeft, Math.min(entity.x, tileLeft + 32));
+            const closestY = Math.max(tileTop, Math.min(entity.y, tileTop + 32));
+            const dx = entity.x - closestX;
+            const dy = entity.y - closestY;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist < r) {
+              const overlap = r - (dist || 0.001);
+              const nx = dist > 0.001 ? dx / dist : (entity.vx < 0 ? 1 : -1);
+              const ny = dist > 0.001 ? dy / dist : (entity.vy < 0 ? 1 : -1);
+
+              entity.x += nx * overlap;
+              entity.y += ny * overlap;
+
+              const velDot = entity.vx * nx + entity.vy * ny;
+              if (velDot < 0) {
+                entity.vx -= velDot * nx;
+                entity.vy -= velDot * ny;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 2. Resolve collision with static obstacles if any exist
     for (const obs of this.obstacles) {
       const dx = entity.x - obs.x;
       const dy = entity.y - obs.y;
@@ -256,7 +443,7 @@ export class BattleArena {
       }
     }
 
-    // 2. Clamp strictly inside rectangular white border
+    // 3. Clamp strictly inside arena border
     const clamped = this.clampInside(entity.x, entity.y, entity.radius);
     if (clamped.collided) {
       const impactSpeed = Math.hypot(entity.vx, entity.vy);
@@ -288,9 +475,18 @@ export class BattleArena {
   }
 
   renderBackground(ctx = this.ctx) {
-    // 1. Draw Authentic Wild Grass Pixel Art Background (Day, Dusk, Night)
     ctx.imageSmoothingEnabled = false; // Sharp 16-bit pixel art
-    if (this.bgImage && this.bgImage.complete && this.bgImage.naturalWidth > 0) {
+    if (this.mapLoaded && this.mapCanvas) {
+      // 1. Draw Authentic Tiled Arena Tilemap (Ground + Objects)
+      ctx.drawImage(
+        this.mapCanvas,
+        0,
+        0,
+        this.imgWidth,
+        this.imgHeight
+      );
+    } else if (this.bgImage && this.bgImage.complete && this.bgImage.naturalWidth > 0) {
+      // Fallback static pixel art background
       ctx.drawImage(
         this.bgImage,
         0,
@@ -304,21 +500,23 @@ export class BattleArena {
       ctx.fillRect(0, 0, this.imgWidth, this.imgHeight);
     }
 
-    // 2. Persistent Ground Decals clipped strictly to the grass clearing
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(
-      this.bounds.minX,
-      this.bounds.minY,
-      this.arenaWidth,
-      this.arenaHeight
-    );
-    ctx.clip();
-
+    // 2. Persistent Ground Decals rendered seamlessly on the arena terrain (no restrictive bounds clipping)
     if (this.decalSystem) {
       this.decalSystem.render(ctx);
     }
-    ctx.restore();
+  }
+
+  renderForeground(ctx = this.ctx) {
+    if (this.mapLoaded && this.overheadCanvas) {
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(
+        this.overheadCanvas,
+        0,
+        0,
+        this.imgWidth,
+        this.imgHeight
+      );
+    }
   }
 
   renderObstacle() {}

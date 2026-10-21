@@ -43,7 +43,7 @@
   pointer-events: none;
 }
 
-/* ARENA CANVAS WRAPPER */
+/* ARENA CANVAS WRAPPER - Subtle 3D Perspective Pitch Tilt for 8-Directional PMD depth */
 .arena-container {
   position: absolute;
   top: 0;
@@ -51,12 +51,19 @@
   width: 100%;
   height: 100%;
   z-index: 1;
+  perspective: 1200px;
+  perspective-origin: 50% 60%;
+  overflow: hidden;
 }
 
 #arena-canvas {
   width: 100%;
   height: 100%;
   display: block;
+  transform: rotateX(7.5deg) scale(1.03);
+  transform-origin: 50% 55%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
 /* Explicitly disable and hide any legacy prototype HUD elements */
@@ -420,24 +427,24 @@
 
 .swsh-party-dot.alive,
 .swsh-party-dot.healthy {
-  background-image: url('/assets/battle/icon_ball.png');
+  background-image: url('/assets/battle/ui/icon_ball.png');
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
 }
 
 .swsh-party-dot.active {
-  background-image: url('/assets/battle/icon_ball.png');
+  background-image: url('/assets/battle/ui/icon_ball.png');
   filter: drop-shadow(0 0 5px #00e5ff) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.9));
   transform: scale(1.25);
 }
 
 .swsh-party-dot.fainted {
-  background-image: url('/assets/battle/icon_ball_faint.png');
+  background-image: url('/assets/battle/ui/icon_ball_faint.png');
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
   opacity: 0.65;
 }
 
 .swsh-party-dot.empty {
-  background-image: url('/assets/battle/icon_ball_empty.png');
+  background-image: url('/assets/battle/ui/icon_ball_empty.png');
   opacity: 0.35;
 }
 
@@ -496,9 +503,9 @@
 
 .swsh-dialogue-text {
   font-family: var(--font-body);
-  font-size: 13.5px;
+  font-size: 12px;
   font-weight: 600;
-  line-height: 1.45;
+  line-height: 1.4;
   color: #f1f5f9;
 }
 

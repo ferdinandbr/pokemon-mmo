@@ -1,5 +1,5 @@
 const prisma = require('../../database');
-const { calculateMaxPp } = require('./MoveConstants');
+const { calculateMaxPp, isActiveCombatMove } = require('./MoveConstants');
 
 class MoveRegistry {
   constructor() {
@@ -32,7 +32,8 @@ class MoveRegistry {
             power: move.power || 0,
             accuracy: move.accuracy || 100,
             pp: move.pp || 35,
-            description: move.description || ''
+            description: move.description || '',
+            activeCombatCompatible: isActiveCombatMove(move.internalName)
           };
 
           this.byId.set(formatted.id, formatted);
@@ -116,7 +117,8 @@ class MoveRegistry {
       power: 40,
       accuracy: 100,
       pp: 35,
-      description: 'A physical attack in which the user charges and slams into the target.'
+      description: 'A physical attack in which the user charges and slams into the target.',
+      activeCombatCompatible: true
     };
   }
 
@@ -150,7 +152,8 @@ class MoveRegistry {
       pp,
       maxPp,
       ppUps,
-      description: def.description
+      description: def.description,
+      activeCombatCompatible: def.activeCombatCompatible !== false
     };
   }
 

@@ -1,11 +1,124 @@
 // Ground Decal & Battle Residue System for Pokemon Arena 2D
-// Keeps the arena dynamically marked with scorches, blast craters, fissures, and stains
-// Provides persistent combat wear with progressive fade-out & high 60 FPS performance
+// 100% Sprite-Based Ground Destruction using Authentic Pixel-Art Spritesheets
+// 5 Core Variations: crater_round, crater_spiked, fissure_crack, skid_trench, stone_ring
+// Fast 60 FPS batched rendering, smooth animations that freeze on the final frame
+
+const BASE_VFX_PATH = '/assets/battle/animations/vfx/earth/';
+
+export const GROUND_DECAL_CONFIGS = {
+  crater_round: {
+    src: `${BASE_VFX_PATH}ground_crater_round.png`,
+    frames: 7,
+    fw: 224,
+    fh: 160,
+    animDuration: 0.35,
+    scaleMult: 0.008,
+    anchorLeft: false,
+  },
+  crater_spiked: {
+    src: `${BASE_VFX_PATH}ground_crater_spiked.png`,
+    frames: 6,
+    fw: 192,
+    fh: 160,
+    animDuration: 0.30,
+    scaleMult: 0.009,
+    anchorLeft: false,
+  },
+  fissure_crack: {
+    src: `${BASE_VFX_PATH}ground_fissure_crack.png`,
+    frames: 6,
+    fw: 224,
+    fh: 80,
+    animDuration: 0.30,
+    scaleMult: 0.010,
+    anchorLeft: false,
+  },
+  skid_trench: {
+    src: `${BASE_VFX_PATH}ground_skid_trench.png`,
+    frames: 6,
+    fw: 224,
+    fh: 80,
+    animDuration: 0.28,
+    scaleMult: 0.010,
+    anchorLeft: true, // Origin at the start of the skid, carves forward
+  },
+  stone_ring: {
+    src: `${BASE_VFX_PATH}ground_stone_ring.png`,
+    frames: 5,
+    fw: 160,
+    fh: 80,
+    animDuration: 0.25,
+    scaleMult: 0.011,
+    anchorLeft: false,
+  },
+};
+
+export const GROUND_DECAL_ALIASES = {
+  // Direct names
+  crater_round: 'crater_round',
+  crater_spiked: 'crater_spiked',
+  fissure_crack: 'fissure_crack',
+  skid_trench: 'skid_trench',
+  stone_ring: 'stone_ring',
+
+  // Craters & heavy impacts
+  crater: 'crater_round',
+  round: 'crater_round',
+  slam: 'crater_round',
+  meteor: 'crater_round',
+  scorch: 'crater_round',
+  burn: 'crater_round',
+  wet: 'crater_round',
+
+  // Spiked blasts & detonations
+  spiked: 'crater_spiked',
+  blast: 'crater_spiked',
+  explosion: 'crater_spiked',
+  earth_power: 'crater_spiked',
+  stone_edge: 'crater_spiked',
+  zap_burn: 'crater_spiked',
+  shadow: 'crater_spiked',
+
+  // Fissures & ground fault lines
+  crack: 'fissure_crack',
+  fissure: 'fissure_crack',
+  earthquake: 'fissure_crack',
+  magnitude: 'fissure_crack',
+  bulldoze: 'fissure_crack',
+  dig: 'fissure_crack',
+  poison: 'fissure_crack',
+
+  // Skid trenches & furrows
+  skid: 'skid_trench',
+  trench: 'skid_trench',
+  slide: 'skid_trench',
+  knockback: 'skid_trench',
+  tackle: 'skid_trench',
+  dash: 'skid_trench',
+
+  // Stone rings & shockwaves
+  ring: 'stone_ring',
+  shockwave: 'stone_ring',
+  stomp: 'stone_ring',
+  seismic: 'stone_ring',
+  ice: 'stone_ring',
+};
 
 export class DecalSystem {
-  constructor(maxDecals = 50) {
+  constructor(maxDecals = 40) {
     this.decals = [];
     this.maxDecals = maxDecals;
+    this.images = {};
+    this.initImages();
+  }
+
+  initImages() {
+    if (typeof Image === 'undefined') return;
+    for (const [key, cfg] of Object.entries(GROUND_DECAL_CONFIGS)) {
+      const img = new Image();
+      img.src = cfg.src;
+      this.images[key] = img;
+    }
   }
 
   reset() {
@@ -13,130 +126,55 @@ export class DecalSystem {
   }
 
   /**
-   * Add a ground decal at (x, y)
-   * Types: 'scorch' (fire/explosion), 'crack' (physical/earth shock),
-   *        'zap_burn' (electric bolt), 'wet' (water puddle), 'shadow' (ghost stain)
+   * Add a ground destruction decal at (x, y)
+   * @param {number} x Logical arena X
+   * @param {number} y Logical arena Y
+   * @param {string} type One of the 5 variations or an alias
+   * @param {number} radius Controls scale of impact
+   * @param {number} duration Total seconds before removal
+   * @param {number} angle Optional rotation angle in radians (especially for skid_trench)
    */
-  addDecal(x, y, type = 'scorch', radius = 24, duration = 10.0) {
-    // Generate pre-calculated pixel clusters / jagged geometry so rendering at 60 FPS is fast
-    const points = this.generateDecalShape(type, radius);
+  addDecal(x, y, type = 'crater_round', radius = 24, duration = 8.0, angle = 0) {
+    const rawKey = (type || 'crater_round').toLowerCase();
+    const resolvedType = GROUND_DECAL_ALIASES[rawKey] || 'crater_round';
+    const cfg = GROUND_DECAL_CONFIGS[resolvedType] || GROUND_DECAL_CONFIGS.crater_round;
+
+    // Proportional scale factor calibrated to Pokemon sprite dimensions (~48-120px)
+    const scale = Math.max(0.20, Math.min(0.55, radius * cfg.scaleMult * 1.5));
+
+    // Optional subtle random rotation or flip for circular/crack decals
+    let finalAngle = angle;
+    let flipX = false;
+    if (resolvedType === 'fissure_crack' && angle === 0) {
+      finalAngle = (Math.random() - 0.5) * 0.35;
+      flipX = Math.random() < 0.5;
+    } else if (resolvedType === 'crater_round' || resolvedType === 'crater_spiked') {
+      flipX = Math.random() < 0.5;
+      if (angle === 0) finalAngle = (Math.random() - 0.5) * 0.2;
+    }
 
     const decal = {
-      x: Math.round(x),
-      y: Math.round(y),
-      type,
-      radius,
-      duration,
+      x,
+      y,
+      type: rawKey,
+      resolvedType,
+      cfg,
+      scale,
+      angle: finalAngle,
+      flipX,
+      duration: Math.max(duration, 3.0),
       time: 0,
-      fadeDuration: 3.5, // Fades out smoothly in last 3.5 seconds
+      fadeDuration: 2.2,
       alpha: 1.0,
-      points,
     };
 
     this.decals.push(decal);
 
-    // Limit maximum active decals to prevent memory overhead or frame drops
+    // Limit active decals to preserve 60 FPS performance
     if (this.decals.length > this.maxDecals) {
-      // Accelerate fade of oldest decals
       const oldest = this.decals[0];
-      oldest.time = Math.max(oldest.time, oldest.duration - 1.0);
+      oldest.time = Math.max(oldest.time, oldest.duration - 1.2);
     }
-  }
-
-  generateDecalShape(type, radius) {
-    const points = [];
-    const pixelSize = 3;
-
-    if (type === 'scorch') {
-      // Irregular charred oval with perimeter pixel splatter
-      const numBlocks = Math.floor(radius * 1.6);
-      for (let i = 0; i < numBlocks; i++) {
-        const ang = Math.random() * Math.PI * 2;
-        const dist = Math.sqrt(Math.random()) * radius;
-        // Squish slightly along Y for isometric top-down perspective (0.65)
-        const px = Math.round(Math.cos(ang) * dist / pixelSize) * pixelSize;
-        const py = Math.round(Math.sin(ang) * dist * 0.65 / pixelSize) * pixelSize;
-        const shade = Math.random() < 0.6 ? '#110d0c' : (Math.random() < 0.8 ? '#1f1614' : '#2b1b15');
-        const sz = Math.random() < 0.4 ? pixelSize * 2 : pixelSize;
-        points.push({ x: px, y: py, size: sz, color: shade });
-      }
-    } else if (type === 'crack') {
-      // Jagged fracture cracks branching from epicenter
-      const numBranches = 4 + Math.floor(Math.random() * 3);
-      for (let b = 0; b < numBranches; b++) {
-        const baseAng = (b / numBranches) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
-        let curX = 0;
-        let curY = 0;
-        const length = radius * (0.7 + Math.random() * 0.5);
-        const steps = Math.floor(length / (pixelSize * 1.5));
-
-        for (let s = 0; s < steps; s++) {
-          const stepAng = baseAng + (Math.random() - 0.5) * 0.7;
-          curX += Math.cos(stepAng) * pixelSize * 1.4;
-          curY += Math.sin(stepAng) * pixelSize * 1.4 * 0.65;
-          const px = Math.round(curX / pixelSize) * pixelSize;
-          const py = Math.round(curY / pixelSize) * pixelSize;
-          points.push({ x: px, y: py, size: pixelSize, color: '#0d131a' });
-
-          // Occasional gravel debris
-          if (Math.random() < 0.25) {
-            points.push({
-              x: px + (Math.random() > 0.5 ? pixelSize : -pixelSize),
-              y: py + (Math.random() > 0.5 ? pixelSize : -pixelSize),
-              size: pixelSize,
-              color: '#37474f',
-            });
-          }
-        }
-      }
-    } else if (type === 'zap_burn') {
-      // Starburst scorched lightning strike
-      const rays = 6;
-      for (let r = 0; r < rays; r++) {
-        const ang = (r / rays) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
-        const dist = radius * (0.6 + Math.random() * 0.5);
-        for (let d = 0; d < dist; d += pixelSize) {
-          const px = Math.round(Math.cos(ang) * d / pixelSize) * pixelSize;
-          const py = Math.round(Math.sin(ang) * d * 0.65 / pixelSize) * pixelSize;
-          points.push({ x: px, y: py, size: pixelSize, color: '#16130b' });
-        }
-      }
-      // Amber/yellow scorched core dots
-      for (let i = 0; i < 8; i++) {
-        const ang = Math.random() * Math.PI * 2;
-        const d = Math.random() * (radius * 0.35);
-        points.push({
-          x: Math.round(Math.cos(ang) * d / pixelSize) * pixelSize,
-          y: Math.round(Math.sin(ang) * d * 0.65 / pixelSize) * pixelSize,
-          size: pixelSize,
-          color: '#ff8f00',
-        });
-      }
-    } else if (type === 'wet') {
-      // Water splash puddle with specular sheen
-      const numBlocks = Math.floor(radius * 1.2);
-      for (let i = 0; i < numBlocks; i++) {
-        const ang = Math.random() * Math.PI * 2;
-        const dist = Math.sqrt(Math.random()) * radius;
-        const px = Math.round(Math.cos(ang) * dist / pixelSize) * pixelSize;
-        const py = Math.round(Math.sin(ang) * dist * 0.6 / pixelSize) * pixelSize;
-        const shade = Math.random() < 0.7 ? 'rgba(2, 136, 209, 0.45)' : 'rgba(128, 216, 255, 0.75)';
-        points.push({ x: px, y: py, size: pixelSize * 1.5, color: shade });
-      }
-    } else if (type === 'shadow') {
-      // Ethereal dark void stain
-      const numBlocks = Math.floor(radius * 1.3);
-      for (let i = 0; i < numBlocks; i++) {
-        const ang = Math.random() * Math.PI * 2;
-        const dist = Math.sqrt(Math.random()) * radius;
-        const px = Math.round(Math.cos(ang) * dist / pixelSize) * pixelSize;
-        const py = Math.round(Math.sin(ang) * dist * 0.65 / pixelSize) * pixelSize;
-        const shade = Math.random() < 0.6 ? '#120024' : '#28004d';
-        points.push({ x: px, y: py, size: pixelSize * 1.5, color: shade });
-      }
-    }
-
-    return points;
   }
 
   update(dt) {
@@ -149,7 +187,7 @@ export class DecalSystem {
         continue;
       }
 
-      // Smooth progressive fade-out in remaining time
+      // Smooth progressive fade-out in final fadeDuration seconds
       const remaining = d.duration - d.time;
       if (remaining <= d.fadeDuration) {
         d.alpha = Math.max(0, remaining / d.fadeDuration);
@@ -163,17 +201,59 @@ export class DecalSystem {
     if (this.decals.length === 0) return;
 
     ctx.save();
-    for (const d of this.decals) {
+    ctx.imageSmoothingEnabled = false;
+
+    for (let i = 0; i < this.decals.length; i++) {
+      const d = this.decals[i];
+      const alpha = d.alpha * 0.95;
+      if (alpha <= 0.01) continue;
+
+      const cfg = d.cfg || GROUND_DECAL_CONFIGS[d.resolvedType] || GROUND_DECAL_CONFIGS.crater_round;
+      let img = this.images[d.resolvedType];
+
+      // Lazy load fallback if not yet initialized
+      if (!img && typeof Image !== 'undefined') {
+        img = new Image();
+        img.src = cfg.src;
+        this.images[d.resolvedType] = img;
+      }
+
+      if (!img || !img.complete || img.naturalWidth === 0) continue;
+
+      // Advance frames from 0 to last frame, then FREEZE on the last frame as persistent terrain scar!
+      const totalFrames = cfg.frames;
+      let frame = totalFrames - 1;
+      if (d.time < cfg.animDuration) {
+        frame = Math.min(totalFrames - 1, Math.floor((d.time / cfg.animDuration) * totalFrames));
+      }
+
+      const sx = frame * cfg.fw;
+      const sy = 0;
+      const dw = cfg.fw * d.scale;
+      const dh = cfg.fh * d.scale;
+
       ctx.save();
-      ctx.globalAlpha = d.alpha * 0.85;
+      ctx.globalAlpha = alpha;
       ctx.translate(d.x, d.y);
 
-      for (const pt of d.points) {
-        ctx.fillStyle = pt.color;
-        ctx.fillRect(pt.x, pt.y, pt.size, pt.size);
+      if (d.angle !== 0) {
+        ctx.rotate(d.angle);
       }
+      if (d.flipX) {
+        ctx.scale(-1, 1);
+      }
+
+      if (cfg.anchorLeft) {
+        // Skid trench: starts at (0, 0) and carves forward along the direction
+        ctx.drawImage(img, sx, sy, cfg.fw, cfg.fh, 0, -dh / 2, dw, dh);
+      } else {
+        // Centered impact crater
+        ctx.drawImage(img, sx, sy, cfg.fw, cfg.fh, -dw / 2, -dh / 2, dw, dh);
+      }
+
       ctx.restore();
     }
+
     ctx.restore();
   }
 }

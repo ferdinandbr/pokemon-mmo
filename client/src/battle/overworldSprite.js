@@ -231,6 +231,9 @@ export class PmdSprite {
         if (this.currentAnimation === 'Faint') {
           // Freeze on last frame of defeat
           this.currentFrame = frameCount - 1;
+        } else if (this.currentAnimation === 'Hurt' && this.isHurtLocked) {
+          // Maintain hurt stance while under continuous hit stun
+          this.currentFrame = frameCount - 1;
         } else {
           // Return to Walk or Idle
           this.setAnimation(this.isMoving ? 'Walk' : 'Idle', true);
@@ -259,22 +262,52 @@ export class PmdSprite {
     const dw = fw * scale;
     const dh = fh * scale;
 
-    // Anchor: center horizontally, bottom-aligned with feet resting directly at ground plane (y)
-    const dx = x - dw / 2;
-    const dy = y - dh * 0.86;
+    // Anchor: center horizontally, feet resting directly at ground plane (y)
+    // In PMD SpriteCollab specifications, ground shadow center is placed at (fw / 2, fh / 2 + 3.5)
+    const anchorX = fw / 2;
+    const anchorY = fh / 2 + 3.5;
+    const dx = x - anchorX * scale;
+    const dy = y - anchorY * scale;
 
     ctx.save();
     ctx.imageSmoothingEnabled = false;
-
-    if (hurtFlash) {
-      ctx.filter = 'brightness(1.8) drop-shadow(0 0 10px #ff1744)';
-    }
 
     if (guardShield) {
       ctx.filter = 'drop-shadow(0 0 8px #00e5ff)';
     }
 
     ctx.drawImage(img, sx, sy, fw, fh, dx, dy, dw, dh);
+
+    // Pure White Hit Flash Overlay (Piscar em branco na hora do hit)
+    // Rendered via isolated offscreen canvas buffer so only the non-transparent pixels of the sprite turn white
+    if (hurtFlash) {
+      if (!this._flashCanvas) {
+        this._flashCanvas = document.createElement('canvas');
+        this._flashCtx = this._flashCanvas.getContext('2d');
+      }
+      const fc = this._flashCanvas;
+      const fctx = this._flashCtx;
+      if (fc.width !== fw || fc.height !== fh) {
+        fc.width = fw;
+        fc.height = fh;
+      }
+      fctx.clearRect(0, 0, fw, fh);
+      fctx.imageSmoothingEnabled = false;
+      // 1. Draw source sprite frame
+      fctx.drawImage(img, sx, sy, fw, fh, 0, 0, fw, fh);
+      // 2. Tint only opaque pixels to solid white
+      fctx.globalCompositeOperation = 'source-in';
+      fctx.fillStyle = '#FFFFFF';
+      fctx.fillRect(0, 0, fw, fh);
+      fctx.globalCompositeOperation = 'source-over';
+
+      // 3. Draw white silhouette back to arena canvas at exact sprite position
+      ctx.save();
+      ctx.globalAlpha = 0.88;
+      ctx.drawImage(fc, 0, 0, fw, fh, dx, dy, dw, dh);
+      ctx.restore();
+    }
+
     ctx.restore();
   }
 
@@ -294,13 +327,15 @@ export class PmdSprite {
     const sy = dirIdx * fh;
     const dw = fw * scale;
     const dh = fh * scale;
-    const dx = x - dw / 2;
-    const dy = y - dh * 0.86;
+    const anchorX = fw / 2;
+    const anchorY = fh / 2 + 3.5;
+    const dx = x - anchorX * scale;
+    const dy = y - anchorY * scale;
 
     ctx.save();
     ctx.imageSmoothingEnabled = false;
-    ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
-    ctx.filter = `drop-shadow(0 0 8px ${color})`;
+    ctx.globalAlpha = Math.max(0, Math.min(0.65, alpha * 0.75));
+    ctx.filter = `drop-shadow(0 0 4px ${color})`;
     ctx.drawImage(img, sx, sy, fw, fh, dx, dy, dw, dh);
     ctx.restore();
   }

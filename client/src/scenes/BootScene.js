@@ -80,7 +80,9 @@ export default class BootScene extends Phaser.Scene {
       setTimeout(() => loader.classList.add('hidden'), 450);
     }
     const isEditorRoute = window.location.hash.startsWith('#editor') || window.location.pathname.startsWith('/editor');
-    if (!isEditorRoute) {
+    if (isEditorRoute) {
+      this.scene.start('EditorScene');
+    } else {
       this.scene.start('WorldScene');
     }
   }

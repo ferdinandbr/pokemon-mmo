@@ -892,16 +892,16 @@ body, html {
    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .hud-quick-bar {
   position: fixed;
-  right: 16px;
-  top: 50%;
-  bottom: auto;
-  left: auto;
-  transform: translateY(-50%);
+  left: 50%;
+  bottom: 18px;
+  top: auto;
+  right: auto;
+  transform: translateX(-50%);
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+  gap: 8px;
+  padding: 8px 12px;
   background: rgba(16, 22, 36, 0.94);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -1379,7 +1379,8 @@ body.editor-mode #hud,
 body.editor-mode #auth-screen,
 body.editor-mode #character-screen,
 body.editor-mode .controls-hint,
-body.editor-mode .chat-container {
+body.editor-mode .chat-container,
+body.editor-mode #game-loader {
   display: none !important;
 }
 
@@ -6680,7 +6681,7 @@ body.is-dragging-item .bag-slot * {
 .battle-bg {
   position: absolute;
   inset: 0;
-  background: url('/assets/battle/bg_1_forest.png') no-repeat center center;
+  background: url('/assets/battle/arenas/bg_forest.png') no-repeat center center;
   background-size: cover;
   image-rendering: pixelated;
 }
@@ -6839,7 +6840,7 @@ body.is-dragging-item .bag-slot * {
 .fr-caught-ball {
   width: 14px;
   height: 14px;
-  background: url('/assets/battle/icon_own.png') no-repeat center center;
+  background: url('/assets/battle/ui/icon_own.png') no-repeat center center;
   background-size: contain;
   image-rendering: pixelated;
   flex-shrink: 0;
@@ -7193,14 +7194,14 @@ body.is-dragging-item .bag-slot * {
 .intro-ball-graphic {
   width: 54px;
   height: 54px;
-  background: url('/assets/battle/ball_00.png') no-repeat center center;
+  background: url('/assets/battle/ui/ball_00.png') no-repeat center center;
   background-size: contain;
   image-rendering: pixelated;
   animation: ballSpinAnim 0.52s linear infinite;
 }
 
 .intro-ball-graphic.ball-open-pop {
-  background-image: url('/assets/battle/ball_00_open.png');
+  background-image: url('/assets/battle/ui/ball_00_open.png');
 }
 
 .intro-ball-flash {

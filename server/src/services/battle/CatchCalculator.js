@@ -72,9 +72,25 @@ class CatchCalculator {
     else if ([143].includes(specId)) speciesCatchRate = 25; // Snorlax
     else if (specId > 100) speciesCatchRate = 75;
 
-    // a = ((3 * maxHp - 2 * currentHp) * catchRate * ballBonus) / (3 * maxHp)
+    // Status & Dizziness (Tontura) multiplier:
+    // Sleep / Freeze = 2.5x | Dizzy (Tontura) / Confusion / Paralyze / Poison / Burn = 1.75x
+    const status = String(wildPokemon.status || context.status || '').toLowerCase();
+    const isDizzy = Boolean(wildPokemon.isDizzy || context.isDizzy);
+    let statusBonus = 1.0;
+    if (status === 'sleep' || status === 'freeze') {
+      statusBonus = 2.5;
+    } else if (isDizzy || status === 'dizzy' || status === 'confusion' || status === 'paralysis' || status === 'poison' || status === 'burn') {
+      statusBonus = 1.75;
+    }
+
+    // Fator de nível: se o Pokémon selvagem estiver com nível mais baixo, chance ligeiramente maior
+    const pLvl = context.playerLevel || 10;
+    const wLvl = wildPokemon.level || 5;
+    const levelBonus = Math.max(0.75, Math.min(1.35, 1.0 + (pLvl - wLvl) * 0.02));
+
+    // a = (((3 * maxHp - 2 * currentHp) * catchRate * ballBonus * statusBonus * levelBonus) / (3 * maxHp))
     const a = Math.max(1, Math.min(255, Math.floor(
-      (((3 * maxHp - 2 * currentHp) * speciesCatchRate * ballBonus) / (3 * maxHp))
+      (((3 * maxHp - 2 * currentHp) * speciesCatchRate * ballBonus * statusBonus * levelBonus) / (3 * maxHp))
     )));
 
     if (a >= 255) {

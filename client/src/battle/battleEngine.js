@@ -5,6 +5,7 @@ import { PokemonEntity } from './pokemonEntity.js';
 import { InputManager } from './inputManager.js';
 import { getPokemonById, adaptPokemonForBattle } from './pokemonData.js';
 import { soundManager } from './soundManager.js';
+import { AttackClashSystem } from './attackClashSystem.js';
 
 export class BattleEngine {
   constructor({
@@ -30,6 +31,7 @@ export class BattleEngine {
     this.arena = new BattleArena(canvas);
     this.particleSystem = new ParticleSystem();
     this.projectileSystem = new ProjectileSystem(this.particleSystem, this.arena);
+    this.clashSystem = new AttackClashSystem(this);
     this.inputManager = new InputManager();
     this.inputManager.onDodge = (dirX, dirY) => this.executePlayerDodge(dirX, dirY);
 
@@ -124,6 +126,11 @@ export class BattleEngine {
     const isWild = options.isWild !== undefined ? options.isWild : !this.isTrainer;
     this.isWild = isWild;
 
+    const arenaKey = options.arenaKey || options.arena || 'arena_grass';
+    if (this.arena?.loadArenaMap) {
+      this.arena.loadArenaMap(arenaKey);
+    }
+
     if (this.arena?.updateTimePhase) {
       this.arena.updateTimePhase(options.timePhase);
     }
@@ -172,7 +179,6 @@ export class BattleEngine {
     this.activePokeball = null;
     this.activeRecallBeam = null;
 
-    // Create Active Opponent
     this.enemyEntity = new PokemonEntity({
       data: currentE,
       isPlayer: false,
@@ -182,6 +188,7 @@ export class BattleEngine {
       arena: this.arena,
       particleSystem: this.particleSystem,
       projectileSystem: this.projectileSystem,
+      engine: this,
       onLog: (msg, type) => this.onLogMessage(msg, type),
       onStateChange: () => this.checkMatchState(),
     });
@@ -222,6 +229,7 @@ export class BattleEngine {
         arena: this.arena,
         particleSystem: this.particleSystem,
         projectileSystem: this.projectileSystem,
+        engine: this,
         onLog: (msg, type) => this.onLogMessage(msg, type),
         onStateChange: () => this.checkMatchState(),
       });
@@ -355,6 +363,7 @@ export class BattleEngine {
       arena: this.arena,
       particleSystem: this.particleSystem,
       projectileSystem: this.projectileSystem,
+      engine: this,
       onLog: (msg, type) => this.onLogMessage(msg, type),
       onStateChange: () => this.checkMatchState(),
     });
@@ -484,11 +493,58 @@ export class BattleEngine {
     return false;
   }
 
+  executePlayerBasicAttack() {
+    if (this.playerEntity && !this.battleEnded) {
+      const res = this.playerEntity.executePhysicalAttack();
+      this.onStateChange();
+      return res;
+    }
+    return false;
+  }
+
+  // Pokéball Throw Arc & Capture Sequence for Wild Pokémon
+  throwCaptureBall(ballName = 'poke-ball', onCapturedCallback = null) {
+    if (!this.enemyEntity || this.enemyEntity.isFainted || !this.isWild) return false;
+
+    const startX = this.playerEntity ? this.playerEntity.x : (this.trainer ? this.trainer.x + 8 : 180);
+    const startY = this.playerEntity ? this.playerEntity.y - 10 : (this.trainer ? this.trainer.y - 6 : 280);
+    const targetX = this.enemyEntity.x;
+    const targetY = this.enemyEntity.y - 12;
+
+    soundManager.play('/assets/audio/se/battle_throw.ogg', 0.85);
+
+    this.activeCaptureBall = {
+      ballName,
+      startX,
+      startY,
+      targetX,
+      targetY,
+      x: startX,
+      y: startY,
+      progress: 0,
+      duration: 0.65,
+      rotation: 0,
+      stage: 'flight', // 'flight' -> 'suction' -> 'wobble' -> 'settled'
+      wobbleTimer: 0,
+      wobbleCount: 0,
+      wobbleAngle: 0,
+      enemyMon: this.enemyEntity.data,
+      onCapturedCallback,
+    };
+
+    if (this.trainer) {
+      this.trainer.isThrowing = true;
+      this.trainer.throwTimer = 0.55;
+    }
+
+    return true;
+  }
+
   executePlayerDefensive() {
     if (this.playerEntity && !this.battleEnded) {
-      const toggled = this.playerEntity.toggleStance();
+      const def = this.playerEntity.executeDefenseAction();
       this.onStateChange();
-      return toggled;
+      return def;
     }
     return false;
   }
@@ -542,6 +598,7 @@ export class BattleEngine {
     this.stop();
     this.particleSystem.reset();
     this.projectileSystem.reset();
+    this.clashSystem?.reset();
   }
 
   loop(currentTime) {
@@ -552,11 +609,14 @@ export class BattleEngine {
 
     const dt = Math.min(rawDt, 0.1) * this.gameSpeed;
 
-    if (!this.isPaused && dt > 0) {
-      this.update(dt);
+    try {
+      if (!this.isPaused && dt > 0) {
+        this.update(dt);
+      }
+      this.render();
+    } catch (err) {
+      console.error('[BattleEngine] Error in main loop frame:', err);
     }
-
-    this.render();
 
     this.rafId = requestAnimationFrame((t) => this.loop(t));
   }
@@ -606,6 +666,7 @@ export class BattleEngine {
           arena: this.arena,
           particleSystem: this.particleSystem,
           projectileSystem: this.projectileSystem,
+          engine: this,
           onLog: (msg, type) => this.onLogMessage(msg, type),
           onStateChange: () => this.checkMatchState(),
         });
@@ -625,6 +686,71 @@ export class BattleEngine {
         }
         this.onPokemonDeployed?.(pb.targetMon);
         this.onStateChange();
+      }
+    }
+
+    // 2.5. Update Pokéball Capture Throw & Wobbles
+    if (this.activeCaptureBall) {
+      const cb = this.activeCaptureBall;
+
+      if (cb.stage === 'flight') {
+        cb.progress += dt / cb.duration;
+        cb.rotation += dt * 18;
+        const t = Math.min(1.0, cb.progress);
+        cb.x = cb.startX + (cb.targetX - cb.startX) * t;
+        // Parabolic arc (curves upwards then descends towards the wild Pokémon)
+        const arcHeight = Math.sin(t * Math.PI) * 95;
+        cb.y = cb.startY + (cb.targetY - cb.startY) * t - arcHeight;
+        this.particleSystem.spawnDust(cb.x, cb.y + 4, 1);
+
+        if (cb.progress >= 1.0) {
+          cb.stage = 'suction';
+          cb.progress = 0;
+          cb.duration = 0.45;
+          soundManager.play('/assets/audio/se/battle_recall.wav', 0.85);
+          this.particleSystem.spawnPixelBurst(cb.targetX, cb.targetY, '#FFFFFF', 25, 180, 0.4, 4);
+          if (this.enemyEntity) {
+            this.enemyEntity.isCapturedVisual = true;
+          }
+        }
+      } else if (cb.stage === 'suction') {
+        cb.progress += dt / cb.duration;
+        if (this.enemyEntity) {
+          this.enemyEntity.recallProgress = Math.min(1.0, cb.progress);
+        }
+        if (cb.progress >= 1.0) {
+          cb.stage = 'wobble';
+          cb.wobbleTimer = 0;
+          cb.wobbleCount = 0;
+          cb.wobbleAngle = 0;
+          soundManager.play('/assets/audio/se/battle_ball_drop.wav', 0.85);
+        }
+      } else if (cb.stage === 'wobble') {
+        cb.wobbleTimer += dt;
+        // 3 distinct wobbles, 1.05s apart
+        const cycle = cb.wobbleTimer % 1.05;
+        if (cycle < 0.28) {
+          cb.wobbleAngle = Math.sin((cycle / 0.28) * Math.PI * 2) * 0.38;
+          if (cb._lastCycle !== Math.floor(cb.wobbleTimer / 1.05)) {
+            cb._lastCycle = Math.floor(cb.wobbleTimer / 1.05);
+            cb.wobbleCount++;
+            soundManager.play('/assets/audio/se/battle_ball_shake.wav', 0.85);
+            this.particleSystem.spawnDust(cb.targetX, cb.targetY + 8, 2);
+          }
+        } else {
+          cb.wobbleAngle = 0;
+        }
+
+        if (cb.wobbleCount >= 3 && cb.wobbleTimer >= 3.2) {
+          cb.stage = 'settled';
+          soundManager.playCaptureSuccess();
+          this.particleSystem.spawnPixelBurst(cb.targetX, cb.targetY, '#FFD700', 35, 200, 0.7, 5);
+          this.particleSystem.spawnShockwave(cb.targetX, cb.targetY, 60, '#FFD700', 0.4);
+          this.activeCaptureBall = null;
+          if (cb.onCapturedCallback) {
+            cb.onCapturedCallback(true);
+          }
+        }
       }
     }
 
@@ -720,6 +846,11 @@ export class BattleEngine {
 
     // Mutual entity separation (prevents combatants from overlapping)
     this.resolveEntitySeparation();
+
+    // Resolve Simultaneous Attack Clashes (Physical, Projectile, Beam)
+    if (this.clashSystem) {
+      this.clashSystem.update(dt);
+    }
 
     this.projectileSystem.update(dt);
     this.particleSystem.update(dt);
@@ -853,22 +984,57 @@ export class BattleEngine {
   }
 
   renderPokeball(ctx) {
-    if (!this.activePokeball) return;
-    const pb = this.activePokeball;
-    ctx.save();
-    ctx.translate(pb.x, pb.y);
-    ctx.rotate(pb.rotation);
+    // 1. Player Deploy Pokéball
+    if (this.activePokeball) {
+      const pb = this.activePokeball;
+      ctx.save();
+      ctx.translate(pb.x, pb.y);
+      ctx.rotate(pb.rotation);
 
-    if (this.pokeballImg && this.pokeballImg.complete && this.pokeballImg.naturalWidth > 0) {
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(this.pokeballImg, -9, -9, 18, 18);
-    } else {
-      ctx.fillStyle = '#EF4444';
-      ctx.beginPath();
-      ctx.arc(0, 0, 8, 0, Math.PI * 2);
-      ctx.fill();
+      if (this.pokeballImg && this.pokeballImg.complete && this.pokeballImg.naturalWidth > 0) {
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(this.pokeballImg, -9, -9, 18, 18);
+      } else {
+        ctx.fillStyle = '#EF4444';
+        ctx.beginPath();
+        ctx.arc(0, 0, 8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
     }
-    ctx.restore();
+
+    // 2. Wild Pokémon Capture Pokéball
+    if (this.activeCaptureBall) {
+      const cb = this.activeCaptureBall;
+      ctx.save();
+      ctx.translate(cb.x, cb.y);
+
+      // In wobble phase, apply shake tilt angle; in flight, apply spinning rotation
+      if (cb.stage === 'wobble') {
+        ctx.rotate(cb.wobbleAngle || 0);
+      } else {
+        ctx.rotate(cb.rotation || 0);
+      }
+
+      // Ground shadow under ball during wobble phase
+      if (cb.stage === 'wobble' || cb.stage === 'suction') {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.beginPath();
+        ctx.ellipse(0, 10, 8, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      if (this.pokeballImg && this.pokeballImg.complete && this.pokeballImg.naturalWidth > 0) {
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(this.pokeballImg, -10, -10, 20, 20);
+      } else {
+        ctx.fillStyle = '#EF4444';
+        ctx.beginPath();
+        ctx.arc(0, 0, 9, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
   }
 
   renderRecallBeam(ctx) {
@@ -926,43 +1092,51 @@ export class BattleEngine {
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     ctx.save();
-    // 2. Uniform Viewport Projection: center fixed 1024x790 arena
-    ctx.translate(arena.drawX, arena.drawY);
-    ctx.scale(arena.scale, arena.scale);
+    try {
+      // 2. Uniform Viewport Projection: center fixed 1024x790 arena
+      ctx.translate(arena.drawX, arena.drawY);
+      ctx.scale(arena.scale, arena.scale);
 
-    // 3. Screen shake in logical arena space
-    ctx.translate(arena.shakeOffsetX, arena.shakeOffsetY);
+      // 3. Screen shake in logical arena space
+      ctx.translate(arena.shakeOffsetX, arena.shakeOffsetY);
 
-    // 4. Draw background (at 0, 0, 1024, 790 in logical space) & decals
-    arena.renderBackground(ctx);
+      // 4. Draw background (at 0, 0, 1024, 790 in logical space) & decals
+      arena.renderBackground(ctx);
 
-    // 5. Depth sort entities, trainer, and tactical obstacles based on Y position (Z-ordering)
-    const renderables = [
-      this.playerEntity,
-      this.enemyEntity,
-      this.trainer ? {
-        y: this.trainer.y,
-        render: (context) => this.renderTrainer(context),
-      } : null,
-      ...arena.obstacles.map((obs) => ({
-        y: obs.y,
-        render: (context) => arena.renderObstacle(context, obs),
-      })),
-    ].filter(Boolean);
+      // 5. Depth sort entities, trainer, and tactical obstacles based on Y position (Z-ordering)
+      const renderables = [
+        this.playerEntity,
+        this.enemyEntity,
+        this.trainer ? {
+          y: this.trainer.y,
+          render: (context) => this.renderTrainer(context),
+        } : null,
+        ...arena.obstacles.map((obs) => ({
+          y: obs.y,
+          render: (context) => arena.renderObstacle(context, obs),
+        })),
+      ].filter(Boolean);
 
-    renderables.sort((a, b) => a.y - b.y);
+      renderables.sort((a, b) => a.y - b.y);
 
-    for (const item of renderables) {
-      item.render(ctx);
+      for (const item of renderables) {
+        item.render(ctx);
+      }
+
+      this.renderPokeball(ctx);
+      this.renderRecallBeam(ctx);
+
+      this.projectileSystem.render(ctx);
+      this.particleSystem.render(ctx);
+
+      if (arena.renderForeground) {
+        arena.renderForeground(ctx);
+      }
+    } catch (err) {
+      console.error('[BattleEngine] Error during frame render:', err);
+    } finally {
+      ctx.restore();
     }
-
-    this.renderPokeball(ctx);
-    this.renderRecallBeam(ctx);
-
-    this.projectileSystem.render(ctx);
-    this.particleSystem.render(ctx);
-
-    ctx.restore();
   }
 
   restartBattle() {
