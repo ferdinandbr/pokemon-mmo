@@ -50,6 +50,7 @@ class BGMManager {
     this.pendingTrack = null;
     this.isLoading = false;
     this.isStopped = false;
+    this.disabled = true; // Soundtracks disabled by user request
     this._currentRequestId = 0;
 
     if (typeof window !== 'undefined') {
@@ -116,6 +117,7 @@ class BGMManager {
    * @param {string} roomIdOrTrackKey
    */
   async playForRoom(roomIdOrTrackKey) {
+    if (this.disabled) return;
     const trackUrl = REGION_BGM_MAP[roomIdOrTrackKey] || REGION_BGM_MAP['pallet_town'];
     return this.playUrl(trackUrl);
   }
@@ -124,6 +126,7 @@ class BGMManager {
    * Alias de conveniência para tocar trilhas por chave
    */
   async play(roomIdOrTrackKey) {
+    if (this.disabled) return;
     return this.playForRoom(roomIdOrTrackKey);
   }
 
@@ -133,6 +136,12 @@ class BGMManager {
    * @param {string} trackUrl
    */
   async playUrl(trackUrl) {
+    if (this.disabled) {
+      if (this.synth) {
+        try { this.synth.stopMIDI(); } catch (e) {}
+      }
+      return;
+    }
     if (!trackUrl) return;
 
     this.isStopped = false;

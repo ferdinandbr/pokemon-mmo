@@ -54,6 +54,8 @@ class SoundManager {
    * REGRA P0: Se qualquer outra música estiver tocando (BGM MIDI ou ME Audio), ela é parada!
    */
   playMusic(src, relativeVol = 0.85, loop = false) {
+    // Soundtracks disabled by user request, keeping battle sound effects active
+    return null;
     if (!this.enabled || typeof window === 'undefined' || !src) return null;
     this.initUserGesture();
 
@@ -172,6 +174,8 @@ class SoundManager {
   }
 
   playVictory(isTrainer = false) {
+    // Soundtracks disabled by user request
+    return;
     if (!this.enabled) return;
     const track = isTrainer
       ? '/assets/audio/me/battle_victory_trainer.ogg'
@@ -180,6 +184,8 @@ class SoundManager {
   }
 
   playCaptureSuccess() {
+    // Soundtracks disabled by user request
+    return;
     if (!this.enabled) return;
     this.playMusic('/assets/audio/me/battle_capture_success.ogg', 0.85, false);
   }

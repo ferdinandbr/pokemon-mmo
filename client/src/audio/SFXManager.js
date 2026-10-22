@@ -59,6 +59,8 @@ class SFXManager {
    * Play Music Effect (ME) such as victory fanfare, temporarily ducking BGM
    */
   playME(filename, bgmManager = null, volumeScale = 1) {
+    // Soundtracks/fanfares disabled by user request
+    return null;
     const vol = this.getVolume() * volumeScale;
     if (vol <= 0) return;
 
