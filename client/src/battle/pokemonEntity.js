@@ -235,6 +235,8 @@ export class PokemonEntity {
     // Disable Move Mechanic (Anulação temporária de golpe)
     this.disabledSkill = null;
     this.disabledSkillTimer = 0;
+    this.temporaryEmotion = null;
+    this._tempEmotionTimer = null;
     this.lastUsedSkill = null;
     this.lastUsedSkillIndex = -1;
 
@@ -1281,11 +1283,32 @@ export class PokemonEntity {
   }
 
   // EXECUTE PHYSICAL MELEE ATTACK (Modo Ofensivo)
+  setTemporaryEmotion(emotion, durationMs = 1200) {
+    this.temporaryEmotion = emotion;
+    if (this._tempEmotionTimer) clearTimeout(this._tempEmotionTimer);
+    this._tempEmotionTimer = setTimeout(() => {
+      if (this.temporaryEmotion === emotion) {
+        this.temporaryEmotion = null;
+      }
+    }, durationMs);
+  }
+
+  getCurrentEmotion() {
+    if (this.isFainted || this.currentHp <= 0) return 'Pain';
+    if (this.isDizzy || this.guardExhaustedTimer > 0 || this.statusEffect) return 'Stunned';
+    if (this.temporaryEmotion) return this.temporaryEmotion;
+    if (this.state === 'hurt' || this.hurtFlashTimer > 0 || (this.hitStunTimer && this.hitStunTimer > 0)) return 'Pain';
+    if (this.state === 'dashing_strike' || this.state === 'casting_skill' || (this.currentCastTimer && this.currentCastTimer > 0)) return 'Angry';
+    if ((this.currentHp / this.maxHp) <= 0.25) return 'Pain';
+    return 'Determined';
+  }
+
   executePhysicalAttack() {
     if (!this.target || this.isFainted || this.isDizzy || this.beamLockTimer > 0 || this.hitStunTimer > 0 || this.state === 'hurt' || this.state === 'dashing_strike' || this.state === 'casting_skill') return false;
     if (this.physicalCooldown > 0) return false;
 
     this.physicalCooldown = this.physicalAttack.cooldown || 0.8;
+    this.setTemporaryEmotion('Angry', 1100);
     this.state = 'dashing_strike';
     this.currentDashingSkill = null;
     this.stateTimer = 0.42;
@@ -1938,6 +1961,7 @@ export class PokemonEntity {
   }
 
   executeSkill(skillIndex) {
+    this.setTemporaryEmotion('Angry', 1300);
     if (!this.target || this.isFainted || this.isDizzy || this.beamLockTimer > 0 || this.hitStunTimer > 0 || this.state === 'hurt' || this.state === 'dashing_strike' || this.state === 'casting_skill') return false;
 
     const skill = this.skills[skillIndex];
@@ -3127,6 +3151,7 @@ export class PokemonEntity {
     this.iframesTimer = 0.2;
 
     this.currentHp = Math.max(0, Math.min(this.maxHp, this.currentHp - amount));
+    if (!isBlocked) this.setTemporaryEmotion('Pain', 900);
     this.hurtFlashTimer = 0.22; // White silhouette flash duration
     this.hitFreezeTimer = 0.085; // Subtle 85ms hit freeze for weighty physical impact
 

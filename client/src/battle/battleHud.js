@@ -1,9 +1,64 @@
 // Authentic PokéMMO Battle HUD Controller with Real Pokémon Stats & Moves
 // Real-Time 2D Movement Combat with Main Choices Menu (Fight, Bag, Pokémon, Run)
-import { TYPE_COLORS, getTypeIconSvg } from './pokemonData.js';
+import { TYPE_COLORS, getTypeIconSvg, GEN1_SPECIES } from './pokemonData.js';
 import { soundManager } from './soundManager.js';
 import { formatSpeciesId, getPokemonOverworldSprite } from '../utils/pokemonAssets.js';
 import { getItemIcon } from '../ui/BagUI.js';
+
+// PMD Collab Portrait URL builder with support for Normal and Shiny palettes
+export function getPmdPortraitUrl(speciesId, emotion = 'Normal', isShiny = false) {
+  const dex4 = String(speciesId || 1).padStart(4, '0');
+  const valid = ['Normal', 'Determined', 'Angry', 'Pain', 'Stunned', 'Happy', 'Sad', 'Crying', 'Dizzy', 'Surprised', 'Worried', 'Joyous', 'Inspired'];
+  const emo = valid.find(e => e.toLowerCase() === String(emotion).toLowerCase()) || 'Normal';
+  if (isShiny) {
+    return `https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/portrait/${dex4}/0000/0001/${emo}.png`;
+  }
+  return `https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/portrait/${dex4}/${emo}.png`;
+}
+
+export function preloadPmdPortraits(speciesId, isShiny = false) {
+  if (!speciesId) return;
+  const emotions = ['Determined', 'Angry', 'Pain', 'Stunned', 'Normal', 'Happy'];
+  emotions.forEach(emo => {
+    const img = new Image();
+    img.src = getPmdPortraitUrl(speciesId, emo, isShiny);
+  });
+}
+
+export function getPokemonTypes(pokemonData) {
+  if (!pokemonData) return ['Normal'];
+  const id = Number(pokemonData.id || pokemonData.speciesId || 1);
+  const t1 = pokemonData.type1 || pokemonData.species?.type1 || pokemonData.types?.[0] || GEN1_SPECIES?.[id]?.type1;
+  const t2 = pokemonData.type2 || pokemonData.species?.type2 || pokemonData.types?.[1] || GEN1_SPECIES?.[id]?.type2;
+  const list = [];
+  if (t1) list.push(t1);
+  if (t2 && String(t2).toLowerCase() !== String(t1).toLowerCase()) list.push(t2);
+  return list.length ? list : ['Normal'];
+}
+
+export function applyPortraitWithFallback(imgEl, speciesId, emotion = 'Normal', isShiny = false) {
+  if (!imgEl) return;
+  const dex4 = String(speciesId || 1).padStart(4, '0');
+  const dex3 = String(speciesId || 1).padStart(3, '0');
+  const primaryUrl = getPmdPortraitUrl(speciesId, emotion, isShiny);
+
+  let step = 0;
+  imgEl.onerror = () => {
+    step++;
+    if (step === 1 && isShiny) {
+      imgEl.src = `https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/portrait/${dex4}/${emotion}.png`;
+    } else if (step <= 2) {
+      imgEl.src = `https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/portrait/${dex4}/${isShiny ? '0000/0001/' : ''}Normal.png`;
+    } else if (step <= 3) {
+      imgEl.src = `https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/portrait/${dex4}/Normal.png`;
+    } else {
+      imgEl.src = `/assets/pokemon/animated/front/${isShiny ? 'shiny' : 'normal'}/${dex3}.gif`;
+      imgEl.onerror = null;
+    }
+  };
+
+  imgEl.src = primaryUrl;
+}
 
 export class BattleHud {
   constructor({
@@ -73,6 +128,9 @@ export class BattleHud {
       this.switchSubMenu(this.currentSubMenu || 'main');
     }
 
+    if (mon) {
+      preloadPmdPortraits(mon.speciesId || mon.id, Boolean(mon.isShiny));
+    }
     this.engine?.setCombatActive(true);
     if (this.engine?.playerEntity) {
       this.renderMovesCluster(this.engine.playerEntity);
@@ -100,78 +158,73 @@ export class BattleHud {
   renderInitialDom() {
     this.container.innerHTML = `
       <div class="swsh-battle-hud-layout" id="swsh-battle-hud-layout">
-        <!-- TOP RIGHT: Opponent Databox with Right Circle Avatar -->
-        <div class="swsh-databox swsh-enemy-hud hud pixel databox-slide-in" id="battle-enemy-databox">
-          <div class="hud-databox-content enemy-content">
-            <div class="name-row">
-              <div class="name-group">
-                <span class="name" id="enemy-name">Pokémon</span>
-                <span class="databox-status-badge hidden" id="enemy-status-badge"></span>
-                <div class="swsh-caught-ball enemy-caught-ball hidden" id="enemy-caught-icon" title="Capturado"></div>
-              </div>
-              <div class="level">
-                <span class="gender-symbol male" id="enemy-gender">♂</span>
-                <div class="level-pill" id="enemy-level">
-                  <span class="lv">Lv.</span><span class="lv-num" id="enemy-level-num">--</span>
-                </div>
-              </div>
+        <!-- TOP RIGHT: Opponent Databox matching Reference Image -->
+        <div class="swsh-databox swsh-enemy-hud modern-battle-card databox-slide-in" id="battle-enemy-databox">
+          <!-- Left: PMD Portrait Card -->
+          <div class="battle-portrait-card enemy-portrait-card">
+            <div class="portrait-frame">
+              <img id="enemy-avatar-img" class="battle-pmd-portrait" src="" alt="Enemy PMD" />
             </div>
-
-            <div class="banner enemy-banner">
-              <div class="banner-row hp-row">
-                <span class="hp-label">HP</span>
-                <div class="hp-bar-track">
-                  <div class="hp-bar-fill healthy" id="enemy-hp-fill" style="width: 100%;"></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="swsh-party-dots enemy-dots" id="enemy-party-dots"></div>
           </div>
-          <div class="hud-mon-circle enemy-circle" id="enemy-avatar-circle" title="Pokémon Inimigo">
-            <img id="enemy-avatar-img" class="hud-avatar-img" src="" alt="Enemy" onerror="this.style.display='none'" />
+
+          <!-- Right: Info column -->
+          <div class="battle-card-info enemy-info">
+            <!-- Row 1: Name + Level + Gender + Status -->
+            <div class="bcard-name-row">
+              <span class="bcard-name" id="enemy-name">Pokémon</span>
+              <div class="bcard-meta">
+                <span class="bcard-level" id="enemy-level">Lv.<span id="enemy-level-num">--</span></span>
+                <span class="gender-symbol male" id="enemy-gender">♂</span>
+                <span class="databox-status-badge hidden" id="enemy-status-badge"></span>
+              </div>
+            </div>
+
+            <!-- Row 2: Types (PC Box style .type-chip) -->
+            <div class="bcard-types-row" id="enemy-types-container"></div>
+
+            <!-- Row 3: Thick HP Bar with inside text -->
+            <div class="bcard-hp-track">
+              <div class="bcard-hp-fill healthy" id="enemy-hp-fill" style="width: 100%;"></div>
+              <span class="bcard-hp-text" id="enemy-hp-text">--</span>
+            </div>
+
+            <!-- Row 4: Pokéballs (Remaining Pokémon) -->
+            <div class="bcard-party-balls enemy-balls" id="enemy-party-dots"></div>
           </div>
         </div>
 
-        <!-- TOP LEFT: Player Databox with Left Circle Avatar -->
-        <div class="swsh-databox swsh-player-hud hud pixel databox-slide-in" id="battle-player-databox">
-          <div class="hud-mon-circle player-circle" id="player-avatar-circle" title="Seu Pokémon">
-            <img id="player-avatar-img" class="hud-avatar-img" src="" alt="Player" onerror="this.style.display='none'" />
+        <!-- TOP LEFT: Player Databox matching Reference Image -->
+        <div class="swsh-databox swsh-player-hud modern-battle-card databox-slide-in" id="battle-player-databox">
+          <!-- Left: PMD Portrait Card -->
+          <div class="battle-portrait-card player-portrait-card">
+            <div class="portrait-frame">
+              <img id="player-avatar-img" class="battle-pmd-portrait" src="" alt="Player PMD" />
+            </div>
           </div>
-          <div class="hud-databox-content player-content">
-            <div class="name-row">
-              <div class="name-group">
-                <span class="name" id="player-name">Pokémon</span>
+
+          <!-- Right: Info column -->
+          <div class="battle-card-info player-info">
+            <!-- Row 1: Name + Level + Gender + Status -->
+            <div class="bcard-name-row">
+              <span class="bcard-name" id="player-name">Pokémon</span>
+              <div class="bcard-meta">
+                <span class="bcard-level" id="player-level">Lv.<span id="player-level-num">--</span></span>
+                <span class="gender-symbol male" id="player-gender">♂</span>
                 <span class="databox-status-badge hidden" id="player-status-badge"></span>
               </div>
-              <div class="level">
-                <span class="gender-symbol male" id="player-gender">♂</span>
-                <div class="level-pill" id="player-level">
-                  <span class="lv">Lv.</span><span class="lv-num" id="player-level-num">--</span>
-                </div>
-              </div>
             </div>
 
-            <div class="banner">
-              <div class="banner-row hp-row">
-                <span class="hp-label">HP</span>
-                <div class="hp-bar-track">
-                  <div class="hp-bar-fill healthy" id="player-hp-fill" style="width: 100%;"></div>
-                </div>
-              </div>
-              <div class="banner-row exp-row">
-                <span class="exp-label">HP</span>
-                <span class="exp-numbers" id="player-hp-text">-- / --</span>
-              </div>
+            <!-- Row 2: Types (PC Box style .type-chip) -->
+            <div class="bcard-types-row" id="player-types-container"></div>
+
+            <!-- Row 3: Thick HP Bar with inside text -->
+            <div class="bcard-hp-track">
+              <div class="bcard-hp-fill healthy" id="player-hp-fill" style="width: 100%;"></div>
+              <span class="bcard-hp-text" id="player-hp-text">--</span>
             </div>
 
-            <!-- EXP Progress Strip -->
-            <div class="exp-strip" id="player-exp-strip">
-              <div class="filled" id="player-exp-fill" style="width: 65%;"></div>
-              <div class="unfilled" id="player-exp-unfill" style="width: 35%;"></div>
-            </div>
-
-            <div class="swsh-party-dots player-dots" id="player-party-dots"></div>
+            <!-- Row 4: Pokéballs (Remaining Pokémon) -->
+            <div class="bcard-party-balls player-balls" id="player-party-dots"></div>
           </div>
         </div>
 
@@ -1427,11 +1480,11 @@ export class BattleHud {
         if (i < this.engine.playerParty.length) {
           const mon = this.engine.playerParty[i];
           const isActive = i === this.engine.activePlayerIndex;
-          const isFainted = mon.currentHp <= 0 || mon.isFainted;
-          const status = isActive ? 'active' : (isFainted ? 'fainted' : 'healthy alive');
-          pHtml += `<div class="swsh-party-dot ${status}" title="${mon.name}"></div>`;
+          const isFainted = (mon.currentHp <= 0 || mon.isFainted);
+          const iconSrc = isFainted ? '/assets/battle/ui/icon_ball_faint.png' : '/assets/battle/ui/icon_ball.png';
+          pHtml += `<div class="bcard-ball-slot ${isActive ? 'active' : ''} ${isFainted ? 'fainted' : 'alive'}" title="${mon.name || 'Pokémon'}${isActive ? ' (Em Batalha)' : isFainted ? ' (Desmaiado)' : ''}"><img src="${iconSrc}" class="bcard-ball-icon" alt="ball" /></div>`;
         } else {
-          pHtml += `<div class="swsh-party-dot empty"></div>`;
+          pHtml += `<div class="bcard-ball-slot empty" title="Slot Vazio"><img src="/assets/battle/ui/icon_ball_empty.png" class="bcard-ball-icon" alt="empty" /></div>`;
         }
       }
       if (this._lastPlayerPartySig !== pHtml) {
@@ -1442,13 +1495,16 @@ export class BattleHud {
 
     if (eContainer && this.engine.enemyParty) {
       let eHtml = '';
-      const slots = Math.max(1, Math.min(6, this.engine.enemyParty.length));
-      for (let i = 0; i < slots; i++) {
-        const mon = this.engine.enemyParty[i];
-        const isActive = i === this.engine.activeEnemyIndex;
-        const isFainted = mon.currentHp <= 0 || mon.isFainted;
-        const status = isActive ? 'active' : (isFainted ? 'fainted' : 'healthy alive');
-        eHtml += `<div class="swsh-party-dot ${status}"></div>`;
+      for (let i = 0; i < 6; i++) {
+        if (i < this.engine.enemyParty.length) {
+          const mon = this.engine.enemyParty[i];
+          const isActive = i === this.engine.activeEnemyIndex;
+          const isFainted = (mon.currentHp <= 0 || mon.isFainted);
+          const iconSrc = isFainted ? '/assets/battle/ui/icon_ball_faint.png' : '/assets/battle/ui/icon_ball.png';
+          eHtml += `<div class="bcard-ball-slot ${isActive ? 'active' : ''} ${isFainted ? 'fainted' : 'alive'}" title="${mon.name || 'Pokémon'}${isActive ? ' (Em Batalha)' : isFainted ? ' (Desmaiado)' : ''}"><img src="${iconSrc}" class="bcard-ball-icon" alt="ball" /></div>`;
+        } else {
+          eHtml += `<div class="bcard-ball-slot empty" title="Slot Vazio"><img src="/assets/battle/ui/icon_ball_empty.png" class="bcard-ball-icon" alt="empty" /></div>`;
+        }
       }
       if (this._lastEnemyPartySig !== eHtml) {
         this._lastEnemyPartySig = eHtml;
@@ -1745,29 +1801,49 @@ export class BattleHud {
         pGenderEl.className = `gender-symbol ${p.data.gender === 'F' ? 'female' : 'male'}`;
       }
 
+      // Player Types (PC Box style .type-chip)
+      const pTypesContainer = document.getElementById('player-types-container');
+      if (pTypesContainer) {
+        const pTypes = getPokemonTypes(p.data);
+        const pTypesSig = pTypes.join(',');
+        if (this._lastPlayerTypesSig !== pTypesSig) {
+          this._lastPlayerTypesSig = pTypesSig;
+          pTypesContainer.innerHTML = pTypes.map(t => `<span class="type-chip type-${t.toLowerCase()}">${t.toUpperCase()}</span>`).join('');
+        }
+      }
+
+      // Player HP Bar and Text
+      const curHp = Math.round(p.currentHp);
+      const maxHp = p.maxHp;
       const pHpText = document.getElementById('player-hp-text');
-      if (pHpText) pHpText.textContent = `${Math.round(p.currentHp)} / ${p.maxHp}`;
+      if (pHpText) {
+        pHpText.textContent = `${curHp}`;
+        pHpText.title = `HP: ${curHp} / ${maxHp}`;
+      }
 
       const pPercent = Math.max(0, Math.min(100, (p.currentHp / p.maxHp) * 100));
       const pHpFill = document.getElementById('player-hp-fill');
       if (pHpFill) {
         pHpFill.style.width = `${pPercent}%`;
-        pHpFill.className = `hp-bar-fill ${pPercent > 50 ? 'healthy' : pPercent > 20 ? 'moderate' : 'danger'}`;
+        pHpFill.className = `bcard-hp-fill ${pPercent > 50 ? 'healthy' : pPercent > 20 ? 'moderate' : 'danger'}`;
       }
 
-      // Player Stats Pill (ATK, DEF, SPA, SPD, VEL, Nature)
-      const statAtk = document.getElementById('stat-atk');
-      if (statAtk) statAtk.textContent = p.data.stats.atk;
-      const statDef = document.getElementById('stat-def');
-      if (statDef) statDef.textContent = p.data.stats.def;
-      const statSpa = document.getElementById('stat-spa');
-      if (statSpa) statSpa.textContent = p.data.stats.spAtk;
-      const statSpd = document.getElementById('stat-spd');
-      if (statSpd) statSpd.textContent = p.data.stats.spDef;
-      const statVel = document.getElementById('stat-vel');
-      if (statVel) statVel.textContent = p.data.stats.speed;
-      const statNature = document.getElementById('stat-nature');
-      if (statNature) statNature.textContent = p.data.nature || 'Hardy';
+      // Player PMD Portrait Emotion
+      const pAvatarImg = document.getElementById('player-avatar-img');
+      if (pAvatarImg && p.data) {
+        const pSpeciesId = p.data.id || p.data.speciesId || 1;
+        const pIsShiny = Boolean(p.data.isShiny);
+        const pEmotion = p.getCurrentEmotion ? p.getCurrentEmotion() : 'Determined';
+        const pTargetUrl = getPmdPortraitUrl(pSpeciesId, pEmotion, pIsShiny);
+
+        if (this._lastPlayerPortraitUrl !== pTargetUrl) {
+          this._lastPlayerPortraitUrl = pTargetUrl;
+          applyPortraitWithFallback(pAvatarImg, pSpeciesId, pEmotion, pIsShiny);
+          pAvatarImg.classList.remove('emotion-shift');
+          void pAvatarImg.offsetWidth;
+          pAvatarImg.classList.add('emotion-shift');
+        }
+      }
 
       // Player Status Badge
       const pStatusBadge = document.getElementById('player-status-badge');
@@ -1784,17 +1860,6 @@ export class BattleHud {
           pStatusBadge.className = `databox-status-badge status-${s}`;
         } else {
           pStatusBadge.className = 'databox-status-badge hidden';
-        }
-      }
-
-      // Player Avatar GIF in round circle
-      const pAvatarImg = document.getElementById('player-avatar-img');
-      if (pAvatarImg && p.data) {
-        const id = String(p.data.id || p.data.speciesId || 1).padStart(3, '0');
-        const gifSrc = `/assets/pokemon/animated/front/normal/${id}.gif`;
-        if (pAvatarImg.src !== gifSrc && !pAvatarImg.src.endsWith(gifSrc)) {
-          pAvatarImg.src = gifSrc;
-          pAvatarImg.style.display = 'block';
         }
       }
 
@@ -1829,19 +1894,10 @@ export class BattleHud {
 
     // 2. Update Opponent Databox
     if (e) {
+      preloadPmdPortraits(e.data.id || e.data.speciesId, Boolean(e.data.isShiny));
+
       const eNameEl = document.getElementById('enemy-name');
       if (eNameEl) eNameEl.textContent = e.data.name;
-
-      // Enemy Avatar GIF in round circle
-      const eAvatarImg = document.getElementById('enemy-avatar-img');
-      if (eAvatarImg && e.data) {
-        const id = String(e.data.id || e.data.speciesId || 1).padStart(3, '0');
-        const gifSrc = `/assets/pokemon/animated/front/normal/${id}.gif`;
-        if (eAvatarImg.src !== gifSrc && !eAvatarImg.src.endsWith(gifSrc)) {
-          eAvatarImg.src = gifSrc;
-          eAvatarImg.style.display = 'block';
-        }
-      }
 
       const eLevelNum = document.getElementById('enemy-level-num');
       if (eLevelNum) eLevelNum.textContent = e.level || 50;
@@ -1852,11 +1908,48 @@ export class BattleHud {
         eGenderEl.className = `gender-symbol ${e.data.gender === 'F' ? 'female' : 'male'}`;
       }
 
+      // Enemy Types (PC Box style .type-chip)
+      const eTypesContainer = document.getElementById('enemy-types-container');
+      if (eTypesContainer) {
+        const eTypes = getPokemonTypes(e.data);
+        const eTypesSig = eTypes.join(',');
+        if (this._lastEnemyTypesSig !== eTypesSig) {
+          this._lastEnemyTypesSig = eTypesSig;
+          eTypesContainer.innerHTML = eTypes.map(t => `<span class="type-chip type-${t.toLowerCase()}">${t.toUpperCase()}</span>`).join('');
+        }
+      }
+
+      // Enemy HP Bar and Text
+      const eCurHp = Math.round(e.currentHp);
+      const eMaxHp = e.maxHp;
+      const eHpText = document.getElementById('enemy-hp-text');
+      if (eHpText) {
+        eHpText.textContent = `${eCurHp}`;
+        eHpText.title = `HP: ${eCurHp} / ${eMaxHp}`;
+      }
+
       const ePercent = Math.max(0, Math.min(100, (e.currentHp / e.maxHp) * 100));
       const eHpFill = document.getElementById('enemy-hp-fill');
       if (eHpFill) {
         eHpFill.style.width = `${ePercent}%`;
-        eHpFill.className = `hp-bar-fill ${ePercent > 50 ? 'healthy' : ePercent > 20 ? 'moderate' : 'danger'}`;
+        eHpFill.className = `bcard-hp-fill ${ePercent > 50 ? 'healthy' : ePercent > 20 ? 'moderate' : 'danger'}`;
+      }
+
+      // Enemy PMD Portrait Emotion
+      const eAvatarImg = document.getElementById('enemy-avatar-img');
+      if (eAvatarImg && e.data) {
+        const eSpeciesId = e.data.id || e.data.speciesId || 1;
+        const eIsShiny = Boolean(e.data.isShiny);
+        const eEmotion = e.getCurrentEmotion ? e.getCurrentEmotion() : 'Determined';
+        const eTargetUrl = getPmdPortraitUrl(eSpeciesId, eEmotion, eIsShiny);
+
+        if (this._lastEnemyPortraitUrl !== eTargetUrl) {
+          this._lastEnemyPortraitUrl = eTargetUrl;
+          applyPortraitWithFallback(eAvatarImg, eSpeciesId, eEmotion, eIsShiny);
+          eAvatarImg.classList.remove('emotion-shift');
+          void eAvatarImg.offsetWidth;
+          eAvatarImg.classList.add('emotion-shift');
+        }
       }
 
       // Enemy Status Badge
