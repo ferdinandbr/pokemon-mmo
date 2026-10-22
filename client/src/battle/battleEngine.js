@@ -210,23 +210,49 @@ export class BattleEngine {
     this.activePokeball = null;
     this.activeRecallBeam = null;
 
-    this.enemyEntity = new PokemonEntity({
-      data: currentE,
-      isPlayer: false,
-      initialX: spawnPoints.enemy.x,
-      initialY: spawnPoints.enemy.y,
-      initialFacing: spawnPoints.enemy.facing,
-      arena: this.arena,
-      particleSystem: this.particleSystem,
-      projectileSystem: this.projectileSystem,
-      engine: this,
-      onLog: (msg, type) => this.onLogMessage(msg, type),
-      onStateChange: () => this.checkMatchState(),
-    });
+    if (!this.isPvp) {
+      this.enemyEntity = new PokemonEntity({
+        data: currentE,
+        isPlayer: false,
+        initialX: spawnPoints.enemy.x,
+        initialY: spawnPoints.enemy.y,
+        initialFacing: spawnPoints.enemy.facing,
+        arena: this.arena,
+        particleSystem: this.particleSystem,
+        projectileSystem: this.projectileSystem,
+        engine: this,
+        onLog: (msg, type) => this.onLogMessage(msg, type),
+        onStateChange: () => this.checkMatchState(),
+      });
+      soundManager.playCry(currentE.cry);
+    } else {
+      this.enemyEntity = null;
+    }
 
-    soundManager.playCry(currentE.cry);
+    if (this.isPvp) {
+      // PvP start: both trainers present at borders, pokemon standby for 5s choice
+      this.isIntroStandby = true;
+      this.playerEntity = null;
+      this.trainer.x = 180;
+      this.trainer.y = spawnPoints.player.y;
+      this.trainer.targetX = 180;
+      this.trainer.frame = 8;
+      this.trainer.visible = true;
 
-    if (this.isWild) {
+      if (this.rivalTrainer) {
+        this.rivalTrainer.x = 844;
+        this.rivalTrainer.y = spawnPoints.enemy.y;
+        this.rivalTrainer.targetX = 844;
+        this.rivalTrainer.frame = 4; // Facing left towards arena
+        this.rivalTrainer.facing = 'left';
+        this.rivalTrainer.visible = true;
+      }
+
+      this.onLogMessage(
+        `⚔️ Duelo PvP iniciado contra <strong>${this.rivalTrainerName}</strong>! Escolha seu Pokémon nos 5s iniciais!`,
+        'system'
+      );
+    } else if (this.isWild) {
       // Wild encounter start flow:
       // Player stands in arena with overworld sprite, no Pokémon and no combat HUD
       this.isIntroStandby = true;
@@ -246,7 +272,7 @@ export class BattleEngine {
         'system'
       );
     } else {
-      // Trainer or PvP battle: both trainers present at borders
+      // NPC Trainer battle: both trainers present at borders
       this.isIntroStandby = false;
       this.trainer.x = 180;
       this.trainer.y = spawnPoints.player.y;
@@ -452,6 +478,19 @@ export class BattleEngine {
       case 'switch':
         if (typeof action.partyIndex === 'number') {
           this.switchEnemyPokemon(action.partyIndex);
+        }
+        break;
+
+      case 'heal':
+        if (this.enemyEntity && !this.enemyEntity.isFainted) {
+          if (typeof action.newHp === 'number') {
+            this.enemyEntity.currentHp = Math.min(this.enemyEntity.maxHp, action.newHp);
+          } else if (typeof action.amount === 'number') {
+            this.enemyEntity.currentHp = Math.min(this.enemyEntity.maxHp, this.enemyEntity.currentHp + action.amount);
+          }
+          this.particleSystem.spawnPixelBurst(this.enemyEntity.x, this.enemyEntity.y, '#00E676', 25, 140, 0.5, 4);
+          this.onLogMessage(`💚 <strong>${this.enemyEntity.data?.name || 'Oponente'}</strong> recuperou HP com uma Poção!`, 'system');
+          this.checkMatchState();
         }
         break;
 

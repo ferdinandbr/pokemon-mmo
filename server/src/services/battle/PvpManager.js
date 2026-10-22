@@ -321,13 +321,8 @@ class PvpManager {
       });
       console.log(`[PvP] Histórico salvo com sucesso para match ${matchId}. Vencedor: ${winnerId}`);
 
-      // 2. Persist damage & faints back to party Pokémon in DB
-      if (Array.isArray(p1PartyState)) {
-        await this._syncPartyHpToDb(match.player1.characterId, p1PartyState);
-      }
-      if (Array.isArray(p2PartyState)) {
-        await this._syncPartyHpToDb(match.player2.characterId, p2PartyState);
-      }
+      // 2. Note: Damage in PvP is not persisted to DB (retains pre-battle HP)
+      console.log(`[PvP] Batalha concluída. HP dos Pokémon não alterado no banco (regras de PvP).`);
 
       // 3. Emit updated Pokémon data to both sockets
       const p1Socket = io.sockets.sockets.get(match.player1.socketId);
@@ -403,23 +398,6 @@ class PvpManager {
     }
   }
 
-  /**
-   * Internal helper: persists HP values of party Pokémon to DB
-   */
-  async _syncPartyHpToDb(characterId, party) {
-    for (const p of party) {
-      if (!p || !p.id) continue;
-      const curHp = Math.max(0, typeof p.currentHp === 'number' ? p.currentHp : (p.maxHp || 20));
-      try {
-        await prisma.pokemon.update({
-          where: { id: p.id },
-          data: { currentHp: curHp }
-        });
-      } catch (e) {
-        console.warn(`[PvP] Falha ao atualizar HP do Pokémon ${p.id}:`, e.message);
-      }
-    }
-  }
 }
 
 const pvpManager = new PvpManager();

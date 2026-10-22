@@ -499,7 +499,12 @@ export class BattleHud {
         soundManager.playShoot();
         this.isWaitingForDeployToFight = true;
         if (!this.engine.playerEntity) {
-          this.engine.deployPlayerPokemon(this.engine.activePlayerIndex);
+          const firstConscious = this.engine.playerParty.findIndex(p => p && (typeof p.currentHp === 'number' ? p.currentHp : p.maxHp) > 0 && !p.isFainted);
+          const idx = firstConscious >= 0 ? firstConscious : 0;
+          this.engine.deployPlayerPokemon(idx);
+          if (this.engine.isPvp && this.engine.onPvpAction) {
+            this.engine.onPvpAction({ type: 'switch', partyIndex: idx });
+          }
         }
         this.switchSubMenu('fight');
       });
@@ -566,13 +571,8 @@ export class BattleHud {
     if (bbtnPokemon) {
       bbtnPokemon.addEventListener('click', () => {
         soundManager.playShoot();
-        if (this.engine.playerEntity && !this.engine.playerEntity.isFainted) {
-          this.engine.recallPlayerPokemon(() => {
-            this.switchSubMenu('team');
-          });
-        } else {
-          this.switchSubMenu('team');
-        }
+        // Do NOT recall active Pokemon here. Only switch when player actually selects one from the team board.
+        this.switchSubMenu('team');
       });
     }
 
@@ -587,7 +587,7 @@ export class BattleHud {
     const bbtnBagClose = document.getElementById('bbtn-bag-close');
     if (bbtnBagClose) {
       bbtnBagClose.addEventListener('click', () => {
-        this.switchSubMenu('fight');
+        this.switchSubMenu(this.engine?.playerEntity ? 'fight' : 'main');
       });
     }
 
@@ -619,7 +619,7 @@ export class BattleHud {
     if (bbtnTeamClose) {
       bbtnTeamClose.addEventListener('click', () => {
         if (this.engine.isAwaitingSwitch) return; // Cannot close if active mon fainted!
-        this.switchSubMenu('fight');
+        this.switchSubMenu(this.engine?.playerEntity ? 'fight' : 'main');
       });
     }
 
@@ -630,7 +630,7 @@ export class BattleHud {
           // If forced switch, back can open Bag to use Revive
           this.switchSubMenu('bag');
         } else {
-          this.switchSubMenu('fight');
+          this.switchSubMenu(this.engine?.playerEntity ? 'fight' : 'main');
         }
       });
     }
@@ -903,7 +903,7 @@ export class BattleHud {
           });
           cell.addEventListener('click', () => {
             soundManager.playDecision?.();
-            this.switchSubMenu('main');
+            this.switchSubMenu('fight');
             if (this.onSwitchPokemon) {
               this.onSwitchPokemon(idx);
             } else {
@@ -1035,6 +1035,32 @@ export class BattleHud {
     const itemName = item.name || 'Item';
     const isBall = String(item.category || '').toLowerCase() === 'pokeball' || itemName.toLowerCase().includes('ball') || itemName.toLowerCase().includes('bola');
 
+    // PvP Item Rules: Only Potions allowed, max 3 uses per duel, all other items vetoed
+    if (this.engine?.isPvp) {
+      if (isBall) {
+        this.addLog('⚠️ Não é permitido arremessar Pokébolas em duelos PvP!', 'system');
+        return;
+      }
+
+      const isPotion = (
+        String(item.category || '').toLowerCase() === 'medicine' ||
+        itemName.toLowerCase().includes('potion') ||
+        itemName.toLowerCase().includes('poção') ||
+        itemName.toLowerCase().includes('pocao')
+      ) && !itemName.toLowerCase().includes('revive');
+
+      if (!isPotion) {
+        this.addLog('⚠️ Durante duelos PvP, outros itens estão vetados por hora! Apenas Poções de cura são permitidas.', 'system');
+        return;
+      }
+
+      this.pvpPotionsUsed = this.pvpPotionsUsed || 0;
+      if (this.pvpPotionsUsed >= 3) {
+        this.addLog(`⚠️ Limite de itens excedido! Você já atingiu o limite de 3 poções nesta batalha PvP (${this.pvpPotionsUsed}/3).`, 'system');
+        return;
+      }
+    }
+
     if (isBall) {
       if (this.engine.enemyParty && this.engine.enemyParty.length > 1) {
         this.addLog('⚠️ Não é possível capturar Pokémon de outros treinadores!', 'system');
@@ -1063,18 +1089,32 @@ export class BattleHud {
         // Heal active combatant
         const player = this.engine.playerEntity;
         if (player && !player.isFainted) {
+          if (this.engine?.isPvp) {
+            this.pvpPotionsUsed = (this.pvpPotionsUsed || 0) + 1;
+          }
           const healAmt = item.healAmount || 50;
           player.currentHp = Math.min(player.maxHp, player.currentHp + healAmt);
           if (this.engine.playerParty[this.engine.activePlayerIndex]) {
             this.engine.playerParty[this.engine.activePlayerIndex].currentHp = player.currentHp;
           }
           this.engine.particleSystem.spawnPixelBurst(player.x, player.y, '#00E676', 25, 140, 0.5, 4);
-          this.addLog(`💚 <strong>${player.data.name}</strong> recuperou HP com ${itemName}!`, 'system');
+
+          const pvpCounterText = this.engine?.isPvp ? ` (Poções no duelo: ${this.pvpPotionsUsed}/3)` : '';
+          this.addLog(`💚 <strong>${player.data.name}</strong> recuperou HP com ${itemName}!${pvpCounterText}`, 'system');
+          
           if (!fromQuickSlot) {
-            this.switchSubMenu('main');
+            this.switchSubMenu(this.engine.playerEntity ? 'fight' : 'main');
           }
           if (this.onUseItem) {
             this.onUseItem(item.id, player.data.id);
+          }
+          if (this.engine?.isPvp && this.engine.onPvpAction) {
+            this.engine.onPvpAction({
+              type: 'heal',
+              amount: healAmt,
+              newHp: player.currentHp,
+              maxHp: player.maxHp
+            });
           }
         }
       }
@@ -1108,6 +1148,26 @@ export class BattleHud {
     if (!isBall && !isMedicine) {
       this.addLog(`⚠️ <strong>${item.name}</strong> não pode ser usado em batalha!`, 'system');
       return;
+    }
+
+    if (this.engine?.isPvp) {
+      const isPotion = (
+        cat === 'medicine' ||
+        item.name?.toLowerCase().includes('potion') ||
+        item.name?.toLowerCase().includes('poção') ||
+        item.name?.toLowerCase().includes('pocao')
+      ) && !item.name?.toLowerCase().includes('revive');
+
+      if (!isPotion) {
+        this.addLog('⚠️ Durante duelos PvP, outros itens estão vetados por hora! Apenas Poções são permitidas.', 'system');
+        return;
+      }
+
+      this.pvpPotionsUsed = this.pvpPotionsUsed || 0;
+      if (this.pvpPotionsUsed >= 3) {
+        this.addLog(`⚠️ Limite de itens atingido! Você só pode usar até 3 poções por duelo PvP (${this.pvpPotionsUsed}/3 usadas).`, 'system');
+        return;
+      }
     }
 
     this.selectedBagItem = invSlot;

@@ -309,16 +309,36 @@ export default class BattleUI {
     this.engine.start();
 
     if (battleData.isPvp) {
-      // In PvP, prepare moves cluster but freeze actions during 5-second pre-battle countdown
-      this.hud?.switchSubMenu('fight');
+      // In PvP, keep main actions menu open for 5 seconds so player can choose starter Pokemon
+      this.hud?.switchSubMenu('main');
       this.engine?.setCombatActive(false);
       if (this.engine) this.engine.isCountdownActive = true;
 
       this.hud?.startPreBattleCountdown(5, () => {
         if (this.engine) {
           this.engine.isCountdownActive = false;
+
+          // If player hasn't deployed a Pokémon yet, deploy default 1st conscious party member
+          if (!this.engine.playerEntity) {
+            const firstConscious = this.engine.playerParty.findIndex(
+              p => p && (typeof p.currentHp === 'number' ? p.currentHp : p.maxHp) > 0 && !p.isFainted
+            );
+            const idx = firstConscious >= 0 ? firstConscious : 0;
+            this.engine.deployPlayerPokemon(idx);
+            if (this.engine.onPvpAction) {
+              this.engine.onPvpAction({ type: 'switch', partyIndex: idx });
+            }
+          }
+
+          // If enemy entity hasn't spawned yet, deploy enemy party initial
+          if (!this.engine.enemyEntity && this.engine.enemyParty && this.engine.enemyParty.length > 0) {
+            this.engine.switchEnemyPokemon(0);
+          }
+
           this.engine.setCombatActive(true);
         }
+
+        this.hud?.switchSubMenu('fight');
         this.hud?.addLog('⚔️ <strong>A BATALHA COMEÇOU!</strong>', 'system');
       });
     }
@@ -332,8 +352,22 @@ export default class BattleUI {
     const itemName = slot?.item?.name || 'Item';
     const isBall = String(slot?.item?.category || '').toLowerCase() === 'pokeball' || itemName.toLowerCase().includes('ball') || itemName.toLowerCase().includes('bola');
 
+    if (this.battleState?.isPvp) {
+      const isPotion = !isBall && (
+        String(slot?.item?.category || '').toLowerCase() === 'medicine' ||
+        itemName.toLowerCase().includes('potion') ||
+        itemName.toLowerCase().includes('poção') ||
+        itemName.toLowerCase().includes('pocao')
+      ) && !itemName.toLowerCase().includes('revive');
+
+      if (!isPotion) {
+        this.hud?.addLog('⚠️ Durante duelos PvP, outros itens estão vetados por hora! Apenas Poções são permitidas.', 'system');
+        return;
+      }
+    }
+
     if (isBall) {
-      if (this.battleState?.isTrainer) {
+      if (this.battleState?.isTrainer || this.battleState?.isPvp) {
         this.hud?.addLog('⚠️ Não é possível capturar o Pokémon de outro treinador!', 'system');
         return;
       }
@@ -362,7 +396,24 @@ export default class BattleUI {
   }
 
   handleRun() {
-    if (this.battleState?.isTrainer || this.battleState?.isPvp) {
+    if (this.battleState?.isPvp) {
+      // PvP Rule: Run triggers instant forfeit / defeat
+      this.hud?.addLog('🏳️ Você desistiu do duelo PvP! Derrota aplicada por rendição.', 'system');
+
+      // Send instant defeat relay to opponent so they get victory celebration immediately
+      if (this.engine && this.engine.onPvpAction) {
+        this.engine.onPvpAction({ type: 'pvp_match_defeat' });
+      }
+
+      if (this.engine) {
+        this.engine.battleEnded = true;
+      }
+
+      this.handleMatchEnd('defeat', this.engine?.enemyEntity?.data);
+      return;
+    }
+
+    if (this.battleState?.isTrainer) {
       this.hud?.addLog('⚠️ Não é possível fugir de uma batalha contra outro treinador!', 'system');
       return;
     }
