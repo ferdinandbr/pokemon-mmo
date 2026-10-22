@@ -57,6 +57,8 @@ export function applyPortraitWithFallback(imgEl, speciesId, emotion = 'Normal', 
     }
   };
 
+  imgEl.alt = "";
+  imgEl.classList.remove("is-placeholder");
   imgEl.src = primaryUrl;
 }
 
@@ -163,7 +165,7 @@ export class BattleHud {
           <!-- Left: PMD Portrait Card -->
           <div class="battle-portrait-card enemy-portrait-card">
             <div class="portrait-frame">
-              <img id="enemy-avatar-img" class="battle-pmd-portrait" src="" alt="Enemy PMD" />
+              <img id="enemy-avatar-img" class="battle-pmd-portrait is-placeholder" src="/assets/battle/ui/ball_round.png" alt="" />
             </div>
           </div>
 
@@ -198,7 +200,7 @@ export class BattleHud {
           <!-- Left: PMD Portrait Card -->
           <div class="battle-portrait-card player-portrait-card">
             <div class="portrait-frame">
-              <img id="player-avatar-img" class="battle-pmd-portrait" src="" alt="Player PMD" />
+              <img id="player-avatar-img" class="battle-pmd-portrait is-placeholder" src="/assets/battle/ui/ball_round.png" alt="" />
             </div>
           </div>
 
@@ -1782,6 +1784,14 @@ export class BattleHud {
     const hints = document.querySelector('.swsh-action-hints');
 
     if (!p) {
+      if (pDatabox) {
+        const pAvatarImg = document.getElementById('player-avatar-img');
+        if (pAvatarImg && !pAvatarImg.src.includes('ball_round.png')) {
+          pAvatarImg.src = '/assets/battle/ui/ball_round.png';
+          pAvatarImg.alt = '';
+          pAvatarImg.classList.add('is-placeholder');
+        }
+      }
       if (pDatabox) pDatabox.classList.add('hidden');
       if (hints) hints.style.display = 'none';
     } else {
@@ -1831,6 +1841,8 @@ export class BattleHud {
       // Player PMD Portrait Emotion
       const pAvatarImg = document.getElementById('player-avatar-img');
       if (pAvatarImg && p.data) {
+        pAvatarImg.classList.remove('is-placeholder');
+        pAvatarImg.alt = '';
         const pSpeciesId = p.data.id || p.data.speciesId || 1;
         const pIsShiny = Boolean(p.data.isShiny);
         const pEmotion = p.getCurrentEmotion ? p.getCurrentEmotion() : 'Determined';
@@ -1893,7 +1905,14 @@ export class BattleHud {
     }
 
     // 2. Update Opponent Databox
-    if (e) {
+    if (!e) {
+      const eAvatarImg = document.getElementById('enemy-avatar-img');
+      if (eAvatarImg && !eAvatarImg.src.includes('ball_round.png')) {
+        eAvatarImg.src = '/assets/battle/ui/ball_round.png';
+        eAvatarImg.alt = '';
+        eAvatarImg.classList.add('is-placeholder');
+      }
+    } else {
       preloadPmdPortraits(e.data.id || e.data.speciesId, Boolean(e.data.isShiny));
 
       const eNameEl = document.getElementById('enemy-name');
@@ -1938,6 +1957,8 @@ export class BattleHud {
       // Enemy PMD Portrait Emotion
       const eAvatarImg = document.getElementById('enemy-avatar-img');
       if (eAvatarImg && e.data) {
+        eAvatarImg.classList.remove('is-placeholder');
+        eAvatarImg.alt = '';
         const eSpeciesId = e.data.id || e.data.speciesId || 1;
         const eIsShiny = Boolean(e.data.isShiny);
         const eEmotion = e.getCurrentEmotion ? e.getCurrentEmotion() : 'Determined';

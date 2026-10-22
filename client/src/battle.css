@@ -3617,3 +3617,16 @@
 .bcard-ball-slot.empty .bcard-ball-icon {
   opacity: 0.22 !important;
 }
+
+.battle-pmd-portrait.is-placeholder {
+  width: 42px !important;
+  height: 42px !important;
+  opacity: 0.65 !important;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.6)) !important;
+  animation: pmdPlaceholderPulse 2s infinite ease-in-out !important;
+}
+
+@keyframes pmdPlaceholderPulse {
+  0%, 100% { transform: scale(0.94); opacity: 0.55; }
+  50% { transform: scale(1.06); opacity: 0.85; }
+}
