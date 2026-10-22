@@ -12,6 +12,7 @@ export class BattleHud {
     worldScene = null,
     onSwitchPokemon,
     onRun,
+    onFinish,
     onUseItem,
     onSoundToggle,
   }) {
@@ -28,6 +29,7 @@ export class BattleHud {
     this.worldScene = worldScene || (typeof window !== 'undefined' ? window._worldScene : null);
     this.onSwitchPokemon = onSwitchPokemon;
     this.onRun = onRun;
+    this.onFinish = onFinish || null;
     this.onUseItem = onUseItem || (() => {});
     this.onSoundToggle = onSoundToggle;
 
@@ -639,13 +641,26 @@ export class BattleHud {
     if (btnResultFinish) {
       btnResultFinish.addEventListener('click', () => {
         this.hideMatchResult();
-        if (this.onRun) this.onRun();
+        if (this.onFinish) {
+          this.onFinish();
+        } else if (this.onRun) {
+          this.onRun();
+        }
       });
     }
 
     // ─── 5. Keyboard Bindings ───────────────────────────────────────────────
     this._keyHandler = (e) => {
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+
+      if (this._matchEnded) {
+        if (e.code === 'Escape' || e.code === 'Enter' || e.code === 'Space') {
+          if (this.onFinish) {
+            this.onFinish();
+            return;
+          }
+        }
+      }
 
       if (this.currentSubMenu === 'bag' || this.currentSubMenu === 'team') {
         if (e.code === 'Escape' && !this.engine.isAwaitingSwitch) {
@@ -1190,9 +1205,35 @@ export class BattleHud {
   }
 
   showMatchResult(outcome, winnerData, rewards = null) {
+    this._matchEnded = true;
     const overlay = document.getElementById('match-result-overlay');
     const title = document.getElementById('result-title');
     const subtitle = document.getElementById('result-subtitle');
+    const btnResultFinish = document.getElementById('btn-result-finish');
+
+    if (this.engine?.isPvp) {
+      if (overlay && title && subtitle) {
+        if (outcome === 'victory') {
+          title.textContent = 'VITÓRIA PVP!';
+          title.className = 'result-title victory';
+          subtitle.textContent = `Você venceu o duelo contra ${this.engine.rivalTrainerName || 'o treinador rival'}!`;
+        } else {
+          title.textContent = 'DERROTA PVP...';
+          title.className = 'result-title defeat';
+          subtitle.textContent = 'Todos os seus Pokémon desmaiaram no combate!';
+        }
+        if (btnResultFinish) {
+          btnResultFinish.textContent = 'Sair da Batalha (ESC)';
+        }
+        overlay.classList.remove('hidden');
+      }
+      if (outcome === 'victory') {
+        this.addLog(`🎉 <strong>Vitória PvP!</strong> Você venceu o duelo contra ${this.engine.rivalTrainerName || 'o rival'}!`, 'victory');
+      } else {
+        this.addLog('💀 Seus Pokémon desmaiaram no combate contra o treinador.', 'faint');
+      }
+      return;
+    }
 
     if (outcome === 'victory') {
       // User request: "Quando eu ganhar a batalha, remove esse modal de vitória e volta o dialog indicando xp do pokemon, xp do treinador e gold"
@@ -1209,13 +1250,16 @@ export class BattleHud {
       const trainerExp = Math.max(10, Math.floor(lvl * 18));
       const gold = Math.max(20, Math.floor(lvl * 35));
 
-      const victoryMsg = `🎉 <strong>${pName}</strong> venceu! <b>+${pokeExp} EXP</b> para ${pName} | <b>+${trainerExp} EXP</b> de Treinador | <b>+$${gold}</b>!`;
+      const victoryMsg = `🎉 <strong>${pName}</strong> venceu! <b>+${pokeExp} EXP</b> para ${pName} | <b>+${trainerExp} EXP</b> de Treinador | <b>+$${gold}</b>! (Pressione ESC ou clique para sair)`;
       this.addLog(victoryMsg, 'victory');
     } else {
       if (overlay && title && subtitle) {
         title.textContent = 'DERROTA...';
         title.className = 'result-title defeat';
         subtitle.textContent = 'Todos os seus Pokémon desmaiaram!';
+        if (btnResultFinish) {
+          btnResultFinish.textContent = 'Retornar ao Mundo (ESC)';
+        }
         overlay.classList.remove('hidden');
       }
       this.addLog('💀 Todos os seus Pokémon foram derrotados...', 'faint');

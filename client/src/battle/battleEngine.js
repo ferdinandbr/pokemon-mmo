@@ -12,6 +12,8 @@ export class BattleEngine {
     canvas,
     isTrainer = false,
     trainerSprite = 'boy_run',
+    rivalTrainerSprite = 'boy_run',
+    rivalTrainerName = 'Rival',
     isPvp = false,
     onPvpAction = null,
     onStateChange,
@@ -24,6 +26,8 @@ export class BattleEngine {
     this.ctx = canvas.getContext('2d');
     this.isTrainer = Boolean(isTrainer);
     this.trainerSprite = trainerSprite || 'boy_run';
+    this.rivalTrainerSprite = rivalTrainerSprite || 'boy_run';
+    this.rivalTrainerName = rivalTrainerName || 'Rival';
     this.isPvp = Boolean(isPvp);
     this.onPvpAction = onPvpAction || null;
     this.onStateChange = onStateChange || (() => {});
@@ -58,7 +62,7 @@ export class BattleEngine {
     // Wild Encounter Standby & Trainer Visuals
     this.isIntroStandby = false;
     this.trainer = {
-      x: 215,
+      x: 180,
       y: 290,
       targetX: 180,
       targetY: 290,
@@ -70,12 +74,31 @@ export class BattleEngine {
       visible: true,
     };
 
+    this.rivalTrainer = {
+      x: 844,
+      y: 290,
+      targetX: 844,
+      targetY: 290,
+      scale: 0.80,
+      facing: 'left',
+      frame: 4, // frame 4 is facing left (row 1, col 0)
+      isThrowing: false,
+      throwTimer: 0,
+      visible: Boolean(this.isTrainer || this.isPvp),
+    };
+
     if (typeof Image !== 'undefined') {
       this.trainerImg = new Image();
       this.trainerImg.src = `/assets/characters/${this.trainerSprite}.png`;
+      this.rivalTrainerImg = new Image();
+      this.rivalTrainerImg.src = `/assets/characters/${this.rivalTrainerSprite}.png`;
       this.pokeballImg = new Image();
       this.pokeballImg.src = '/assets/items/poke-ball.png';
     }
+
+    this._lastPvpSentMoving = false;
+    this._opponentMoving = false;
+    this._opponentMoveTimeout = 0;
 
     this.activePokeball = null;
     this.activeRecallBeam = null;
@@ -211,19 +234,31 @@ export class BattleEngine {
       this.trainer.frame = 8;
       this.trainer.isThrowing = false;
       this.trainer.visible = true;
+      if (this.rivalTrainer) {
+        this.rivalTrainer.visible = false;
+      }
 
       this.onLogMessage(
         `🌿 Um <strong>${currentE.name}</strong> selvagem apareceu! O que você vai fazer?`,
         'system'
       );
     } else {
-      // Trainer battle: deploy directly
+      // Trainer or PvP battle: both trainers present at borders
       this.isIntroStandby = false;
       this.trainer.x = 180;
       this.trainer.y = spawnPoints.player.y;
       this.trainer.targetX = 180;
       this.trainer.frame = 8;
       this.trainer.visible = true;
+
+      if (this.rivalTrainer) {
+        this.rivalTrainer.x = 844;
+        this.rivalTrainer.y = spawnPoints.enemy.y;
+        this.rivalTrainer.targetX = 844;
+        this.rivalTrainer.frame = 4; // Facing left towards arena
+        this.rivalTrainer.facing = 'left';
+        this.rivalTrainer.visible = true;
+      }
 
       this.playerEntity = new PokemonEntity({
         data: currentP,
@@ -361,11 +396,35 @@ export class BattleEngine {
       case 'move':
         if (typeof action.x === 'number' && typeof action.y === 'number') {
           // Reconcile opponent position smoothly
-          this.enemyEntity.x = action.x;
-          this.enemyEntity.y = action.y;
+          const dx = action.x - this.enemyEntity.x;
+          const dy = action.y - this.enemyEntity.y;
+          if (Math.hypot(dx, dy) > 35) {
+            this.enemyEntity.x = action.x;
+            this.enemyEntity.y = action.y;
+          } else {
+            this.enemyEntity.x += dx * 0.35;
+            this.enemyEntity.y += dy * 0.35;
+          }
         }
         if (typeof action.dirX === 'number' && typeof action.dirY === 'number') {
           this.enemyEntity.moveManual(action.dirX, action.dirY, 0.033);
+        }
+        this._opponentMoving = (action.dirX !== 0 || action.dirY !== 0);
+        this._opponentMoveTimeout = 0.12;
+        break;
+
+      case 'move_stop':
+        if (typeof action.x === 'number' && typeof action.y === 'number') {
+          this.enemyEntity.x = action.x;
+          this.enemyEntity.y = action.y;
+        }
+        this.enemyEntity.vx = 0;
+        this.enemyEntity.vy = 0;
+        this.enemyEntity.currentSpeed = 0;
+        this._opponentMoving = false;
+        this._opponentMoveTimeout = 0;
+        if (this.enemyEntity.sprite && this.enemyEntity.state !== 'fainted') {
+          this.enemyEntity.sprite.setAnimation('Idle', true);
         }
         break;
 
@@ -889,11 +948,22 @@ export class BattleEngine {
         this.pvpMovementRelayTimer -= dt;
         if (this.pvpMovementRelayTimer <= 0) {
           this.pvpMovementRelayTimer = 0.05;
-          if (moveInput.isMoving || this.playerEntity.vx !== 0 || this.playerEntity.vy !== 0) {
+          const hasVel = Math.abs(this.playerEntity.vx) > 5 || Math.abs(this.playerEntity.vy) > 5;
+          if (moveInput.isMoving || hasVel) {
             this.onPvpAction({
               type: 'move',
               dirX: moveInput.dirX,
               dirY: moveInput.dirY,
+              x: Math.round(this.playerEntity.x),
+              y: Math.round(this.playerEntity.y)
+            });
+            this._lastPvpSentMoving = true;
+          } else if (this._lastPvpSentMoving) {
+            this._lastPvpSentMoving = false;
+            this.onPvpAction({
+              type: 'move_stop',
+              dirX: 0,
+              dirY: 0,
               x: Math.round(this.playerEntity.x),
               y: Math.round(this.playerEntity.y)
             });
@@ -930,6 +1000,15 @@ export class BattleEngine {
           }
         } else {
           // In PvP, enemy movement and actions are driven remotely via socket relay
+          if (this._opponentMoveTimeout > 0) {
+            this._opponentMoveTimeout -= dt;
+            if (this._opponentMoveTimeout <= 0) {
+              this._opponentMoving = false;
+              this.enemyEntity.moveManual(0, 0, dt);
+            }
+          } else {
+            this.enemyEntity.moveManual(0, 0, dt);
+          }
           this.enemyEntity.update(dt);
         }
       } else {
@@ -1077,6 +1156,35 @@ export class BattleEngine {
     ctx.restore();
   }
 
+  renderRivalTrainer(ctx) {
+    if (!this.rivalTrainer || !this.rivalTrainer.visible) return;
+    const rt = this.rivalTrainer;
+
+    ctx.save();
+    // Drop shadow at rival trainer feet
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.beginPath();
+    ctx.ellipse(rt.x, rt.y + 4, 8, 3.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Sprite frame (frame 4 is facing left: row 1, col 0)
+    if (this.rivalTrainerImg && this.rivalTrainerImg.complete && this.rivalTrainerImg.naturalWidth > 0) {
+      const frameIdx = rt.frame || 4;
+      const col = frameIdx % 4;
+      const row = Math.floor(frameIdx / 4);
+      const sx = col * 32;
+      const sy = row * 48;
+      const dw = 32 * (rt.scale || 0.80);
+      const dh = 48 * (rt.scale || 0.80);
+      const dx = Math.round(rt.x - dw / 2);
+      const dy = Math.round(rt.y - dh + 4);
+
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(this.rivalTrainerImg, sx, sy, 32, 48, dx, dy, dw, dh);
+    }
+    ctx.restore();
+  }
+
   renderPokeball(ctx) {
     // 1. Player Deploy Pokéball
     if (this.activePokeball) {
@@ -1197,13 +1305,17 @@ export class BattleEngine {
       // 4. Draw background (at 0, 0, 1024, 790 in logical space) & decals
       arena.renderBackground(ctx);
 
-      // 5. Depth sort entities, trainer, and tactical obstacles based on Y position (Z-ordering)
+      // 5. Depth sort entities, trainer, rival trainer, and tactical obstacles based on Y position (Z-ordering)
       const renderables = [
         this.playerEntity,
         this.enemyEntity,
-        this.trainer ? {
+        this.trainer && this.trainer.visible ? {
           y: this.trainer.y,
           render: (context) => this.renderTrainer(context),
+        } : null,
+        this.rivalTrainer && this.rivalTrainer.visible ? {
+          y: this.rivalTrainer.y,
+          render: (context) => this.renderRivalTrainer(context),
         } : null,
         ...arena.obstacles.map((obs) => ({
           y: obs.y,

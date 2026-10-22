@@ -227,10 +227,14 @@ export default class BattleUI {
       }
     }
 
-    // Prepare Enemy Team (single wild Pokémon or trainer party)
-    const enemyPartyData = battleData.isTrainer
-      ? (battleData.trainerTeam || [battleData.wildPokemon || battleData.trainerPokemon])
-      : [battleData.wildPokemon];
+    // Prepare Enemy Team (single wild Pokémon, trainer party, or PvP party)
+    const enemyPartyData = battleData.isPvp
+      ? (Array.isArray(battleData.enemyParty) && battleData.enemyParty.length > 0
+          ? battleData.enemyParty
+          : (battleData.enemyPokemon ? [battleData.enemyPokemon] : []))
+      : (battleData.isTrainer
+          ? (battleData.trainerTeam || (battleData.wildPokemon || battleData.trainerPokemon ? [battleData.wildPokemon || battleData.trainerPokemon] : []))
+          : (battleData.wildPokemon ? [battleData.wildPokemon] : []));
 
     const canvas = document.getElementById('arena-canvas');
     const hudContainer = document.getElementById('hud-container');
@@ -239,12 +243,18 @@ export default class BattleUI {
     const trainerSprite = this.worldScene?.cachedPlayerData?.spriteKey ||
                           this.worldScene?.cachedPlayerData?.sprite ||
                           this.worldScene?.localPlayer?.spriteKey ||
+                          battleData.playerTrainerSprite ||
                           'boy_run';
+
+    const rivalTrainerSprite = battleData.trainerSprite || 'boy_run';
+    const rivalTrainerName = battleData.trainerName || 'Rival';
 
     this.engine = new BattleEngine({
       canvas,
       isTrainer: Boolean(battleData.isTrainer || battleData.isPvp),
       trainerSprite,
+      rivalTrainerSprite,
+      rivalTrainerName,
       isPvp: Boolean(battleData.isPvp),
       onPvpAction: (action) => {
         SocketClient.emit('pvp:action_relay', action);
@@ -280,6 +290,7 @@ export default class BattleUI {
       worldScene: this.worldScene,
       onSwitchPokemon: (partyIndex) => this.handleSwitchPokemon(partyIndex),
       onRun: () => this.handleRun(),
+      onFinish: () => this.close(),
       onUseItem: (itemId, targetPokemonId) => this.handleUseItem(itemId, targetPokemonId),
     });
 
@@ -376,41 +387,40 @@ export default class BattleUI {
 
       this._pendingExpGains = [];
       this._pendingBattleSummary = null;
-      return;
+    } else {
+      // Notify server to conclude and grant EXP, rewards, and persist battle results for PvE
+      SocketClient.emit('battle:action', {
+        action: {
+          type: 'conclude',
+          winner: outcome === 'victory' ? 'player' : 'opponent',
+          partyHp
+        }
+      });
+
+      // Collect EXP gains to broadcast and display in Overworld
+      const enemyMon = this.engine?.enemyEntity?.data;
+      const playerMon = this.engine?.playerEntity?.data;
+      const pName = playerMon?.name || 'Seu Pokémon';
+      const lvl = enemyMon?.level || 5;
+      const baseExp = enemyMon?.baseExp || 64;
+      const pokeExp = Math.max(6, Math.floor(((baseExp * lvl) / 7) * 1.5));
+      const trainerExp = Math.max(10, Math.floor(lvl * 18));
+      const gold = Math.max(20, Math.floor(lvl * 35));
+
+      this._pendingExpGains = [
+        { slotIndex: this.engine?.activePlayerIndex || 0, exp: pokeExp, name: pName }
+      ];
+      this._pendingBattleSummary = {
+        pokeExp,
+        trainerExp,
+        gold,
+        pName,
+        outcome
+      };
     }
 
-    // Notify server to conclude and grant EXP, rewards, and persist battle results for PvE
-    SocketClient.emit('battle:action', {
-      action: {
-        type: 'conclude',
-        winner: outcome === 'victory' ? 'player' : 'opponent',
-        partyHp
-      }
-    });
-
-    // Collect EXP gains to broadcast and display in Overworld
-    const enemyMon = this.engine?.enemyEntity?.data;
-    const playerMon = this.engine?.playerEntity?.data;
-    const pName = playerMon?.name || 'Seu Pokémon';
-    const lvl = enemyMon?.level || 5;
-    const baseExp = enemyMon?.baseExp || 64;
-    const pokeExp = Math.max(6, Math.floor(((baseExp * lvl) / 7) * 1.5));
-    const trainerExp = Math.max(10, Math.floor(lvl * 18));
-    const gold = Math.max(20, Math.floor(lvl * 35));
-
-    this._pendingExpGains = [
-      { slotIndex: this.engine?.activePlayerIndex || 0, exp: pokeExp, name: pName }
-    ];
-    this._pendingBattleSummary = {
-      pokeExp,
-      trainerExp,
-      gold,
-      pName,
-      outcome
-    };
-
     // User requirement: "quando finalizar a batalha não quero um timer para sair e sim esperar o clique do jogador"
-    // Wait for player to click either the finish button or the combat ticker/dialogue box
+    // Wait for player to click either the finish button or the combat ticker/dialogue box, or press ESC
     const finishBtn = document.getElementById('btn-result-finish');
     if (finishBtn) {
       finishBtn.onclick = () => {
@@ -425,12 +435,28 @@ export default class BattleUI {
         if (this.isOpen) this.close();
       };
     }
+
+    if (this._matchEndedKeyHandler) {
+      window.removeEventListener('keydown', this._matchEndedKeyHandler);
+    }
+    this._matchEndedKeyHandler = (e) => {
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+      if (e.code === 'Escape' || e.code === 'Enter') {
+        if (this.isOpen) this.close();
+      }
+    };
+    window.addEventListener('keydown', this._matchEndedKeyHandler);
   }
 
   close() {
     if (!this.isOpen) return;
     this.isOpen = false;
     this.battleState = null;
+
+    if (this._matchEndedKeyHandler) {
+      window.removeEventListener('keydown', this._matchEndedKeyHandler);
+      this._matchEndedKeyHandler = null;
+    }
 
     if (this._resizeListener) {
       window.removeEventListener('resize', this._resizeListener);

@@ -1,17 +1,17 @@
 # Graph Report - PokeMMO  (2026-10-21)
 
 ## Corpus Check
-- 456 files · ~2,002,139 words
+- 456 files · ~2,002,829 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 46 file(s) not represented in the graph (top: .mid 33, (none) 5, .css 3)
 
 ## Summary
-- 2457 nodes · 4236 edges · 103 communities (61 shown, 42 thin omitted)
+- 2459 nodes · 4240 edges · 99 communities (63 shown, 36 thin omitted)
 - Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 173 edges (avg confidence: 0.87)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `14a73063`
+- Built from commit: `365516e3`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -19,13 +19,12 @@
 - particleSystem.js
 - EditorScene
 - EditorUI
-- NodeGraphUI
-- soundManager
 - EditorUI.js
-- ShopUI
+- soundManager
+- MoveRegistry.js
 - PokemonEntity
 - ParticleSystem
-- test_evolution_items_player.js
+- pokemonProgressionService.js
 - BagUI
 - generate_shiny_overworld.cjs
 - BattleEngine
@@ -42,10 +41,10 @@
 - NPC
 - WorldScene
 - PokemonStorageUI
-- check_target_moves.js
+- mapRoutes.js
 - pokemonProgressionService.js
 - package.json
-- test_bug_moves_pixel_art.js
+- scripts/set_admin.js
 - client/package.json
 - EvolutionUI
 - AuthUI
@@ -64,6 +63,7 @@
 - roomManager.js
 - WorldService
 - battleEngine.js
+- audit_move_visuals.js
 - pixelArtVfx.js
 - WorldScene.js
 - battleHud.js
@@ -73,7 +73,7 @@
 - generate-pokemon-sprites.js
 - reorganize_sprites.cjs
 - OakIntroUI
-- inventoryHandler.js
+- extrude-tileset.js
 - generate_heal_pillars.js
 - sync-tiled-maps.js
 - 🗺️ Mapeamento de Peculiaridades de Movimentação e Animação no Combate Ativo
@@ -89,12 +89,11 @@
 - TallGrassManager
 - Plano de Refatoração: Cinematic VFX para ParticleSystem & PixelArtVfx
 - repack-tilesets.js
-- build_kanto_perfect.js
+- test_battle_arena_decals.js
 - EncounterService
-- canvas
+- extrude-all-tilesets.js
 - DialogueBox
-- buildPalletInteriors.js
-- upscale-pokemon-2x.js
+- canvas
 - sync_essentials_items.js
 - MoveEffectHandler
 - WaterAnimationManager
@@ -114,10 +113,7 @@
 - ProjectileSystem
 - PvpChallengeModalUI
 - generate_dark_visual_sprites.js
-- BootScene
-- DayNightManager.js
-- test_ground_preview.js
-- PlayerProgressionService
+- test_evolution_items_player.js
 
 ## God Nodes (most connected - your core abstractions)
 1. `6. Especificação individual por move` - 622 edges
@@ -126,7 +122,7 @@
 4. `PokemonEntity` - 49 edges
 5. `WorldScene` - 47 edges
 6. `ParticleSystem` - 43 edges
-7. `BattleEngine` - 39 edges
+7. `BattleEngine` - 40 edges
 8. `BagUI` - 32 edges
 9. `PokemonStorageUI` - 30 edges
 10. `BattleHud` - 28 edges
@@ -146,7 +142,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (103 total, 42 thin omitted)
+## Communities (99 total, 36 thin omitted)
 
 ### Community 0 - "particleSystem.js"
 Cohesion: 0.11
@@ -156,24 +152,28 @@ Nodes (29): ANIMATION_FILES, ELEMENT_VFX_FILTERS, MOVE_ANIM_CACHE, renderAirCutt
 Cohesion: 0.08
 Nodes (3): EditorUI, isImageReady(), normalizeTilesetImage()
 
-### Community 5 - "EditorUI.js"
-Cohesion: 0.21
-Nodes (9): COLLISION_META, DEFAULT_MART_ITEMS, NPC_SPRITES, NPC_TYPES, ROOMS_CONFIG, PRESET_TILESETS, COLLISION_LAYERS, LAYER_DEPTHS (+1 more)
-
-### Community 9 - "test_evolution_items_player.js"
+### Community 3 - "EditorUI.js"
 Cohesion: 0.08
-Nodes (16): prisma, evolutionManager, friendshipManager, itemEffectRegistry, playerProgressionService, prisma, prisma, prisma (+8 more)
+Nodes (9): DEFAULT_MART_ITEMS, NPC_SPRITES, NPC_TYPES, ROOMS_CONFIG, PRESET_TILESETS, BootScene, KANTO_POKEMON_LIST, NodeGraphUI (+1 more)
+
+### Community 5 - "MoveRegistry.js"
+Cohesion: 0.15
+Nodes (14): { isActiveCombatMove, INCOMPATIBLE_ACTIVE_COMBAT_MOVES }, migratePokemonMoves(), moveManager, moveRegistry, prisma, INCOMPATIBLE_ACTIVE_COMBAT_MOVES, isActiveCombatMove(), LEARN_METHODS (+6 more)
+
+### Community 9 - "pokemonProgressionService.js"
+Cohesion: 0.08
+Nodes (19): FriendshipManager, prisma, evolutionManager, friendshipManager, pokemonProgressionService, prisma, evolutionManager, friendshipManager (+11 more)
 
 ### Community 10 - "BagUI"
 Cohesion: 0.08
-Nodes (6): BattleHud, BagUI, getItemIcon(), BattleUI, _claimBattleInstance(), _isActiveBattleInstance()
+Nodes (5): BattleHud, BagUI, getItemIcon(), BattleUI, _claimBattleInstance()
 
 ### Community 11 - "generate_shiny_overworld.cjs"
-Cohesion: 0.15
-Nodes (16): ANIM_BACK_NORM, ANIM_BACK_SHINY, ANIM_FRONT_NORM, ANIM_FRONT_SHINY, BASE_DIR, deltaE(), fs, lab2rgb() (+8 more)
+Cohesion: 0.08
+Nodes (26): ANIM_BACK_NORM, ANIM_BACK_SHINY, ANIM_FRONT_NORM, ANIM_FRONT_SHINY, BASE_DIR, deltaE(), fs, lab2rgb() (+18 more)
 
 ### Community 13 - "BattleArena"
-Cohesion: 0.09
+Cohesion: 0.10
 Nodes (4): BattleArena, DecalSystem, GROUND_DECAL_ALIASES, GROUND_DECAL_CONFIGS
 
 ### Community 14 - "authService.js"
@@ -197,8 +197,8 @@ Cohesion: 0.09
 Nodes (20): baseDir, downloadFile(), fs, https, outNormalDir, outShinyDir, path, run() (+12 more)
 
 ### Community 20 - "movesDatabase.js"
-Cohesion: 0.10
-Nodes (18): getMoveData(), INCOMPATIBLE_ACTIVE_COMBAT_MOVES, isActiveCombatMove(), MOVES_BY_ID, MOVES_BY_NAME, fs, { loadImage }, { MOVES_BY_ID } (+10 more)
+Cohesion: 0.08
+Nodes (23): getMoveData(), INCOMPATIBLE_ACTIVE_COMBAT_MOVES, isActiveCombatMove(), MOVES_BY_ID, MOVES_BY_INTERNAL, MOVES_BY_NAME, fs, { loadImage } (+15 more)
 
 ### Community 21 - "PmdSprite"
 Cohesion: 0.16
@@ -212,17 +212,21 @@ Nodes (12): NPC, 1. Visão Geral, 2. Fases de Execução, Fase 1: Importação d
 Cohesion: 0.09
 Nodes (15): PokemonStorageUI, 🎯 1. Visão Geral e Novos Objetivos, 2.1 Alterações no Banco de Dados (Prisma Schema), 2.2 Serviços de Backend, 🏛️ 2. Arquitetura Técnica & Banco de Dados, 📋 3. Mapeamento de Pokémons por Amizade (Happiness), 🔄 4. Fases de Execução Detalhadas, 🧪 5. Critérios de Validação & Testes (+7 more)
 
-### Community 26 - "check_target_moves.js"
-Cohesion: 0.17
-Nodes (9): MOVES_BY_INTERNAL, fs, { loadImage }, { MOVES_BY_INTERNAL }, path, { getProjectileVisuals }, { MOVES_BY_INTERNAL }, targetMoves (+1 more)
+### Community 26 - "mapRoutes.js"
+Cohesion: 0.22
+Nodes (7): DEFAULT_MAP_PATH, express, fs, MAPS_DIR, path, router, TILESETS_DIR
 
 ### Community 27 - "pokemonProgressionService.js"
-Cohesion: 0.09
-Nodes (18): EvolutionManager, moveManager, moveRegistry, pokemonService, prisma, evolutionManager, friendshipManager, moveManager (+10 more)
+Cohesion: 0.12
+Nodes (12): EvolutionManager, moveManager, moveRegistry, pokemonService, prisma, moveManager, moveRegistry, prisma (+4 more)
 
 ### Community 28 - "package.json"
 Cohesion: 0.11
 Nodes (17): description, devDependencies, canvas, concurrently, sharp, sharp, name, scripts (+9 more)
+
+### Community 29 - "scripts/set_admin.js"
+Cohesion: 0.29
+Nodes (5): envPaths, fs, path, prisma, serverNodeModules
 
 ### Community 30 - "client/package.json"
 Cohesion: 0.11
@@ -237,12 +241,12 @@ Cohesion: 0.12
 Nodes (13): catchCalculator, damageCalculator, encounterService, friendshipManager, moveEffectHandler, moveManager, moveRegistry, playerProgressionService (+5 more)
 
 ### Community 34 - "attackClashSystem.js"
-Cohesion: 0.17
-Nodes (14): adaptPokemonForBattle(), calculateCombatDamage(), calculateDodgeCooldown(), calculateMoveCooldown(), calculateMovementSpeed(), calculatePokemonStats(), DEFAULT_SPECIES_MOVES, GEN1_SPECIES (+6 more)
+Cohesion: 0.18
+Nodes (13): adaptPokemonForBattle(), calculateCombatDamage(), calculateDodgeCooldown(), calculateMoveCooldown(), calculateMovementSpeed(), calculatePokemonStats(), DEFAULT_SPECIES_MOVES, GEN1_SPECIES (+5 more)
 
 ### Community 36 - "main.js"
-Cohesion: 0.13
-Nodes (4): bgmManager, REGION_BGM_MAP, config, game
+Cohesion: 0.12
+Nodes (5): bgmManager, REGION_BGM_MAP, config, game, _isActiveBattleInstance()
 
 ### Community 38 - "5. Biblioteca de famílias de VFX"
 Cohesion: 0.07
@@ -253,31 +257,35 @@ Cohesion: 0.09
 Nodes (22): 🔍 Detalhamento por Tipo Elemental (com Sprites), 🎨 Galeria Visual dos Spritesheets da Engine de Batalha, 📖 Relatório Completo: Todos os 621 Movimentos (Moves) e Seus Sprites, 📑 Tabela Completa de Todos os 621 Golpes com Sprite Associado, ⚡ Tipo: BUG (25 golpes), ⚡ Tipo: DARK (32 golpes), ⚡ Tipo: DRAGON (14 golpes), ⚡ Tipo: ELECTRIC (27 golpes) (+14 more)
 
 ### Community 42 - "MoveManager"
-Cohesion: 0.06
-Nodes (25): 1. Escopo e Decisões Alinhadas, 2. Tarefas de Implementação, Fase 1: Marcação de Compatibilidade no Catálogo de Golpes, Fase 2: Lógica de Seleção e Aprendizado no Servidor, Fase 3: Script de Migração dos Pokémons Existentes, Fase 4: Proteção no Cliente de Batalha, Fase 5: Verificação e Validação, Plano de Implementação: Filtragem e Adaptação de Golpes para Combate Ativo (PokeMMO) (+17 more)
+Cohesion: 0.10
+Nodes (11): 1. Escopo e Decisões Alinhadas, 2. Tarefas de Implementação, Fase 1: Marcação de Compatibilidade no Catálogo de Golpes, Fase 2: Lógica de Seleção e Aprendizado no Servidor, Fase 3: Script de Migração dos Pokémons Existentes, Fase 4: Proteção no Cliente de Batalha, Fase 5: Verificação e Validação, Plano de Implementação: Filtragem e Adaptação de Golpes para Combate Ativo (PokeMMO) (+3 more)
 
 ### Community 43 - "ref_fs"
 Cohesion: 0.11
-Nodes (12): content, files, content, fs, envPaths, fs, path, prisma (+4 more)
+Nodes (12): content, files, files, fs, path, content, fs, { createCanvas, loadImage } (+4 more)
 
 ### Community 45 - "roomManager.js"
 Cohesion: 0.12
 Nodes (11): ROOM_DEFINITIONS, pokemonService, prisma, roomManager, battleManager, playerProgressionService, pokemonService, prisma (+3 more)
+
+### Community 48 - "audit_move_visuals.js"
+Cohesion: 0.33
+Nodes (4): fs, { loadImage }, { MOVES_BY_ID }, path
 
 ### Community 49 - "pixelArtVfx.js"
 Cohesion: 0.12
 Nodes (28): BITE_FANGS_BOTTOM, BITE_FANGS_TOP, DARK_PULSE_FRAMES, DARK_WAVE_FRAMES, ELECTRIC_SPARK_FRAMES, EMBER_FRAMES, FIRE_BLAST_KANJI, FOCUS_BLAST_FRAMES (+20 more)
 
 ### Community 50 - "WorldScene.js"
-Cohesion: 0.21
-Nodes (9): spawnDustEffect(), spawnLandingDust(), PLAYER_VISUAL, COLLISION_TYPES, COLLISION_LAYERS, LAYER_DEPTHS, WEATHER_META, WEATHER_TYPES (+1 more)
+Cohesion: 0.14
+Nodes (14): spawnDustEffect(), spawnLandingDust(), PLAYER_VISUAL, COLLISION_META, COLLISION_TYPES, COLLISION_LAYERS, LAYER_DEPTHS, COLLISION_LAYERS (+6 more)
 
 ### Community 51 - "battleHud.js"
-Cohesion: 0.38
-Nodes (5): getItemCategoryLabel(), TYPE_ICONS, formatSpeciesId(), getPokemonAnimatedSprite(), getPokemonOverworldSprite()
+Cohesion: 0.31
+Nodes (6): TYPE_COLORS, getItemCategoryLabel(), TYPE_ICONS, formatSpeciesId(), getPokemonAnimatedSprite(), getPokemonOverworldSprite()
 
 ### Community 53 - "initApp"
-Cohesion: 0.24
+Cohesion: 0.21
 Nodes (3): checkRoute(), initApp(), SocketClient
 
 ### Community 55 - "generate-pokemon-sprites.js"
@@ -288,9 +296,9 @@ Nodes (9): args, fs, generate(), getCell(), H_LINES, INPUT, OUTPUT_DIR, path (+1
 Cohesion: 0.18
 Nodes (10): backDir, backNormalDir, backShinyDir, baseDir, frontNormalDir, frontShinyDir, fs, path (+2 more)
 
-### Community 58 - "inventoryHandler.js"
-Cohesion: 0.25
-Nodes (7): battleManager, itemEffectRegistry, pokemonProgressionService, pokemonService, prisma, roomManager, setupInventoryHandlers()
+### Community 58 - "extrude-tileset.js"
+Cohesion: 0.40
+Nodes (3): { createCanvas, loadImage }, fs, path
 
 ### Community 59 - "generate_heal_pillars.js"
 Cohesion: 0.27
@@ -318,7 +326,7 @@ Nodes (25): cors, dotenv, nodemon, prisma, socket.io, dependencies, bcryptjs, co
 
 ### Community 67 - "mapRoutes.js"
 Cohesion: 0.11
-Nodes (15): express, encounterService, express, prisma, router, DEFAULT_MAP_PATH, express, fs (+7 more)
+Nodes (12): express, prisma, prisma, prisma, { PrismaClient }, encounterService, express, prisma (+4 more)
 
 ### Community 68 - "DamageCalculator.js"
 Cohesion: 0.33
@@ -332,21 +340,17 @@ Nodes (3): 1. Visão Geral e Arquitetura, 3. Preservação de Compatibilidade, P
 Cohesion: 0.25
 Nodes (6): backupDir, { createCanvas, loadImage }, fs, path, tilesetDir, toRepack
 
-### Community 74 - "build_kanto_perfect.js"
+### Community 74 - "test_battle_arena_decals.js"
 Cohesion: 0.40
 Nodes (3): { createCanvas, loadImage }, fs, path
 
-### Community 76 - "canvas"
-Cohesion: 0.09
-Nodes (14): canvas, { createCanvas, loadImage }, backupDir, { createCanvas, loadImage }, fs, mapsDir, path, tilesetDir (+6 more)
+### Community 76 - "extrude-all-tilesets.js"
+Cohesion: 0.22
+Nodes (7): backupDir, { createCanvas, loadImage }, fs, mapsDir, path, tilesetDir, tilesetList
 
-### Community 78 - "buildPalletInteriors.js"
-Cohesion: 0.29
-Nodes (5): { createCanvas, loadImage }, fs, MAPS_DIR, path, TILESETS_DIR
-
-### Community 79 - "upscale-pokemon-2x.js"
-Cohesion: 0.18
-Nodes (10): baseDir, dirs, fs, path, sharp, upscaleAll(), cropPokemonSprites(), fs (+2 more)
+### Community 78 - "canvas"
+Cohesion: 0.10
+Nodes (12): canvas, { createCanvas, loadImage }, { createCanvas, loadImage }, fs, path, { createCanvas, loadImage }, fs, MAPS_DIR (+4 more)
 
 ### Community 80 - "sync_essentials_items.js"
 Cohesion: 0.33
@@ -373,8 +377,8 @@ Cohesion: 0.25
 Nodes (9): { createCanvas }, fs, generatePixelMegahorn(), generatePixelPinMissile(), generatePixelStringShot(), OUT_DIR, path, setPixel() (+1 more)
 
 ### Community 90 - "ref_path"
-Cohesion: 0.10
-Nodes (11): getFiles(), list, files, fs, path, { createCanvas, loadImage }, fs, path (+3 more)
+Cohesion: 0.12
+Nodes (8): getFiles(), list, { createCanvas, loadImage }, fs, path, { createCanvas, loadImage }, fs, path
 
 ### Community 92 - "scripts"
 Cohesion: 0.29
@@ -388,14 +392,14 @@ Nodes (8): AttackClashSystem, calculateClashForce(), CLASH_CONFIG, compareClashA
 Cohesion: 0.24
 Nodes (11): { createCanvas, loadImage }, ensureDir(), fs, generateNightSlashCross(), generateQuestionMarksDark(), generateSnarlSoundwave(), generateThiefSwipeDark(), main() (+3 more)
 
-### Community 101 - "test_ground_preview.js"
-Cohesion: 0.40
-Nodes (3): { createCanvas, loadImage }, fs, path
+### Community 102 - "test_evolution_items_player.js"
+Cohesion: 0.18
+Nodes (7): evolutionManager, friendshipManager, itemEffectRegistry, playerProgressionService, prisma, PlayerProgressionService, prisma
 
 ## Knowledge Gaps
 - **8 isolated node(s):** `socket.io-client`, `concurrently`, `sharp`, `dotenv`, `nodemon` (+3 more)
   These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1271 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **42 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **36 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
@@ -413,4 +417,4 @@ _Questions this graph is uniquely positioned to answer:_
 - **Why does `PokemonStorageUI` connect `PokemonStorageUI` to `BagUI`, `battleHud.js`, `main.js`, `initApp`?**
   _High betweenness centrality (0.046) - this node is a cross-community bridge._
 - **Should `EditorUI` be split into smaller, more focused modules?**
-  _Cohesion score 0.08148148148148149 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08009635651912074 - nodes in this community are weakly interconnected._

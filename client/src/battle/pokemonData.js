@@ -441,11 +441,19 @@ export const GEN1_SPECIES = {
 export function adaptPokemonForBattle(rawMon) {
   if (!rawMon) return adaptPokemonForBattle({ speciesId: 1 });
 
-  const speciesId = parseInt(rawMon.speciesId || rawMon.id || 1, 10);
+  const speciesId = parseInt(
+    rawMon.speciesId ||
+    rawMon.species?.id ||
+    rawMon.pokemonId ||
+    (rawMon.species && typeof rawMon.species === 'number' ? rawMon.species : null) ||
+    (rawMon.dbId ? rawMon.speciesId : rawMon.id) ||
+    1,
+    10
+  );
   const fmtId = String(speciesId).padStart(3, '0');
   const species = GEN1_SPECIES[speciesId] || GEN1_SPECIES[1];
 
-  const level = rawMon.level || 50;
+  const level = rawMon.level || 5;
   const isShiny = Boolean(rawMon.isShiny);
   const nature = rawMon.nature || 'Hardy';
   const ivs = rawMon.ivs || {
