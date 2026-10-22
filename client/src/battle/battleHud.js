@@ -479,11 +479,39 @@ export class BattleHud {
 
         <!-- MATCH OUTCOME BANNER -->
         <div class="match-result-overlay hidden" id="match-result-overlay">
-          <div class="result-modal">
-            <div class="result-title" id="result-title">VITÓRIA!</div>
+          <div class="result-modal modal-victory" id="result-modal-box">
+            <div class="result-badge-icon" id="result-badge-icon">🏆</div>
+            <div class="result-title victory" id="result-title">VITÓRIA!</div>
             <div class="result-subtitle" id="result-subtitle">Você venceu a batalha!</div>
+
+            <div class="result-stats-card" id="result-stats-card">
+              <div class="result-mon-preview">
+                <div class="result-mon-avatar-ring">
+                  <img id="result-mon-img" src="" alt="Pokémon" onerror="this.style.display='none'" />
+                </div>
+                <div class="result-mon-meta">
+                  <span class="result-mon-name" id="result-mon-name">Pokémon</span>
+                  <span class="result-mon-lvl" id="result-mon-lvl">Nv. --</span>
+                </div>
+              </div>
+              <div class="result-divider"></div>
+              <div class="result-metrics">
+                <div class="result-metric-item">
+                  <span class="metric-label">STATUS</span>
+                  <span class="metric-val status-win" id="result-status-val">VENCEDOR</span>
+                </div>
+                <div class="result-metric-item">
+                  <span class="metric-label">EQUIPE</span>
+                  <span class="metric-val" id="result-team-val">--</span>
+                </div>
+              </div>
+            </div>
+
             <div class="result-actions">
-              <button id="btn-result-finish" class="fr-btn">Retornar ao Mundo</button>
+              <button id="btn-result-finish" class="fr-result-btn">
+                <span id="btn-result-text">Retornar ao Mundo</span>
+                <span class="key-hint">(ESC)</span>
+              </button>
             </div>
           </div>
         </div>
@@ -1275,44 +1303,81 @@ export class BattleHud {
   showMatchResult(outcome, winnerData, rewards = null) {
     this._matchEnded = true;
     const overlay = document.getElementById('match-result-overlay');
+    const modalBox = document.getElementById('result-modal-box');
+    const badgeIcon = document.getElementById('result-badge-icon');
     const title = document.getElementById('result-title');
     const subtitle = document.getElementById('result-subtitle');
-    const btnResultFinish = document.getElementById('btn-result-finish');
+    const monImg = document.getElementById('result-mon-img');
+    const monName = document.getElementById('result-mon-name');
+    const monLvl = document.getElementById('result-mon-lvl');
+    const statusVal = document.getElementById('result-status-val');
+    const teamVal = document.getElementById('result-team-val');
+    const btnText = document.getElementById('btn-result-text');
+
+    const isWin = outcome === 'victory';
+
+    // Update active / MVP Pokemon info
+    const playerMon = this.engine?.playerEntity?.data || this.engine?.playerParty?.[this.engine?.activePlayerIndex || 0];
+    if (playerMon) {
+      const monId = String(playerMon.id || playerMon.speciesId || 1).padStart(3, '0');
+      if (monImg) {
+        monImg.src = `/assets/pokemon/animated/front/normal/${monId}.gif`;
+        monImg.style.display = 'block';
+      }
+      if (monName) monName.textContent = playerMon.name || 'Pokémon';
+      if (monLvl) monLvl.textContent = `Nv. ${playerMon.level || 50}`;
+    }
+
+    // Calculate survivors
+    const party = this.engine?.playerParty || [];
+    const survivors = party.filter(p => p && (typeof p.currentHp === 'number' ? p.currentHp : p.maxHp) > 0 && !p.isFainted).length;
 
     if (this.engine?.isPvp) {
       if (overlay && title && subtitle) {
-        if (outcome === 'victory') {
-          title.textContent = 'VITÓRIA PVP!';
-          title.className = 'result-title victory';
-          subtitle.textContent = `Você venceu o duelo contra ${this.engine.rivalTrainerName || 'o treinador rival'}!`;
-        } else {
-          title.textContent = 'DERROTA PVP...';
-          title.className = 'result-title defeat';
-          subtitle.textContent = 'Todos os seus Pokémon desmaiaram no combate!';
+        if (modalBox) {
+          modalBox.className = `result-modal ${isWin ? 'modal-victory' : 'modal-defeat'}`;
         }
-        if (btnResultFinish) {
-          btnResultFinish.textContent = 'Sair da Batalha (ESC)';
+        if (badgeIcon) {
+          badgeIcon.textContent = isWin ? '🏆' : '💀';
+        }
+        if (title) {
+          title.textContent = isWin ? 'VITÓRIA PVP!' : 'DERROTA PVP';
+          title.className = `result-title ${isWin ? 'victory' : 'defeat'}`;
+        }
+        if (subtitle) {
+          subtitle.textContent = isWin
+            ? `Você venceu o duelo contra ${this.engine.rivalTrainerName || 'o adversário'}!`
+            : `Seus Pokémon não resistiram ao duelo contra ${this.engine.rivalTrainerName || 'o adversário'}.`;
+        }
+        if (statusVal) {
+          statusVal.textContent = isWin ? 'CAMPEÃO' : 'DERROTADO';
+          statusVal.className = `metric-val ${isWin ? 'status-win' : 'status-loss'}`;
+        }
+        if (teamVal) {
+          teamVal.textContent = isWin ? `${survivors}/${party.length || 1} Vivos` : '0 Vivos (FNT)';
+        }
+        if (btnText) {
+          btnText.textContent = 'Sair da Batalha';
         }
         overlay.classList.remove('hidden');
       }
-      if (outcome === 'victory') {
+
+      if (isWin) {
         this.addLog(`🎉 <strong>Vitória PvP!</strong> Você venceu o duelo contra ${this.engine.rivalTrainerName || 'o rival'}!`, 'victory');
       } else {
-        this.addLog('💀 Seus Pokémon desmaiaram no combate contra o treinador.', 'faint');
+        this.addLog('💀 Seus Pokémon desmaiaram no combate contra o adversário.', 'faint');
       }
       return;
     }
 
-    if (outcome === 'victory') {
-      // User request: "Quando eu ganhar a batalha, remove esse modal de vitória e volta o dialog indicando xp do pokemon, xp do treinador e gold"
+    if (isWin) {
+      // Wild victory: keep dialog in overworld
       if (overlay) overlay.classList.add('hidden');
 
       const enemyMon = this.engine?.enemyEntity?.data;
-      const playerMon = this.engine?.playerEntity?.data;
       const pName = playerMon?.name || 'Seu Pokémon';
       const lvl = enemyMon?.level || 5;
 
-      // Realistic formula matching BattleManager
       const baseExp = enemyMon?.baseExp || 64;
       const pokeExp = Math.max(6, Math.floor(((baseExp * lvl) / 7) * 1.5));
       const trainerExp = Math.max(10, Math.floor(lvl * 18));
@@ -1322,11 +1387,24 @@ export class BattleHud {
       this.addLog(victoryMsg, 'victory');
     } else {
       if (overlay && title && subtitle) {
+        if (modalBox) {
+          modalBox.className = 'result-modal modal-defeat';
+        }
+        if (badgeIcon) {
+          badgeIcon.textContent = '💀';
+        }
         title.textContent = 'DERROTA...';
         title.className = 'result-title defeat';
         subtitle.textContent = 'Todos os seus Pokémon desmaiaram!';
-        if (btnResultFinish) {
-          btnResultFinish.textContent = 'Retornar ao Mundo (ESC)';
+        if (statusVal) {
+          statusVal.textContent = 'DERROTADO';
+          statusVal.className = 'metric-val status-loss';
+        }
+        if (teamVal) {
+          teamVal.textContent = '0 Vivos (FNT)';
+        }
+        if (btnText) {
+          btnText.textContent = 'Retornar ao Mundo';
         }
         overlay.classList.remove('hidden');
       }
