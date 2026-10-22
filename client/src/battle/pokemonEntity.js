@@ -3148,6 +3148,20 @@ export class PokemonEntity {
       this.particleSystem.addFloatingText(this.x, this.y - 12, `-${amount}`, attackType, false);
     }
 
+    // Sync damage dealt to opponent over PvP socket relay
+    if (this.engine && this.engine.isPvp && !this.isPlayer && !this._isApplyingPvpRemoteDamage) {
+      this.engine.notifyPvpDamageDealt?.({
+        amount,
+        isCrit,
+        isBlocked,
+        attackType,
+        isSuper,
+        isWeak,
+        newHp: this.currentHp,
+        maxHp: this.maxHp
+      });
+    }
+
     this.onStateChange();
 
     if (this.currentHp <= 0) {

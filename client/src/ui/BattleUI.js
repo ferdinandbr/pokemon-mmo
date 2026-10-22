@@ -307,6 +307,21 @@ export default class BattleUI {
 
     // Start Battle Game Loop in Standby / Menu Mode (Pokemon idle at spawn positions until FIGHT is clicked)
     this.engine.start();
+
+    if (battleData.isPvp) {
+      // In PvP, prepare moves cluster but freeze actions during 5-second pre-battle countdown
+      this.hud?.switchSubMenu('fight');
+      this.engine?.setCombatActive(false);
+      if (this.engine) this.engine.isCountdownActive = true;
+
+      this.hud?.startPreBattleCountdown(5, () => {
+        if (this.engine) {
+          this.engine.isCountdownActive = false;
+          this.engine.setCombatActive(true);
+        }
+        this.hud?.addLog('⚔️ <strong>A BATALHA COMEÇOU!</strong>', 'system');
+      });
+    }
   }
 
   handleUseItem(itemId, targetPokemonId = null) {

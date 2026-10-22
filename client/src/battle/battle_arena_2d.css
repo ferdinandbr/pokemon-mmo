@@ -1059,3 +1059,80 @@
   box-shadow: 0 0 16px rgba(14, 165, 233, 0.5);
   transform: translateY(-1px);
 }
+
+/* ─── 5-Second Pre-Battle Countdown Overlay ─── */
+.battle-countdown-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 280;
+}
+
+.battle-countdown-overlay.hidden {
+  display: none !important;
+}
+
+.battle-countdown-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 36px;
+  background: radial-gradient(circle, rgba(15, 23, 42, 0.94) 0%, rgba(2, 6, 23, 0.98) 100%);
+  border: 2px solid rgba(56, 189, 248, 0.45);
+  border-radius: 20px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85), 0 0 35px rgba(56, 189, 248, 0.3);
+  animation: countdownCardFloat 0.8s ease infinite alternate;
+}
+
+.battle-countdown-sub {
+  font-family: var(--font-hud, 'Cinzel', sans-serif);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: #38bdf8;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  text-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+}
+
+.battle-countdown-num {
+  font-family: var(--font-hud, 'Cinzel', sans-serif);
+  font-size: 64px;
+  font-weight: 900;
+  line-height: 1;
+  color: #ffffff;
+  text-shadow: 0 0 25px rgba(255, 255, 255, 0.8), 0 0 45px rgba(56, 189, 248, 0.8);
+  animation: countdownPulse 1s ease-out infinite;
+}
+
+.battle-countdown-num.fight-ready {
+  color: #fbbf24;
+  font-size: 46px;
+  letter-spacing: 2px;
+  text-shadow: 0 0 30px rgba(251, 191, 36, 0.9), 0 0 60px rgba(245, 158, 11, 0.7);
+  animation: countdownFightPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes countdownPulse {
+  0% { transform: scale(1.25); opacity: 0.7; }
+  50% { transform: scale(1.0); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.9; }
+}
+
+@keyframes countdownFightPop {
+  0% { transform: scale(0.5); opacity: 0; }
+  60% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1.0); opacity: 1; }
+}
+
+@keyframes countdownCardFloat {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-4px); }
+}

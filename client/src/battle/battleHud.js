@@ -469,6 +469,14 @@ export class BattleHud {
           </div>
         </div>
 
+        <!-- 5-SECOND PRE-BATTLE COUNTDOWN OVERLAY -->
+        <div class="battle-countdown-overlay hidden" id="battle-countdown-overlay">
+          <div class="battle-countdown-card">
+            <div class="battle-countdown-sub">BATALHA COMEÇA EM</div>
+            <div class="battle-countdown-num" id="battle-countdown-num">5</div>
+          </div>
+        </div>
+
         <!-- MATCH OUTCOME BANNER -->
         <div class="match-result-overlay hidden" id="match-result-overlay">
           <div class="result-modal">
@@ -1737,5 +1745,73 @@ export class BattleHud {
 
     // 5. Update right-center 5 quick slots
     this.updateQuickItemsView();
+  }
+
+  startPreBattleCountdown(seconds = 5, onComplete = () => {}) {
+    this.isCountdownActive = true;
+    if (this.engine) this.engine.isCountdownActive = true;
+
+    const overlay = document.getElementById('battle-countdown-overlay');
+    const numEl = document.getElementById('battle-countdown-num');
+    const subEl = overlay?.querySelector('.battle-countdown-sub');
+
+    if (!overlay || !numEl) {
+      this.isCountdownActive = false;
+      if (this.engine) this.engine.isCountdownActive = false;
+      onComplete();
+      return;
+    }
+
+    if (subEl) subEl.textContent = 'BATALHA COMEÇA EM';
+    numEl.className = 'battle-countdown-num';
+    numEl.textContent = seconds;
+    overlay.classList.remove('hidden');
+
+    let currentSec = seconds;
+
+    if (this._countdownTimer) {
+      clearInterval(this._countdownTimer);
+    }
+
+    this._countdownTimer = setInterval(() => {
+      currentSec--;
+      if (currentSec > 0) {
+        numEl.textContent = currentSec;
+        soundManager.playShoot?.();
+      } else {
+        clearInterval(this._countdownTimer);
+        this._countdownTimer = null;
+
+        if (subEl) subEl.textContent = 'VAI!';
+        numEl.textContent = '⚔️ LUTE!';
+        numEl.classList.add('fight-ready');
+        soundManager.playPhysicalStrike?.();
+
+        setTimeout(() => {
+          overlay.classList.add('hidden');
+          this.isCountdownActive = false;
+          if (this.engine) this.engine.isCountdownActive = false;
+          onComplete();
+        }, 650);
+      }
+    }, 1000);
+  }
+
+  destroy() {
+    if (this._countdownTimer) {
+      clearInterval(this._countdownTimer);
+      this._countdownTimer = null;
+    }
+    if (this.hudRafId) {
+      cancelAnimationFrame(this.hudRafId);
+      this.hudRafId = null;
+    }
+    if (this._keyHandler) {
+      window.removeEventListener('keydown', this._keyHandler);
+      this._keyHandler = null;
+    }
+    if (typeof window !== 'undefined' && window._activeBattleHud === this) {
+      window._activeBattleHud = null;
+    }
   }
 }

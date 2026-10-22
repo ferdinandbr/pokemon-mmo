@@ -103,6 +103,9 @@ export class BattleEngine {
     this.activePokeball = null;
     this.activeRecallBeam = null;
 
+    // Pre-battle countdown lock
+    this.isCountdownActive = false;
+
     // Direct Manual Control is the Default (WASD + 8 Directions)
     this.autoTurnEnabled = false;
     this.gameSpeed = 1.0;
@@ -451,7 +454,59 @@ export class BattleEngine {
           this.switchEnemyPokemon(action.partyIndex);
         }
         break;
+
+      case 'damage_taken':
+        if (this.playerEntity && !this.playerEntity.isFainted) {
+          this.playerEntity._isApplyingPvpRemoteDamage = true;
+          this.playerEntity.takeDamage(
+            action.amount,
+            action.isCrit,
+            action.isBlocked,
+            action.attackType || 'normal',
+            action.isSuper,
+            action.isWeak
+          );
+          if (typeof action.newHp === 'number') {
+            this.playerEntity.currentHp = Math.max(0, action.newHp);
+            if (this.playerEntity.currentHp === 0 && !this.playerEntity.isFainted) {
+              this.playerEntity.faint();
+            }
+          }
+          this.playerEntity._isApplyingPvpRemoteDamage = false;
+          this.checkMatchState();
+        }
+        break;
+
+      case 'pvp_match_defeat':
+        if (!this.battleEnded) {
+          this.battleEnded = true;
+          if (this.enemyEntity) {
+            this.enemyEntity.faint();
+          }
+          if (this.playerEntity && !this.playerEntity.isFainted) {
+            this.playerEntity.celebrate();
+          }
+          soundManager.playVictory(this.isTrainer);
+          this.onLogMessage(`🎉 Vitória! <strong>${this.playerEntity?.data?.name || 'Seu Pokémon'}</strong> venceu o duelo PvP!`, 'system');
+          this.onMatchEnd('victory', this.playerEntity?.data);
+        }
+        break;
     }
+  }
+
+  notifyPvpDamageDealt(data) {
+    if (!this.isPvp || !this.onPvpAction) return;
+    this.onPvpAction({
+      type: 'damage_taken',
+      amount: data.amount,
+      isCrit: Boolean(data.isCrit),
+      isBlocked: Boolean(data.isBlocked),
+      attackType: data.attackType || 'normal',
+      isSuper: Boolean(data.isSuper),
+      isWeak: Boolean(data.isWeak),
+      newHp: data.newHp,
+      maxHp: data.maxHp,
+    });
   }
 
   // Switch Enemy Pokémon for Trainer battles
@@ -526,6 +581,9 @@ export class BattleEngine {
         this.enemyEntity.celebrate();
       }
       this.onLogMessage(`💀 Todos os seus Pokémon desmaiaram! <strong>${this.enemyEntity?.data?.name || 'Oponente'}</strong> venceu!`, 'system');
+      if (this.isPvp && this.onPvpAction) {
+        this.onPvpAction({ type: 'pvp_match_defeat' });
+      }
       this.onMatchEnd('defeat', this.enemyEntity?.data);
     } else if (this.enemyEntity && this.enemyEntity.isFainted) {
       if (this.enemyParty && this.enemyParty[this.activeEnemyIndex]) {
@@ -593,7 +651,7 @@ export class BattleEngine {
 
   // Player Manual Actions (execute immediately when clicked!)
   executePlayerPhysical() {
-    if (this.playerEntity && !this.battleEnded) {
+    if (this.playerEntity && !this.battleEnded && !this.isCountdownActive) {
       const res = this.playerEntity.executePhysicalAttack();
       if (res && this.isPvp && this.onPvpAction) {
         this.onPvpAction({ type: 'physical' });
@@ -604,10 +662,10 @@ export class BattleEngine {
   }
 
   executePlayerDodge(dirX = 0, dirY = 0) {
-    if (this.playerEntity && !this.battleEnded) {
+    if (this.playerEntity && !this.battleEnded && !this.isCountdownActive) {
       const res = this.playerEntity.performEvasiveDodge(dirX, dirY);
       if (res && this.isPvp && this.onPvpAction) {
-        this.onPvpAction({ type: 'dodge', dirX, dirY });
+        this.onPvpAction({ type: 'dodge', dirX: -dirX, dirY });
       }
       return res;
     }
@@ -615,7 +673,7 @@ export class BattleEngine {
   }
 
   executePlayerBasicAttack() {
-    if (this.playerEntity && !this.battleEnded) {
+    if (this.playerEntity && !this.battleEnded && !this.isCountdownActive) {
       const res = this.playerEntity.executePhysicalAttack();
       if (res && this.isPvp && this.onPvpAction) {
         this.onPvpAction({ type: 'physical' });
@@ -665,7 +723,7 @@ export class BattleEngine {
   }
 
   executePlayerDefensive() {
-    if (this.playerEntity && !this.battleEnded) {
+    if (this.playerEntity && !this.battleEnded && !this.isCountdownActive) {
       const def = this.playerEntity.executeDefenseAction();
       if (def && this.isPvp && this.onPvpAction) {
         this.onPvpAction({ type: 'defensive' });
@@ -677,7 +735,7 @@ export class BattleEngine {
   }
 
   executePlayerSkill(index) {
-    if (this.playerEntity && !this.battleEnded) {
+    if (this.playerEntity && !this.battleEnded && !this.isCountdownActive) {
       const res = this.playerEntity.executeSkill(index);
       if (res && this.isPvp && this.onPvpAction) {
         this.onPvpAction({ type: 'skill', skillIndex: index });
@@ -914,9 +972,9 @@ export class BattleEngine {
       }
     }
 
-    // If in STANDBY / MENU mode (waiting for player to select FIGHT or an action):
+    // If in STANDBY / MENU mode (waiting for player to select FIGHT or an action) or Countdown active:
     // Pokémon idle at their positions, no enemy AI movement or attacks occur!
-    if (this.combatState !== 'active' || this.isIntroStandby) {
+    if (this.isCountdownActive || this.combatState !== 'active' || this.isIntroStandby) {
       if (this.playerEntity && !this.playerEntity.isFainted) {
         this.playerEntity.vx = 0;
         this.playerEntity.vy = 0;
@@ -952,9 +1010,9 @@ export class BattleEngine {
           if (moveInput.isMoving || hasVel) {
             this.onPvpAction({
               type: 'move',
-              dirX: moveInput.dirX,
+              dirX: -moveInput.dirX, // Mirror X direction for opponent perspective
               dirY: moveInput.dirY,
-              x: Math.round(this.playerEntity.x),
+              x: Math.round(1024 - this.playerEntity.x), // Mirror X across arena center (512)
               y: Math.round(this.playerEntity.y)
             });
             this._lastPvpSentMoving = true;
@@ -964,7 +1022,7 @@ export class BattleEngine {
               type: 'move_stop',
               dirX: 0,
               dirY: 0,
-              x: Math.round(this.playerEntity.x),
+              x: Math.round(1024 - this.playerEntity.x),
               y: Math.round(this.playerEntity.y)
             });
           }
