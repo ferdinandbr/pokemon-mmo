@@ -73,7 +73,7 @@ export default class StarterSelectionUI {
 
                   <!-- Pokébola com anel de luz -->
                   <div class="starter-ball-ring" id="ball-ring-${idx}"></div>
-                  <img src="/assets/battle/ui/ball_00.png" alt="Pokéball" class="starter-pokeball-img" />
+                  <img src="/assets/battle/ui/ball_round.png" alt="Pokéball" class="starter-pokeball-img" />
                 </div>
               `).join('')}
             </div>

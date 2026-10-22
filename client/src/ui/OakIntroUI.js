@@ -202,8 +202,8 @@ export default class OakIntroUI {
       this._playSound('/assets/audio/se/battle_throw.ogg', 0.7);
 
       if (this.thrownBall && this.ballImg) {
-        this.ballImg.src = '/assets/battle/ui/ball_00.png';
-        this.thrownBall.classList.remove('hidden');
+        this.ballImg.src = '/assets/intro/ball_round.png';
+        this.thrownBall.classList.remove('hidden', 'ball-opened');
         this.thrownBall.classList.add('throwing');
       }
 
@@ -215,7 +215,10 @@ export default class OakIntroUI {
       // Ponto de aterrissagem da Pokébola: abertura e clarão
       const t1 = setTimeout(() => {
         if (this.ballImg) {
-          this.ballImg.src = '/assets/battle/ui/ball_00_open.png';
+          this.ballImg.src = '/assets/intro/ball_round_open.png';
+        }
+        if (this.thrownBall) {
+          this.thrownBall.classList.add('ball-opened');
         }
         this._playSound('/assets/audio/se/battle_ball_drop.ogg', 0.8);
 
@@ -232,7 +235,7 @@ export default class OakIntroUI {
       const t2 = setTimeout(() => {
         if (this.thrownBall) {
           this.thrownBall.classList.add('hidden');
-          this.thrownBall.classList.remove('throwing');
+          this.thrownBall.classList.remove('throwing', 'ball-opened');
         }
         if (this.pkmnBurst) {
           this.pkmnBurst.classList.add('hidden');
