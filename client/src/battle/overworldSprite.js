@@ -273,7 +273,8 @@ export class PmdSprite {
     ctx.imageSmoothingEnabled = false;
 
     if (guardShield) {
-      ctx.filter = 'drop-shadow(0 0 8px #00e5ff)';
+      ctx.shadowColor = '#00e5ff';
+      ctx.shadowBlur = 8;
     }
 
     ctx.drawImage(img, sx, sy, fw, fh, dx, dy, dw, dh);
@@ -334,8 +335,10 @@ export class PmdSprite {
 
     ctx.save();
     ctx.imageSmoothingEnabled = false;
-    ctx.globalAlpha = Math.max(0, Math.min(0.65, alpha * 0.75));
-    ctx.filter = `drop-shadow(0 0 4px ${color})`;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = Math.max(0, Math.min(0.55, alpha * 0.7));
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 4;
     ctx.drawImage(img, sx, sy, fw, fh, dx, dy, dw, dh);
     ctx.restore();
   }

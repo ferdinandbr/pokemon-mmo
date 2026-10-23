@@ -260,7 +260,7 @@ export default class BattleUI {
         SocketClient.emit('pvp:action_relay', action);
       },
       onStateChange: () => this.hud?.update(),
-      onLogMessage: (msg, type) => this.hud?.addLog(msg, type),
+      onLogMessage: (msg, type, ent) => this.hud?.addLog(msg, type, ent),
       onMatchEnd: (outcome, winnerData) => this.handleMatchEnd(outcome, winnerData),
       onPartySwitchRequired: (party, activeIdx) => {
         this.engine?.recallPlayerPokemon(() => {
@@ -309,8 +309,8 @@ export default class BattleUI {
     this.engine.start();
 
     if (battleData.isPvp) {
-      // In PvP, keep main actions menu open for 5 seconds so player can choose starter Pokemon
-      this.hud?.switchSubMenu('main');
+      // In PvP, open team selection modal for 5 seconds so player can choose starter Pokemon
+      this.hud?.switchSubMenu('team');
       this.engine?.setCombatActive(false);
       if (this.engine) this.engine.isCountdownActive = true;
 
@@ -318,8 +318,8 @@ export default class BattleUI {
         if (this.engine) {
           this.engine.isCountdownActive = false;
 
-          // If player hasn't deployed a Pokémon yet, deploy default 1st conscious party member
-          if (!this.engine.playerEntity) {
+          // If player hasn't deployed a Pokémon yet and none is in flight, deploy default 1st conscious party member
+          if (!this.engine.playerEntity && !this.engine.activePokeball && !this.engine._hasPlayerChosenStarter) {
             const firstConscious = this.engine.playerParty.findIndex(
               p => p && (typeof p.currentHp === 'number' ? p.currentHp : p.maxHp) > 0 && !p.isFainted
             );
@@ -330,13 +330,19 @@ export default class BattleUI {
             }
           }
 
-          // If enemy entity hasn't spawned yet, deploy enemy party initial
-          if (!this.engine.enemyEntity && this.engine.enemyParty && this.engine.enemyParty.length > 0) {
+          // If enemy entity hasn't spawned yet and rival hasn't thrown pokeball or chosen yet, deploy default
+          if (!this.engine.enemyEntity && !this.engine.activeEnemyPokeball && !this.engine._hasEnemyChosenStarter && this.engine.enemyParty && this.engine.enemyParty.length > 0) {
             this.engine.switchEnemyPokemon(0);
           }
 
           this.engine.setCombatActive(true);
         }
+
+        // Force team modal and backdrop to close
+        const teamModal = document.getElementById('battle-team-action-panel');
+        const backdrop = document.getElementById('battle-modal-backdrop');
+        teamModal?.classList.add('hidden');
+        backdrop?.classList.add('hidden');
 
         this.hud?.switchSubMenu('fight');
         this.hud?.addLog('⚔️ <strong>A BATALHA COMEÇOU!</strong>', 'system');

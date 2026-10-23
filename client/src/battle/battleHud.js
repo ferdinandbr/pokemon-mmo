@@ -106,16 +106,30 @@ export class BattleHud {
     this.startHudLoop();
   }
 
+  getEl(id) {
+    if (!this._cachedElements) this._cachedElements = new Map();
+    let el = this._cachedElements.get(id);
+    if (!el || !el.isConnected) {
+      el = document.getElementById(id);
+      if (el) this._cachedElements.set(id, el);
+    }
+    return el;
+  }
+
   startHudLoop() {
-    const loop = () => {
-      this.update();
+    let lastHudTime = 0;
+    const loop = (timestamp) => {
+      if (!lastHudTime || (timestamp - lastHudTime) >= 48) { // Smooth ~20 FPS for DOM updates, leaving 60 FPS purely to Canvas
+        lastHudTime = timestamp;
+        this.update();
+      }
       this.hudRafId = requestAnimationFrame(loop);
     };
     this.hudRafId = requestAnimationFrame(loop);
   }
 
   onPlayerPokemonDeployed(mon) {
-    const pDatabox = document.getElementById('battle-player-databox');
+    const pDatabox = this.getEl('battle-player-databox');
     if (pDatabox) {
       pDatabox.classList.remove('hidden');
       pDatabox.classList.add('databox-slide-in');
@@ -123,9 +137,9 @@ export class BattleHud {
     const hints = document.querySelector('.swsh-action-hints');
     if (hints) hints.style.display = 'flex';
 
-    if (this.currentSubMenu === 'fight' || this.isWaitingForDeployToFight) {
+    if (this.currentSubMenu === 'fight' || this.isWaitingForDeployToFight || this.currentSubMenu === 'team') {
       this.isWaitingForDeployToFight = false;
-      this.switchSubMenu('fight');
+      this.switchSubMenu(this.engine?.isCountdownActive ? 'main' : 'fight');
     } else {
       this.switchSubMenu(this.currentSubMenu || 'main');
     }
@@ -193,6 +207,9 @@ export class BattleHud {
             <!-- Row 4: Pokéballs (Remaining Pokémon) -->
             <div class="bcard-party-balls enemy-balls" id="enemy-party-dots"></div>
           </div>
+
+          <!-- SUB-HUD ACTION TICKER (Attack, Dodge, Guard Callouts Below Opponent Card) -->
+          <div class="bcard-action-ticker enemy-ticker" id="enemy-action-ticker"></div>
         </div>
 
         <!-- TOP LEFT: Player Databox matching Reference Image -->
@@ -228,6 +245,9 @@ export class BattleHud {
             <!-- Row 4: Pokéballs (Remaining Pokémon) -->
             <div class="bcard-party-balls player-balls" id="player-party-dots"></div>
           </div>
+
+          <!-- SUB-HUD ACTION TICKER (Attack, Dodge, Guard Callouts Below Player Card) -->
+          <div class="bcard-action-ticker player-ticker" id="player-action-ticker"></div>
         </div>
 
         <!-- RIGHT-CENTER: 5 VERTICAL QUICK ACCESS ITEM SLOTS (OVERWORLD HOTBAR STYLE) -->
@@ -986,7 +1006,19 @@ export class BattleHud {
           });
           cell.addEventListener('click', () => {
             soundManager.playDecision?.();
-            this.switchSubMenu('fight');
+            if (this.engine) {
+              this.engine.isAwaitingSwitch = false;
+              this.engine._hasPlayerChosenStarter = true;
+            }
+            // Close team modal and backdrop immediately
+            const teamModal = this.getEl('battle-team-action-panel');
+            const backdrop = this.getEl('battle-modal-backdrop');
+            teamModal?.classList.add('hidden');
+            backdrop?.classList.add('hidden');
+
+            const nextMenu = this.engine?.isCountdownActive ? 'main' : 'fight';
+            this.switchSubMenu(nextMenu);
+
             if (this.onSwitchPokemon) {
               this.onSwitchPokemon(idx);
             } else {
@@ -1309,9 +1341,9 @@ export class BattleHud {
     const player = this.engine.playerEntity;
     if (player.isFainted || player.isDizzy) return;
 
-    const used = player.executeMove(slotIdx);
+    const used = this.engine.executePlayerSkill(slotIdx);
     if (used) {
-      const btn = document.getElementById(`bbtn-skill-${slotIdx}`) || document.querySelector(`.swsh-move-btn[data-slot="${slotIdx}"]`);
+      const btn = this.getEl(`bbtn-skill-${slotIdx}`) || document.querySelector(`.swsh-move-btn[data-slot="${slotIdx}"]`);
       if (btn) {
         btn.classList.add('card-pressed');
         setTimeout(() => btn.classList.remove('card-pressed'), 120);
@@ -1319,10 +1351,114 @@ export class BattleHud {
     }
   }
 
-  addLog(htmlMessage, type = 'normal') {
+  showEntityAction(isPlayer, text, type = 'normal') {
+    const ticker = document.getElementById(isPlayer ? 'player-action-ticker' : 'enemy-action-ticker');
+    if (!ticker) return;
+
+    const timerKey = isPlayer ? '_playerActionTimer' : '_enemyActionTimer';
+    if (this[timerKey]) {
+      clearTimeout(this[timerKey]);
+      this[timerKey] = null;
+    }
+
+    let icon = '⚔️';
+    const cleanType = String(type || '').toLowerCase();
+    if (cleanType === 'dodge') icon = '💨';
+    else if (cleanType === 'defensive') icon = '🛡️';
+    else if (cleanType === 'fire') icon = '🔥';
+    else if (cleanType === 'water') icon = '💧';
+    else if (cleanType === 'grass') icon = '🌿';
+    else if (cleanType === 'electric') icon = '⚡';
+    else if (cleanType === 'faint') icon = '💀';
+    else if (cleanType === 'heal') icon = '💚';
+    else if (['status', 'ghost', 'dark', 'dragon', 'psychic'].includes(cleanType)) icon = '✨';
+
+    const pill = document.createElement('div');
+    pill.className = `bcard-action-pill pill-${cleanType}`;
+    pill.innerHTML = `
+      <span class="bcard-action-icon">${icon}</span>
+      <span class="bcard-action-text">${text}</span>
+    `;
+
+    ticker.innerHTML = '';
+    ticker.appendChild(pill);
+
+    this[timerKey] = setTimeout(() => {
+      pill.classList.add('fade-out');
+      setTimeout(() => {
+        if (pill.parentElement === ticker) {
+          ticker.removeChild(pill);
+        }
+      }, 300);
+    }, 2300);
+  }
+
+  addLog(htmlMessage, type = 'normal', entity = null) {
     const textEl = document.getElementById('battle-dialogue-text');
     if (textEl) {
       textEl.innerHTML = htmlMessage;
+    }
+
+    const plainText = htmlMessage.replace(/<[^>]+>/g, '').trim();
+    const pName = this.engine?.playerEntity?.data?.name || (this.engine?.playerParty && this.engine.playerParty[this.engine.activePlayerIndex]?.name);
+    const eName = this.engine?.enemyEntity?.data?.name || (this.engine?.enemyParty && this.engine.enemyParty[this.engine.activeEnemyIndex]?.name);
+
+    let targetEntityIsPlayer = null;
+    if (entity && typeof entity.isPlayer === 'boolean') {
+      targetEntityIsPlayer = entity.isPlayer;
+    } else if (pName && plainText.includes(pName) && (!eName || !plainText.includes(eName))) {
+      targetEntityIsPlayer = true;
+    } else if (eName && plainText.includes(eName) && (!pName || !plainText.includes(pName))) {
+      targetEntityIsPlayer = false;
+    } else if (pName && eName && plainText.includes(pName) && plainText.includes(eName)) {
+      const pIdx = plainText.indexOf(pName);
+      const eIdx = plainText.indexOf(eName);
+      targetEntityIsPlayer = pIdx < eIdx;
+    }
+
+    if (targetEntityIsPlayer !== null) {
+      let bannerText = plainText;
+      const actorName = targetEntityIsPlayer ? pName : eName;
+      const lower = plainText.toLowerCase();
+
+      if (type === 'dodge' || lower.includes('esquiv') || lower.includes('finta')) {
+        bannerText = `${actorName} esquivou!`;
+        type = 'dodge';
+      } else if (lower.includes('usou') || lower.includes('disparou') || lower.includes('avançou com') || lower.includes('desferiu') || lower.includes('atacou')) {
+        const match = htmlMessage.match(/<strong>([^<]+)<\/strong>/gi);
+        let moveName = '';
+        if (match && match.length > 0) {
+          for (const m of match) {
+            const stripped = m.replace(/<\/?strong>/gi, '').trim();
+            if (stripped.toLowerCase() !== actorName?.toLowerCase()) {
+              moveName = stripped;
+              break;
+            }
+          }
+        }
+        if (moveName) {
+          bannerText = `${actorName} usou ${moveName}!`;
+        } else {
+          bannerText = `${actorName} atacou!`;
+        }
+      } else if (lower.includes('defend') || lower.includes('escudo') || lower.includes('proteção')) {
+        bannerText = `${actorName} defendeu!`;
+        type = 'defensive';
+      } else if (lower.includes('rompida') || lower.includes('quebra de guarda')) {
+        bannerText = `${actorName}: Guarda Rompida!`;
+        type = 'status';
+      } else if (lower.includes('tonto') || lower.includes('atordoado')) {
+        bannerText = `${actorName} ficou atordoado!`;
+        type = 'status';
+      } else if (lower.includes('adormeceu')) {
+        bannerText = `${actorName} adormeceu!`;
+        type = 'status';
+      } else if (lower.includes('recuperou hp')) {
+        bannerText = `${actorName} recuperou HP!`;
+        type = 'heal';
+      }
+
+      this.showEntityAction(targetEntityIsPlayer, bannerText, type);
     }
 
     // Mirror to top combat action ticker banner (Ensure only 1 icon is displayed)
@@ -1331,7 +1467,7 @@ export class BattleHud {
     const tickerIcon = document.getElementById('combat-ticker-icon');
     if (tickerText && tickerBanner) {
       // Strip any duplicate leading emoji from htmlMessage so only tickerIcon is shown
-      const cleanedMessage = htmlMessage.replace(/^[\p{Extended_Pictographic}\uFE0F\u200D\s]+/u, '').trim();
+      const cleanedMessage = plainText.replace(/^[\p{Extended_Pictographic}\uFE0F\u200D\s]+/u, '').trim();
       tickerText.innerHTML = cleanedMessage;
       
       // Determine single type icon

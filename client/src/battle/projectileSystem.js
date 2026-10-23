@@ -55,7 +55,19 @@ export function getProjectileVisuals(p) {
   if (skillId === 'water_gun' || type === 'Water') {
     return { frames: WATER_DROPLET_FRAMES, palette: PIXEL_COLOR_PALETTES.water, decal: 'wet', decalRadius: 24 };
   }
-  if (skillId === 'thunder_shock' || type === 'Electric') {
+  if (internalName === 'ELECTROWEB' || p.isElectroweb || p.skillData?.visual?.isElectroweb) {
+    return { isElectricBoltProj: true, isElectroweb: true, decal: 'zap_burn', decalRadius: 26 };
+  }
+  if (internalName === 'ZAPCANNON' || p.isZapCannon || p.skillData?.visual?.isZapCannon) {
+    return { frames: FOCUS_BLAST_FRAMES, palette: PIXEL_COLOR_PALETTES.electric, isZapCannon: true, decal: 'zap_burn', decalRadius: 30 };
+  }
+  if (internalName === 'ELECTROBALL' || p.isElectroBall || p.skillData?.visual?.isElectroBall) {
+    return { frames: ELECTRIC_SPARK_FRAMES, palette: PIXEL_COLOR_PALETTES.electric, isElectroBall: true, decal: 'zap_burn', decalRadius: 24 };
+  }
+  if (internalName === 'THUNDERSHOCK' || p.isThunderShock || p.skillData?.visual?.isThunderShock || skillId === 'thunder_shock') {
+    return { isElectricBoltProj: true, isThunderShock: true, decal: 'zap_burn', decalRadius: 24 };
+  }
+  if (type === 'Electric') {
     return { frames: ELECTRIC_SPARK_FRAMES, palette: PIXEL_COLOR_PALETTES.electric, decal: 'zap_burn', decalRadius: 22 };
   }
   if (skillId === 'shadow_ball' || type === 'Ghost') {
@@ -248,6 +260,7 @@ export class ProjectileSystem {
           if (dist <= p.radius + p.targetEntity.radius && !p.dodgedNotice) {
             p.dodgedNotice = true;
             this.particleSystem.addFloatingText(p.targetEntity.x, p.targetEntity.y - 14, 'ESQUIVOU!', 'dodge', false);
+            p.targetEntity.onLog?.(`💨 <strong>${p.targetEntity.data.name}</strong> esquivou!`, 'dodge', p.targetEntity);
           }
           // Do not register hit, continue flying!
         } else {
@@ -281,6 +294,12 @@ export class ProjectileSystem {
                 }
                 this.particleSystem.spawnPixelBurst(p.x, p.y, p.color, 24, 200, 0.45, 4);
                 this.particleSystem.spawnShockwave(p.x, p.y, 50, p.color, 0.35);
+              }
+
+              if (p.targetEntity && (p.skillData?.visual?.applyElectrocuted || p.skillData?.type === 'Electric')) {
+                if (typeof this.particleSystem?.spawnElectrocutedOverlay === 'function') {
+                  this.particleSystem.spawnElectrocutedOverlay(p.targetEntity, 0.60);
+                }
               }
 
               this.projectiles.splice(i, 1);
@@ -526,6 +545,51 @@ export class ProjectileSystem {
           ctx.save();
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(Math.round(p.x - 2), Math.round(p.y - 2), 4, 4);
+          ctx.restore();
+        }
+        continue;
+      }
+
+      // Dedicated Electric Bolt / Wave Projectile in Flight (Yellow / Gold)
+      if (vis.isElectricBoltProj || p.isElectricBoltProj) {
+        const boltImg = getMoveAnimImg('vfx/custom/electric_projectile_yellow.png');
+        const angle = Math.atan2(p.vy, p.vx);
+
+        // Electric micro spark trail
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (let t = 1; t <= 3; t++) {
+          const rx = p.x - Math.cos(angle) * (t * 8);
+          const ry = p.y - Math.sin(angle) * (t * 8);
+          ctx.fillStyle = t % 2 === 0 ? '#FEF08A' : '#FACC15';
+          ctx.globalAlpha = (1 - t / 4) * 0.75;
+          ctx.fillRect(Math.round(rx - 1), Math.round(ry - 1), 2, 2);
+        }
+        ctx.restore();
+
+        if (boltImg && boltImg.complete && boltImg.naturalWidth > 0) {
+          const cols = 5;
+          const fw = boltImg.naturalWidth / cols;
+          const fh = boltImg.naturalHeight;
+          const frame = Math.floor(p.life * 24) % cols;
+          const sx = frame * fw;
+          const scale = 1.0;
+          const dw = fw * scale;
+          const dh = fh * scale;
+
+          ctx.save();
+          ctx.imageSmoothingEnabled = false;
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.translate(Math.round(p.x), Math.round(p.y));
+          ctx.rotate(angle);
+          ctx.drawImage(boltImg, sx, 0, fw, fh, -dw / 2, -dh / 2, dw, dh);
+          ctx.restore();
+        } else {
+          ctx.save();
+          ctx.fillStyle = '#facc15';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+          ctx.fill();
           ctx.restore();
         }
         continue;

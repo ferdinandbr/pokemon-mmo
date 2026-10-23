@@ -145,7 +145,9 @@ export class PokemonEntity {
     this.particleSystem = particleSystem;
     this.projectileSystem = projectileSystem;
     this.engine = engine;
-    this.onLog = onLog || (() => {});
+    this.onLog = (msg, type, ent = this) => {
+      if (onLog) onLog(msg, type, ent);
+    };
     this.onStateChange = onStateChange || (() => {});
 
     // Overworld Sprite Animator (PMD 8-Directions + Full Actions)
@@ -430,8 +432,9 @@ export class PokemonEntity {
     };
   }
 
-  executeDefenseAction() {
-    if (this.isFainted || this.state === 'celebrating' || this.isDizzy || this.defenseCooldown > 0) return false;
+  executeDefenseAction(forceRemote = false) {
+    if (this.isFainted || this.state === 'celebrating' || this.isDizzy) return false;
+    if (!forceRemote && this.defenseCooldown > 0) return false;
 
     if (this.isChannelingBeam) {
       this.cancelBeamChanneling('defend');
@@ -1303,9 +1306,22 @@ export class PokemonEntity {
     return 'Determined';
   }
 
-  executePhysicalAttack() {
-    if (!this.target || this.isFainted || this.isDizzy || this.beamLockTimer > 0 || this.hitStunTimer > 0 || this.state === 'hurt' || this.state === 'dashing_strike' || this.state === 'casting_skill') return false;
-    if (this.physicalCooldown > 0) return false;
+  executePhysicalAttack(forceRemote = false) {
+    if (!this.target && this.engine) {
+      this.target = this.isPlayer ? this.engine.enemyEntity : this.engine.playerEntity;
+    }
+    if (!this.target || this.isFainted || this.isDizzy) return false;
+
+    if (!forceRemote) {
+      if (this.beamLockTimer > 0 || this.hitStunTimer > 0 || this.state === 'hurt' || this.state === 'dashing_strike' || this.state === 'casting_skill') return false;
+      if (this.physicalCooldown > 0) return false;
+    } else {
+      this.beamLockTimer = 0;
+      this.hitStunTimer = 0;
+      if (this.state === 'hurt' || this.state === 'casting_skill') {
+        this.state = 'moving';
+      }
+    }
 
     this.physicalCooldown = this.physicalAttack.cooldown || 0.8;
     this.setTemporaryEmotion('Angry', 1100);
@@ -1383,6 +1399,20 @@ export class PokemonEntity {
     }
 
     // Speed particles trail
+        const isBoltStrike = sk && (sk.internalName === 'BOLTSTRIKE' || (sk.name && sk.name.toLowerCase().includes('bolt strike')) || sk.id === 64 || sk.visual?.isBoltStrike);
+    const isVoltTackle = sk && (sk.internalName === 'VOLTTACKLE' || (sk.name && sk.name.toLowerCase().includes('volt tackle')) || sk.id === 66 || sk.visual?.isVoltTackle);
+    const isFusionBolt = sk && (sk.internalName === 'FUSIONBOLT' || (sk.name && sk.name.toLowerCase().includes('fusion bolt')) || sk.id === 68 || sk.visual?.isFusionBolt);
+    const isVoltSwitch = sk && (sk.internalName === 'VOLTSWITCH' || (sk.name && sk.name.toLowerCase().includes('volt switch')) || sk.id === 73 || sk.visual?.isVoltSwitch);
+    const isThunderFang = sk && (sk.internalName === 'THUNDERFANG' || (sk.name && sk.name.toLowerCase().includes('thunder fang')) || sk.id === 75 || sk.visual?.isThunderFang);
+    const isWildCharge = sk && (sk.internalName === 'WILDCHARGE' || (sk.name && sk.name.toLowerCase().includes('wild charge')) || sk.id === 70 || sk.visual?.isWildCharge);
+    const hasElectricCharge = sk && (sk.visual?.hasElectricCharge || isBoltStrike || isVoltTackle || isFusionBolt || isWildCharge);
+
+    if (hasElectricCharge) {
+      const isBlue = sk.visual?.chargeColor === '#38BDF8' || isBoltStrike || isFusionBolt;
+      const chargeColor = isBlue ? '#38BDF8' : '#FACC15';
+      this.particleSystem.spawnPixelBurst(this.x, this.y, chargeColor, 2, 50, 0.18, 2);
+      this.particleSystem.spawnPixelBurst(this.x, this.y, '#FFFFFF', 1, 30, 0.15, 1.5);
+    }
     const isMegahornDash = sk && (sk.internalName === 'MEGAHORN' || (sk.name && sk.name.toLowerCase().includes('megahorn')));
     if (isMegahornDash) {
       this.particleSystem.spawnDust(this.x, this.y + 10, 1);
@@ -1425,6 +1455,47 @@ export class PokemonEntity {
             // Dragon Ascent: Dash acertou! Sobe ao céu inalvejável e dispara o mergulho de sopro verde com burning!
             this.executeDragonAscentSky(this.target, sk);
             return;
+          } else if (isFusionBolt) {
+            // Fusion Bolt: Dash acertou! Sobe ao céu inalvejável com raios azuis e desaba em relâmpago!
+            this.executeFusionBoltSky(this.target, sk);
+            return;
+          } else if (isBoltStrike) {
+            this.resolveSkillHit(this.target, sk);
+            this.particleSystem.spawnElectricBolt(this.target.x, this.target.y, 0.55, true, sk.visual, null, this.target, sk);
+            this.particleSystem.spawnElectrocutedOverlay(this.target, 0.60);
+            if (this.arena && this.arena.triggerScreenShake) this.arena.triggerScreenShake(16);
+            if (this.arena && this.arena.addDecal) this.arena.addDecal(this.target.x, this.target.y, 'zap_burn', 36, 9.0);
+            soundManager.playPhysicalStrike();
+          } else if (isVoltTackle) {
+            this.resolveSkillHit(this.target, sk);
+            this.particleSystem.spawnElectricBolt(this.target.x, this.target.y, 0.55, false, sk.visual, null, this.target, sk);
+            this.particleSystem.spawnElectrocutedOverlay(this.target, 0.60);
+            if (this.arena && this.arena.triggerScreenShake) this.arena.triggerScreenShake(16);
+            if (this.arena && this.arena.addDecal) this.arena.addDecal(this.target.x, this.target.y, 'zap_burn', 36, 9.0);
+            soundManager.playPhysicalStrike();
+          } else if (isVoltSwitch) {
+            this.resolveSkillHit(this.target, sk);
+            this.particleSystem.spawnPunch(this.target.x, this.target.y, '#FACC15', 0.35);
+            this.particleSystem.spawnPixelBurst(this.target.x, this.target.y, '#FACC15', 20, 160, 0.35, 3);
+            soundManager.playPhysicalStrike();
+            if (this.dashStartX !== 0 || this.dashStartY !== 0) {
+              this.startRetreatAnimation(this.dashStartX, this.dashStartY, 0.35, true);
+              this.onLog(`🔄 <strong>${this.data.name}</strong> executou <strong>Volt Switch</strong> e recuou do combate!`, 'electric');
+              return;
+            }
+          } else if (isWildCharge) {
+            this.resolveSkillHit(this.target, sk);
+            this.particleSystem.spawnElectricBurst(this.target.x, this.target.y - 10, 0.40, false);
+            this.particleSystem.spawnPixelBurst(this.target.x, this.target.y - 10, '#FACC15', 20, 160, 0.35, 3);
+            this.particleSystem.spawnElectrocutedOverlay(this.target, 0.50);
+            if (this.arena && this.arena.triggerScreenShake) this.arena.triggerScreenShake(12);
+            soundManager.playPhysicalStrike();
+          } else if (isThunderFang) {
+            this.resolveSkillHit(this.target, sk);
+            this.particleSystem.spawnBite(this.target.x, this.target.y - 12, 0.35, sk.visual);
+            this.particleSystem.spawnPixelBurst(this.target.x, this.target.y - 12, '#FACC15', 20, 160, 0.35, 3.0);
+            this.particleSystem.spawnElectrocutedOverlay(this.target, 0.50);
+            soundManager.playPhysicalStrike();
           } else if (isDualChop) {
             // Dual Chop: 2 golpes consecutivos com dano dividido por 2
             this.resolveSkillHit(this.target, sk, 2);
@@ -1581,6 +1652,71 @@ export class PokemonEntity {
     }
   }
 
+
+  // Fusion Bolt: Aerial Soar & Blue/Cyan Lightning Blast Dive with Electrocution
+  executeFusionBoltSky(target, skill) {
+    if (!target || target.isFainted) return;
+    this.state = 'fusion_bolt_sky';
+    this.dodgeTimer = 0.95; // Inalvejável durante toda a manobra aérea
+    this.isUntargetable = true;
+    this.vx = 0;
+    this.vy = 0;
+    this.jumpOffset = 0;
+
+    this.onLog(`⚡ <strong>${this.data.name}</strong> ascendeu aos céus energizado com relâmpagos azuis de <strong>${skill.name}</strong>!`, 'electric');
+    soundManager.playPhysicalStrike();
+    this.particleSystem.spawnElectricCharge(this, 0.85, true);
+
+    let elapsed = 0;
+    const ascentInterval = setInterval(() => {
+      elapsed += 0.03;
+      if (this.isFainted) {
+        clearInterval(ascentInterval);
+        this.isUntargetable = false;
+        return;
+      }
+      if (elapsed < 0.30) {
+        // Subida aos céus
+        this.jumpOffset = -Math.sin((elapsed / 0.30) * (Math.PI * 0.5)) * 140;
+        if (Math.random() < 0.5) {
+          this.particleSystem.spawnPixelBurst(this.x, this.y + this.jumpOffset + 20, '#38BDF8', 3, 50, 0.2, 2.5);
+          this.particleSystem.spawnPixelBurst(this.x, this.y + this.jumpOffset + 20, '#FFFFFF', 1, 30, 0.15, 1.5);
+        }
+      } else if (elapsed >= 0.30 && elapsed < 0.50) {
+        // Pausa no ápice inalvejável
+        this.jumpOffset = -140;
+      } else {
+        clearInterval(ascentInterval);
+        if (!target || target.isFainted) {
+          this.jumpOffset = 0;
+          this.isUntargetable = false;
+          this.state = 'moving';
+          return;
+        }
+
+        this.onLog(`⚡ <strong>${this.data.name}</strong> mergulhou dos céus em um relâmpago azul colossal!`, 'electric');
+
+        // Mergulho e colisão
+        const hitCenter = typeof target.getHitCenter === 'function' ? target.getHitCenter() : { x: target.x, y: target.y - 32 };
+        this.jumpOffset = 0;
+        this.x = target.x - (this.x < target.x ? 32 : -32);
+        this.y = target.y;
+        this.isUntargetable = false;
+        this.state = 'moving';
+        this.recoilTimer = 0.22;
+        this.vx = (this.x < target.x ? -1 : 1) * 160;
+        this.vy = 0;
+
+        this.resolveSkillHit(target, skill);
+        this.particleSystem.spawnElectricBolt(target.x, target.y, 0.60, true, skill.visual, null, target, skill);
+        this.particleSystem.spawnElectrocutedOverlay(target, 0.60);
+        if (this.arena && this.arena.triggerScreenShake) this.arena.triggerScreenShake(16);
+        if (this.arena && this.arena.addDecal) this.arena.addDecal(target.x, target.y, 'zap_burn', 40, 10.0);
+        soundManager.playPhysicalStrike();
+      }
+    }, 30);
+  }
+
   // Dragon Ascent: Aerial Soar & Green Dragon Breath Dive with Collision Burning Aura
   executeDragonAscentSky(target, skill) {
     if (!target || target.isFainted) return;
@@ -1647,6 +1783,7 @@ export class PokemonEntity {
     if (!target || target.isFainted) return;
     if (target.dodgeTimer > 0) {
       this.particleSystem.addFloatingText(target.x, target.y - 14, 'ESQUIVOU!', 'dodge', false);
+      target.onLog?.(`💨 <strong>${target.data.name}</strong> esquivou!`, 'dodge', target);
       return;
     }
 
@@ -1893,6 +2030,9 @@ export class PokemonEntity {
 
     this.state = 'dashing_strike';
     this.currentDashingSkill = skill;
+    if (skill.visual?.hasElectricCharge) {
+      this.particleSystem.spawnElectricCharge(this, 0.50, skill.visual?.chargeColor === '#38BDF8');
+    }
     this.stateTimer = 0.42; // Snappy 420ms dash window
     this.totalDashTimer = 0.42;
     this.actionCooldown = 0.55;
@@ -1960,32 +2100,57 @@ export class PokemonEntity {
     return this.executeSkill(index);
   }
 
-  executeSkill(skillIndex) {
+  executeSkill(skillIndex, forceRemote = false, remoteSkillData = null) {
     this.setTemporaryEmotion('Angry', 1300);
-    if (!this.target || this.isFainted || this.isDizzy || this.beamLockTimer > 0 || this.hitStunTimer > 0 || this.state === 'hurt' || this.state === 'dashing_strike' || this.state === 'casting_skill') return false;
 
-    const skill = this.skills[skillIndex];
+    if (!this.target && this.engine) {
+      this.target = this.isPlayer ? this.engine.enemyEntity : this.engine.playerEntity;
+    }
+
+    if (!forceRemote) {
+      if (!this.target || this.isFainted || this.isDizzy || this.beamLockTimer > 0 || this.hitStunTimer > 0 || this.state === 'hurt' || this.state === 'dashing_strike' || this.state === 'casting_skill') return false;
+    } else {
+      if (this.isFainted) return false;
+      this.beamLockTimer = 0;
+      this.hitStunTimer = 0;
+      if (this.isChannelingBeam) {
+        this.cancelBeamChanneling('remote_override');
+      }
+      if (this.state === 'hurt' || this.state === 'casting_skill' || this.state === 'dashing_strike') {
+        this.state = 'moving';
+      }
+    }
+
+    let skill = (typeof skillIndex === 'number' && this.skills) ? this.skills[skillIndex] : null;
+    if (!skill && remoteSkillData) {
+      skill = { ...remoteSkillData };
+    }
+    if (!skill && this.skills && this.skills.length > 0) {
+      skill = this.skills[0];
+    }
     if (!skill) return false;
 
-    // Strict Disable check
-    if (skill.isDisabled || (this.disabledSkill && this.disabledSkill.id === skill.id && this.disabledSkillTimer > 0)) {
-      this.particleSystem.addFloatingText(this.x, this.y - 14, 'GOLPE ANULADO!', 'status', false);
-      this.onLog(`⚠️ <strong>${skill.name}</strong> está bloqueado pelo Disable! (${Math.ceil(this.disabledSkillTimer)}s restantes)`, 'system');
-      return false;
-    }
+    if (!forceRemote) {
+      // Strict Disable check
+      if (skill.isDisabled || (this.disabledSkill && this.disabledSkill.id === skill.id && this.disabledSkillTimer > 0)) {
+        this.particleSystem.addFloatingText(this.x, this.y - 14, 'GOLPE ANULADO!', 'status', false);
+        this.onLog(`⚠️ <strong>${skill.name}</strong> está bloqueado pelo Disable! (${Math.ceil(this.disabledSkillTimer)}s restantes)`, 'system');
+        return false;
+      }
 
-    // Strict cooldown lock: reject activation during cooldown
-    if (skill.currentCooldown > 0) {
-      return false;
-    }
+      // Strict cooldown lock: reject activation during cooldown
+      if (skill.currentCooldown > 0) {
+        return false;
+      }
 
-    // PP check: reject if move has 0 PP
-    if (skill.pp !== undefined && skill.pp <= 0) {
-      this.onLog(`⚠️ <strong>${this.data.name}</strong> está sem PP para <strong>${skill.name}</strong>!`, 'system');
-      return false;
-    }
-    if (skill.pp !== undefined && skill.pp > 0) {
-      skill.pp--;
+      // PP check: reject if move has 0 PP
+      if (skill.pp !== undefined && skill.pp <= 0) {
+        this.onLog(`⚠️ <strong>${this.data.name}</strong> está sem PP para <strong>${skill.name}</strong>!`, 'system');
+        return false;
+      }
+      if (skill.pp !== undefined && skill.pp > 0) {
+        skill.pp--;
+      }
     }
 
     // Lock cooldown immediately
@@ -2074,6 +2239,158 @@ export class PokemonEntity {
       mode = 'projectile';
     } else if (!mode) {
       mode = 'projectile';
+    }
+
+    
+    const isThunder = skill.visual?.isThunder || skill.internalName === 'THUNDER' || (skill.name && skill.name.toLowerCase() === 'thunder');
+    if (isThunder) {
+      this.sprite.faceTowards(target.x, target.y, this.x, this.y);
+      this.sprite.setAnimation('Charge', true);
+      this.particleSystem.spawnElectricCharge(this, 0.40, false);
+      this.particleSystem.spawnElectricBolt(
+        target.x, target.y, 0.55, false, skill.visual,
+        (t, s) => {
+          this.resolveSkillHit(t, s);
+          soundManager.play('/assets/audio/se/anim/Thunder2.ogg', 0.85);
+        },
+        target, skill
+      );
+      this.onLog(`⚡ <strong>${this.data.name}</strong> descarregou um poderoso trovão dourado com <strong>${skill.name}</strong>!`, 'electric');
+      return;
+    }
+
+    const isDischarge = skill.visual?.isDischarge || skill.internalName === 'DISCHARGE' || (skill.name && skill.name.toLowerCase().includes('discharge'));
+    if (isDischarge) {
+      this.sprite.faceTowards(target.x, target.y, this.x, this.y);
+      this.sprite.setAnimation('Charge', true);
+      this.particleSystem.spawnElectricCharge(this, 0.45, false);
+      // Surge 1: directly applied on player
+      this.particleSystem.spawnElectricBurst(this.x, this.y - 8, 0.45, false);
+
+      const dx = target.x - this.x;
+      const dy = target.y - this.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const nx = dx / dist;
+      const ny = dy / dist;
+
+      // Surge 2: perpetuates forward towards the opponent
+      setTimeout(() => {
+        if (this.isFainted) return;
+        this.particleSystem.spawnElectricBurst(this.x + nx * 36, this.y - 8 + ny * 36, 0.45, false);
+        if (dist <= 180) {
+          this.resolveSkillHit(target, skill);
+          this.particleSystem.spawnElectrocutedOverlay(target, 0.60);
+        }
+        soundManager.play('/assets/audio/se/anim/Thunder2.ogg', 0.85);
+      }, 120);
+      this.onLog(`⚡ <strong>${this.data.name}</strong> liberou uma descarga elétrica com <strong>${skill.name}</strong>!`, 'electric');
+      return;
+    }
+
+    const isParabolicCharge = skill.visual?.isParabolicCharge || skill.internalName === 'PARABOLICCHARGE' || (skill.name && skill.name.toLowerCase().includes('parabolic charge'));
+    if (isParabolicCharge) {
+      this.sprite.faceTowards(target.x, target.y, this.x, this.y);
+      this.sprite.setAnimation('Shoot', true);
+      this.particleSystem.spawnParabolicRings(this.x, this.y, 0.75, skill.visual);
+      this.resolveSkillHit(target, skill);
+      const drainAmt = Math.max(1, Math.round(target.lastDamageReceived ? target.lastDamageReceived * 0.5 : 25));
+      this.heal(drainAmt, `+${drainAmt} HP DRENADO!`);
+      this.particleSystem.spawnPixelBurst(this.x, this.y, '#84CC16', 16, 90, 0.4, 2.5);
+      this.onLog(`⚡ <strong>${this.data.name}</strong> drenou energia vital com as ondas elétricas de <strong>${skill.name}</strong>!`, 'electric');
+      return;
+    }
+
+    const isElectricTerrain = skill.visual?.isElectricTerrain || skill.internalName === 'ELECTRICTERRAIN' || (skill.name && skill.name.toLowerCase().includes('electric terrain'));
+    if (isElectricTerrain) {
+      this.sprite.setAnimation('Charge', true);
+      this.particleSystem.spawnElectricTerrain(this.x, this.y, 4.0, skill.visual);
+      this.particleSystem.spawnShockwave(this.x, this.y, 90, '#FACC15', 0.5);
+      if (this.arena?.addDecal) this.arena.addDecal(this.x, this.y, 'zap_burn', 45, 10.0);
+      if (this.arena?.triggerScreenShake) this.arena.triggerScreenShake(10);
+      this.particleSystem.addFloatingText(this.x, this.y - 20, 'TERRENO ELÉTRICO!', 'electric', true);
+      this.onLog(`⚡ <strong>${this.data.name}</strong> eletrificou o solo da arena com <strong>${skill.name}</strong>!`, 'electric');
+      return;
+    }
+
+    const isMagnetRise = skill.visual?.isMagnetRise || skill.internalName === 'MAGNETRISE' || (skill.name && skill.name.toLowerCase().includes('magnet rise'));
+    if (isMagnetRise) {
+      this.sprite.setAnimation('Charge', true);
+      this.particleSystem.spawnElectricCharge(this, 1.20, false);
+      this.particleSystem.addFloatingText(this.x, this.y - 20, 'LEVITAÇÃO!', 'electric', true);
+      this.onLog(`🧲 <strong>${this.data.name}</strong> usou levitação eletromagnética com <strong>${skill.name}</strong>!`, 'electric');
+      return;
+    }
+
+    const isThunderWave = skill.visual?.isThunderWave || skill.internalName === 'THUNDERWAVE' || (skill.name && skill.name.toLowerCase().includes('thunder wave'));
+    if (isThunderWave) {
+      this.sprite.faceTowards(target.x, target.y, this.x, this.y);
+      this.sprite.setAnimation('Shoot', true);
+      this.particleSystem.spawnElectricWave(
+        this.x, this.y, targetPos.x, targetPos.y, 0.55, skill.visual,
+        (t, s) => {
+          if (t && !t.isGuarding) {
+            t.applyStatus('paralysis');
+            this.particleSystem.spawnElectrocutedOverlay(t, 0.80);
+          }
+        },
+        target, skill
+      );
+      this.onLog(`⚡ <strong>${this.data.name}</strong> emitiu uma onda paralisante com <strong>${skill.name}</strong>!`, 'electric');
+      return;
+    }
+
+    const isElectroweb = skill.visual?.isElectroweb || skill.internalName === 'ELECTROWEB' || (skill.name && skill.name.toLowerCase().includes('electroweb'));
+    if (isElectroweb) {
+      const origin = this.getAttackOrigin();
+      this.sprite.faceTowards(target.x, target.y, this.x, this.y);
+      this.sprite.setAnimation('Shoot', true);
+      this.projectileSystem.spawn({
+        sourceEntity: this,
+        targetEntity: target,
+        startX: origin.x,
+        startY: origin.y,
+        targetX: targetPos.x,
+        targetY: targetPos.y,
+        type: 'Electric',
+        speed: 700,
+        skillData: skill,
+        isElectricBoltProj: true,
+        onHit: (t, pObj) => {
+          this.resolveSkillHit(t, skill);
+          this.particleSystem.spawnElectroweb(t, 1.20, skill.visual);
+          this.particleSystem.spawnElectrocutedOverlay(t, 0.60);
+          t.modifyStatStage('speed', -1);
+          this.particleSystem.addFloatingText(t.x, t.y - 28, 'PRESO NA TEIA ELÉTRICA!', 'electric', false);
+          this.onLog(`🕸️ <strong>${t.data.name}</strong> foi preso na <strong>Electroweb</strong> e perdeu velocidade!`, 'electric');
+        }
+      });
+      return;
+    }
+
+    const isThunderShock = skill.visual?.isThunderShock || skill.internalName === 'THUNDERSHOCK' || (skill.name && skill.name.toLowerCase().includes('thunder shock'));
+    if (isThunderShock) {
+      const origin = this.getAttackOrigin();
+      this.sprite.faceTowards(target.x, target.y, this.x, this.y);
+      this.sprite.setAnimation('Shoot', true);
+      this.projectileSystem.spawn({
+        sourceEntity: this,
+        targetEntity: target,
+        startX: origin.x,
+        startY: origin.y,
+        targetX: targetPos.x,
+        targetY: targetPos.y,
+        type: 'Electric',
+        speed: 760,
+        skillData: skill,
+        isElectricBoltProj: true,
+        onHit: (t, pObj) => {
+          this.resolveSkillHit(t, skill);
+          this.particleSystem.spawnElectricBurst(t.x, t.y - 10, 0.40, false);
+          this.particleSystem.spawnElectrocutedOverlay(t, 0.60);
+          soundManager.play('/assets/audio/se/anim/Thunder2.ogg', 0.85);
+        }
+      });
+      return;
     }
 
     const isDracoMeteor = skill.visual?.isDracoMeteor || skill.internalName === 'DRACOMETEOR' || skill.id === 52 || (skill.name && skill.name.toLowerCase().includes('draco meteor'));
@@ -2776,6 +3093,7 @@ export class PokemonEntity {
     if (!target || target.isFainted) return;
     if (target.dodgeTimer > 0) {
       this.particleSystem.addFloatingText(target.x, target.y - 14, 'ESQUIVOU!', 'dodge', false);
+      target.onLog?.(`💨 <strong>${target.data.name}</strong> esquivou!`, 'dodge', target);
       return;
     }
 
@@ -2816,7 +3134,8 @@ export class PokemonEntity {
     if (isStatusMove) {
       finalDmg = 0;
     } else {
-      target.takeDamage(finalDmg, isCrit, isBlocked, skill.type.toLowerCase(), isSuperEffective, isNotVeryEffective);
+          target.takeDamage(finalDmg, isCrit, isBlocked, skill.type.toLowerCase(), isSuperEffective, isNotVeryEffective);
+    target.lastDamageReceived = finalDmg;
     }
 
     const hitCenter = typeof target.getHitCenter === 'function' ? target.getHitCenter() : { x: target.x, y: target.y - 32 };
@@ -2832,6 +3151,9 @@ export class PokemonEntity {
     const sType = (skill.type || '').toUpperCase();
     const typeColor = getTypeColor(skill.type);
 
+        if (skill.visual?.applyElectrocuted || sInternal === 'ZAPCANNON' || sInternal === 'ELECTROBALL' || sInternal === 'THUNDERSHOCK' || sInternal === 'THUNDERBOLT') {
+      this.particleSystem.spawnElectrocutedOverlay(target, 0.60);
+    }
     const isThunderFang = sName === 'Thunder Fang' || sInternal === 'THUNDERFANG';
     const isAirCutter = Boolean(skill.visual?.isAirCutter || sInternal === 'AIRCUTTER');
     const isDracoMeteor = Boolean(skill.visual?.isDracoMeteor || sInternal === 'DRACOMETEOR');
@@ -2853,9 +3175,16 @@ export class PokemonEntity {
       this.particleSystem.spawnBurningAura(target.x, target.y, 0.95, skill.visual, target, auraColor, auraFilter);
     }
 
+    const isWildCharge = sName === 'Wild Charge' || sInternal === 'WILDCHARGE' || skill.id === 70;
+    if (isWildCharge) {
+      this.particleSystem.spawnElectricBurst(hitCenter.x, hitCenter.y, 0.40, false);
+      this.particleSystem.spawnElectrocutedOverlay(target, 0.50);
+    }
+
     if (isThunderFang) {
-      // Thunder Fang: Leave ONLY thunder sprite, without procedural bite fangs
-      this.particleSystem.spawnLightning(hitCenter.x, hitCenter.y, 0.40, skill.visual, null, true);
+      this.particleSystem.spawnBite(hitCenter.x, hitCenter.y, 0.35, skill.visual);
+      this.particleSystem.spawnPixelBurst(hitCenter.x, hitCenter.y, '#FACC15', 20, 160, 0.35, 3.0);
+      this.particleSystem.spawnElectrocutedOverlay(target, 0.50);
     } else if (isAirCutter) {
       this.particleSystem.spawnAirCutter(origin.x, origin.y, hitCenter.x, hitCenter.y, skill.visual, target, this, skill);
     } else if (isDracoMeteor) {
@@ -3141,6 +3470,7 @@ export class PokemonEntity {
     // Complete evasion if actively dodging during hop window
     if (this.dodgeTimer > 0) {
       this.particleSystem.addFloatingText(this.x, this.y - 12, 'ESQUIVOU!', 'dodge', false);
+      this.onLog(`💨 <strong>${this.data.name}</strong> esquivou!`, 'dodge', this);
       return;
     }
 
@@ -3272,7 +3602,8 @@ export class PokemonEntity {
       const alpha = Math.max(0, 1 - this.recallProgress * 0.95);
       ctx.globalAlpha = alpha;
       const curScale = Math.max(0.1, this.scale * (1 - this.recallProgress * 0.45));
-      ctx.filter = `brightness(${1 + this.recallProgress * 8}) drop-shadow(0 0 16px #ffffff)`;
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur = 14;
       this.renderFloor(ctx);
       this.sprite.render(ctx, this.x, this.y, curScale, false, false);
       ctx.restore();

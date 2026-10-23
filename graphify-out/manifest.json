@@ -1854,16 +1854,16 @@
     "semantic_hash": "e40b11306bdb680d5e5a845c971dcd37"
   },
   "client/src/audio/BGMManager.js": {
-    "mtime": 1792016540.264086,
-    "seen": 1792451641.8640525,
-    "ast_hash": "6109209fcc720054b41c1f1b3253d39b",
-    "semantic_hash": "6109209fcc720054b41c1f1b3253d39b"
+    "mtime": 1792692233.6229484,
+    "seen": 1792790479.981063,
+    "ast_hash": "b70b5129d2ca76b5d85f96cb4359556e",
+    "semantic_hash": ""
   },
   "client/src/audio/SFXManager.js": {
-    "mtime": 1792003899.9908605,
-    "seen": 1792451641.8640525,
-    "ast_hash": "933e29d03cd89780ba9129bbd7570968",
-    "semantic_hash": "933e29d03cd89780ba9129bbd7570968"
+    "mtime": 1792692176.1575236,
+    "seen": 1792790479.981063,
+    "ast_hash": "786346fe862b9024c5cb51b18b9387b7",
+    "semantic_hash": ""
   },
   "client/src/battle/arena.js": {
     "mtime": 1792450636.604014,
@@ -1878,15 +1878,15 @@
     "semantic_hash": "f19842938ce58dd019724d70d3989c52"
   },
   "client/src/battle/battleEngine.js": {
-    "mtime": 1792635881.3763864,
-    "seen": 1792636089.6864245,
-    "ast_hash": "ace11ec5d1ac84fcd6f2e64f252f932b",
+    "mtime": 1792721627.4662795,
+    "seen": 1792790479.981063,
+    "ast_hash": "1f6bcd0bedc6aa6b93038f6f84785fe2",
     "semantic_hash": ""
   },
   "client/src/battle/battleHud.js": {
-    "mtime": 1792635753.2644472,
-    "seen": 1792636089.6864245,
-    "ast_hash": "1bea7a824f1e6c7c4c5bbbf16547e646",
+    "mtime": 1792721027.641189,
+    "seen": 1792790479.981063,
+    "ast_hash": "6ab37455c0f2f57edbb15004ad8eff52",
     "semantic_hash": ""
   },
   "client/src/battle/check_visuals.mjs": {
@@ -1914,27 +1914,27 @@
     "semantic_hash": "20dcb78f68e5abd2de2d673c54461e98"
   },
   "client/src/battle/movesDatabase.js": {
-    "mtime": 1792537797.713555,
-    "seen": 1792538096.1694381,
-    "ast_hash": "8de4bafd5787624bb48513e803bc2dda",
+    "mtime": 1792779652.793237,
+    "seen": 1792790479.983062,
+    "ast_hash": "3e3f8a947c5c30d5defb45f0a3867109",
     "semantic_hash": ""
   },
   "client/src/battle/overworldSprite.js": {
-    "mtime": 1792549310.6494203,
-    "seen": 1792549640.793926,
-    "ast_hash": "102f09bba8e9158b576e0c682b1418a2",
+    "mtime": 1792720775.4856057,
+    "seen": 1792790479.983062,
+    "ast_hash": "dada493463c84e95238af7f9cdb11dbd",
     "semantic_hash": ""
   },
   "client/src/battle/particleSystem.js": {
-    "mtime": 1792534950.725937,
-    "seen": 1792535081.0974302,
-    "ast_hash": "a20b1768f3c410e5d7671660b87aa019",
+    "mtime": 1792778264.5461092,
+    "seen": 1792790479.983062,
+    "ast_hash": "99c2b14e92a503c7aba73f4dd23d987a",
     "semantic_hash": ""
   },
   "client/src/battle/pixelArtVfx.js": {
-    "mtime": 1792537832.1792696,
-    "seen": 1792538096.1704376,
-    "ast_hash": "0fdf54acab24e157385e0784067633d1",
+    "mtime": 1792790421.4960022,
+    "seen": 1792790479.983062,
+    "ast_hash": "6a7ac49c696a259fa9800335e00066cb",
     "semantic_hash": ""
   },
   "client/src/battle/pokemonData.js": {
@@ -1944,22 +1944,22 @@
     "semantic_hash": ""
   },
   "client/src/battle/pokemonEntity.js": {
-    "mtime": 1792634503.989524,
-    "seen": 1792634880.183239,
-    "ast_hash": "db4ba48b6a91d217e5fe0661dc52d6f7",
+    "mtime": 1792779687.3142734,
+    "seen": 1792790479.983062,
+    "ast_hash": "0613a98b090ccfa0ee5032abac20552b",
     "semantic_hash": ""
   },
   "client/src/battle/projectileSystem.js": {
-    "mtime": 1792538030.480554,
-    "seen": 1792538096.1715305,
-    "ast_hash": "a073706132c30259fadb2af2d3a5cbd1",
+    "mtime": 1792770971.5447772,
+    "seen": 1792790479.983062,
+    "ast_hash": "f9a060e741067634ed8d018eb32817a3",
     "semantic_hash": ""
   },
   "client/src/battle/soundManager.js": {
-    "mtime": 1792016604.0921297,
-    "seen": 1792451641.8640525,
-    "ast_hash": "1a78185cef4d18e74b2b451f3b628434",
-    "semantic_hash": "1a78185cef4d18e74b2b451f3b628434"
+    "mtime": 1792692176.1559725,
+    "seen": 1792790479.983062,
+    "ast_hash": "ed4ef3facb87ce14c110ee146623e808",
+    "semantic_hash": ""
   },
   "client/src/entities/FollowerPokemon.js": {
     "mtime": 1791384813.245034,
@@ -2100,9 +2100,9 @@
     "semantic_hash": "c1230e6ed8bea2ff4db6294896d12ff4"
   },
   "client/src/ui/BattleUI.js": {
-    "mtime": 1792635911.4500897,
-    "seen": 1792636089.6864245,
-    "ast_hash": "dc0a75b6aab395aab72a96bda8aaf5f4",
+    "mtime": 1792721051.3112016,
+    "seen": 1792790479.989919,
+    "ast_hash": "d609e65d8ffdef004b049de7146dc030",
     "semantic_hash": ""
   },
   "client/src/ui/CharacterUI.js": {
@@ -2154,10 +2154,10 @@
     "semantic_hash": "4fa115830cb284a104443c4910a81ac4"
   },
   "client/src/ui/OakIntroUI.js": {
-    "mtime": 1792359477.016918,
-    "seen": 1792451641.8640525,
-    "ast_hash": "068c6d1cdaae3594eb68c9a89bc69484",
-    "semantic_hash": "068c6d1cdaae3594eb68c9a89bc69484"
+    "mtime": 1792684879.0854716,
+    "seen": 1792790479.9919186,
+    "ast_hash": "ae3df7e69f11f440f48e9af5ac00c9da",
+    "semantic_hash": ""
   },
   "client/src/ui/PartyHUDUI.js": {
     "mtime": 1792180024.5343688,
@@ -2178,10 +2178,10 @@
     "semantic_hash": "50c9a842a5affb25849bc824976719e6"
   },
   "client/src/ui/StarterSelectionUI.js": {
-    "mtime": 1792359476.9586012,
-    "seen": 1792451641.8640525,
-    "ast_hash": "abb556909a5bb33efaf03dcc988ef4d5",
-    "semantic_hash": "abb556909a5bb33efaf03dcc988ef4d5"
+    "mtime": 1792684863.278744,
+    "seen": 1792790479.9934218,
+    "ast_hash": "22f828e2d80f545954ea689d34bb1167",
+    "semantic_hash": ""
   },
   "client/src/utils/pokemonAssets.js": {
     "mtime": 1790277715.9069524,
@@ -2628,9 +2628,9 @@
     "semantic_hash": ""
   },
   "client/index.html": {
-    "mtime": 1792359477.0257592,
-    "seen": 1792464108.7701254,
-    "ast_hash": "5d47d270cac97ee8af49f06bdd074102",
+    "mtime": 1792684890.9504426,
+    "seen": 1792790480.0166981,
+    "ast_hash": "874dd0be476f6e2156a214d2a1922990",
     "semantic_hash": ""
   },
   "client/public/fonts/license.txt": {
@@ -2646,9 +2646,9 @@
     "semantic_hash": ""
   },
   "client/public/moves_catalog.html": {
-    "mtime": 1792537832.1901922,
-    "seen": 1792538096.2092054,
-    "ast_hash": "90e66110aa8acf21cd1c5da8901f6696",
+    "mtime": 1792790423.5984993,
+    "seen": 1792790480.0166981,
+    "ast_hash": "e532472516ff0ff7335852f553c97bd4",
     "semantic_hash": ""
   },
   "docker-compose.yml": {
@@ -2748,15 +2748,75 @@
     "semantic_hash": ""
   },
   "server/src/services/battle/PvpManager.js": {
-    "mtime": 1792633535.7161944,
-    "seen": 1792633734.6567497,
-    "ast_hash": "2e37039a34b3be7de3a8ce9dcb328ee0",
+    "mtime": 1792681257.7932906,
+    "seen": 1792790480.010858,
+    "ast_hash": "1a90172876f607a7392c273763b2612e",
     "semantic_hash": ""
   },
   "server/src/sockets/pvpHandler.js": {
     "mtime": 1792553861.6658587,
     "seen": 1792554374.6265802,
     "ast_hash": "e59d3539968892efeb0ca5f0209c7bcf",
+    "semantic_hash": ""
+  },
+  "scripts/append_electric_renderers.js": {
+    "mtime": 1792768540.768458,
+    "seen": 1792790479.994422,
+    "ast_hash": "7c504bd145dfd8bb4a20ff7d03a0f3ac",
+    "semantic_hash": ""
+  },
+  "scripts/find_move_lines.mjs": {
+    "mtime": 1792768117.0104897,
+    "seen": 1792790479.9969256,
+    "ast_hash": "6be053b90d08c3913030760f7da7e456",
+    "semantic_hash": ""
+  },
+  "scripts/generate_electric_visual_sprites.js": {
+    "mtime": 1792767745.582883,
+    "seen": 1792790479.997925,
+    "ast_hash": "365ed0e25cb2b1c0b96c18ed09759be8",
+    "semantic_hash": ""
+  },
+  "scripts/inspect_electric_moves.mjs": {
+    "mtime": 1792767440.3988361,
+    "seen": 1792790479.9999247,
+    "ast_hash": "1408545a108cb604da2b776a04d21e21",
+    "semantic_hash": ""
+  },
+  "scripts/map_special_moves.mjs": {
+    "mtime": 1792764314.012044,
+    "seen": 1792790479.9999247,
+    "ast_hash": "3bd7e4c94c7fe8efb202cf044ef19ab9",
+    "semantic_hash": ""
+  },
+  "scripts/patch_particle_system.js": {
+    "mtime": 1792768739.968716,
+    "seen": 1792790479.9999247,
+    "ast_hash": "4a381d15474ecee34972eb2e365a3ea6",
+    "semantic_hash": ""
+  },
+  "scripts/patch_pokemon_entity_electric.js": {
+    "mtime": 1792768889.272884,
+    "seen": 1792790479.9999247,
+    "ast_hash": "a7d68108f927501a363f3c755973f1e9",
+    "semantic_hash": ""
+  },
+  "scripts/update_electric_moves_database.mjs": {
+    "mtime": 1792768204.3034136,
+    "seen": 1792790480.0039244,
+    "ast_hash": "f9dc616a19e48cd6d224bd5c98fe4bd0",
+    "semantic_hash": ""
+  },
+  "scripts/update_remaining_electric_moves.mjs": {
+    "mtime": 1792774555.8808181,
+    "seen": 1792790480.0039244,
+    "ast_hash": "2dc5a125fc25d6457de977042bf6b201",
+    "semantic_hash": ""
+  },
+  "docs/improve-electric-moves.md": {
+    "mtime": 1792767683.5842412,
+    "seen": 1792790480.0187366,
+    "ast_hash": "be991c1724cbc3e569aaded4548486f7",
     "semantic_hash": ""
   }
 }

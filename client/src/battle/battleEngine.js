@@ -99,9 +99,17 @@ export class BattleEngine {
     this._lastPvpSentMoving = false;
     this._opponentMoving = false;
     this._opponentMoveTimeout = 0;
+    this._opponentTargetX = null;
+    this._opponentTargetY = null;
+    this._opponentDirX = 0;
+    this._opponentDirY = 0;
 
     this.activePokeball = null;
     this.activeRecallBeam = null;
+    this.activeEnemyPokeball = null;
+    this.activeEnemyRecallBeam = null;
+    this._hasEnemyChosenStarter = false;
+    this._hasPlayerChosenStarter = false;
 
     // Pre-battle countdown lock
     this.isCountdownActive = false;
@@ -209,6 +217,10 @@ export class BattleEngine {
     this.projectileSystem.reset();
     this.activePokeball = null;
     this.activeRecallBeam = null;
+    this.activeEnemyPokeball = null;
+    this.activeEnemyRecallBeam = null;
+    this._hasEnemyChosenStarter = false;
+    this._hasPlayerChosenStarter = false;
 
     if (!this.isPvp) {
       this.enemyEntity = new PokemonEntity({
@@ -221,7 +233,7 @@ export class BattleEngine {
         particleSystem: this.particleSystem,
         projectileSystem: this.projectileSystem,
         engine: this,
-        onLog: (msg, type) => this.onLogMessage(msg, type),
+        onLog: (msg, type, ent) => this.onLogMessage(msg, type, ent),
         onStateChange: () => this.checkMatchState(),
       });
       soundManager.playCry(currentE.cry);
@@ -299,7 +311,7 @@ export class BattleEngine {
         particleSystem: this.particleSystem,
         projectileSystem: this.projectileSystem,
         engine: this,
-        onLog: (msg, type) => this.onLogMessage(msg, type),
+        onLog: (msg, type, ent) => this.onLogMessage(msg, type, ent),
         onStateChange: () => this.checkMatchState(),
       });
 
@@ -419,34 +431,42 @@ export class BattleEngine {
 
   // Handle incoming remote action for enemyEntity in PvP mode
   handleOpponentAction(action) {
-    if (!this.enemyEntity || this.enemyEntity.isFainted || !this.isPvp) return;
+    if (!this.isPvp) return;
+
+    // Switch action must NEVER be blocked even if enemyEntity is not yet spawned!
+    if (action.type === 'switch') {
+      this._hasEnemyChosenStarter = true;
+      if (typeof action.partyIndex === 'number') {
+        this.switchEnemyPokemon(action.partyIndex);
+      }
+      return;
+    }
+
+    if (!this.enemyEntity || this.enemyEntity.isFainted) return;
 
     switch (action.type) {
       case 'move':
         if (typeof action.x === 'number' && typeof action.y === 'number') {
-          // Reconcile opponent position smoothly
-          const dx = action.x - this.enemyEntity.x;
-          const dy = action.y - this.enemyEntity.y;
-          if (Math.hypot(dx, dy) > 35) {
-            this.enemyEntity.x = action.x;
-            this.enemyEntity.y = action.y;
-          } else {
-            this.enemyEntity.x += dx * 0.35;
-            this.enemyEntity.y += dy * 0.35;
-          }
+          this._opponentTargetX = action.x;
+          this._opponentTargetY = action.y;
         }
         if (typeof action.dirX === 'number' && typeof action.dirY === 'number') {
-          this.enemyEntity.moveManual(action.dirX, action.dirY, 0.033);
+          this._opponentDirX = action.dirX;
+          this._opponentDirY = action.dirY;
         }
         this._opponentMoving = (action.dirX !== 0 || action.dirY !== 0);
-        this._opponentMoveTimeout = 0.12;
+        this._opponentMoveTimeout = 0.16;
         break;
 
       case 'move_stop':
         if (typeof action.x === 'number' && typeof action.y === 'number') {
+          this._opponentTargetX = action.x;
+          this._opponentTargetY = action.y;
           this.enemyEntity.x = action.x;
           this.enemyEntity.y = action.y;
         }
+        this._opponentDirX = 0;
+        this._opponentDirY = 0;
         this.enemyEntity.vx = 0;
         this.enemyEntity.vy = 0;
         this.enemyEntity.currentSpeed = 0;
@@ -462,22 +482,16 @@ export class BattleEngine {
         break;
 
       case 'physical':
-        this.enemyEntity.executePhysicalAttack();
+        this.enemyEntity.executePhysicalAttack(true);
         break;
 
       case 'defensive':
-        this.enemyEntity.executeDefenseAction();
+        this.enemyEntity.executeDefenseAction(true);
         break;
 
       case 'skill':
-        if (typeof action.skillIndex === 'number') {
-          this.enemyEntity.executeSkill(action.skillIndex);
-        }
-        break;
-
-      case 'switch':
-        if (typeof action.partyIndex === 'number') {
-          this.switchEnemyPokemon(action.partyIndex);
+        if (typeof action.skillIndex === 'number' || action.skillData) {
+          this.enemyEntity.executeSkill(action.skillIndex, true, action.skillData);
         }
         break;
 
@@ -548,42 +562,90 @@ export class BattleEngine {
     });
   }
 
-  // Switch Enemy Pokémon for Trainer battles
-  switchEnemyPokemon(index) {
+  // Anime-style recall for Enemy Pokémon (Opponent pulls Pokémon back with laser)
+  recallEnemyPokemon(callback) {
+    if (!this.enemyEntity) {
+      if (callback) callback();
+      this.onStateChange();
+      return;
+    }
+
+    soundManager.play('/assets/audio/se/battle_recall.wav', 0.8);
+
+    const startX = this.rivalTrainer ? this.rivalTrainer.x - 8 : 844;
+    const startY = this.rivalTrainer ? this.rivalTrainer.y - 6 : 290;
+    const targetX = this.enemyEntity.x;
+    const targetY = this.enemyEntity.y - 12;
+
+    this.activeEnemyRecallBeam = {
+      startX,
+      startY,
+      targetX,
+      targetY,
+      duration: 0.55,
+      timer: 0.55,
+      callback,
+    };
+  }
+
+  // Deploy Enemy Pokémon with Pokéball throw animation from rival trainer
+  deployEnemyPokemon(index = this.activeEnemyIndex) {
     if (!this.enemyParty || !this.enemyParty[index]) return false;
     const targetMon = this.enemyParty[index];
     if (targetMon.currentHp <= 0 || targetMon.isFainted) return false;
 
     this.activeEnemyIndex = index;
     this.enemyPokemonId = targetMon.id;
+    this._hasEnemyChosenStarter = true;
 
     const spawnPoints = this.arena.getSpawnPoints();
-    this.particleSystem.createExplosion(spawnPoints.enemy.x, spawnPoints.enemy.y, targetMon.baseColor || '#2196F3', 35);
-    soundManager.playShoot();
+    const startX = this.rivalTrainer ? this.rivalTrainer.x - 8 : 844;
+    const startY = this.rivalTrainer ? this.rivalTrainer.y - 6 : spawnPoints.enemy.y;
+    const targetX = spawnPoints.enemy.x;
+    const targetY = spawnPoints.enemy.y;
 
-    this.enemyEntity = new PokemonEntity({
-      data: targetMon,
-      isPlayer: false,
-      initialX: spawnPoints.enemy.x,
-      initialY: spawnPoints.enemy.y,
-      initialFacing: 'left',
-      arena: this.arena,
-      particleSystem: this.particleSystem,
-      projectileSystem: this.projectileSystem,
-      engine: this,
-      onLog: (msg, type) => this.onLogMessage(msg, type),
-      onStateChange: () => this.checkMatchState(),
-    });
-
-    this.enemyEntity.setOpponent(this.playerEntity);
-    if (this.playerEntity) {
-      this.playerEntity.setOpponent(this.enemyEntity);
+    if (this.rivalTrainer) {
+      this.rivalTrainer.isThrowing = true;
+      this.rivalTrainer.throwTimer = 0.55;
+      this.rivalTrainer.frame = 5; // Left-facing throwing posture
     }
 
-    soundManager.playCry(targetMon.cry);
-    this.onLogMessage(`⚠️ Oponente enviou <strong>${targetMon.name}</strong>!`, 'system');
+    soundManager.play('/assets/audio/se/battle_throw.ogg', 0.8);
+
+    this.activeEnemyPokeball = {
+      startX,
+      startY,
+      targetX,
+      targetY,
+      x: startX,
+      y: startY,
+      progress: 0,
+      duration: 0.52,
+      rotation: 0,
+      targetMon,
+    };
+
+    this.onLogMessage(`⚡ Oponente enviou <strong>${targetMon.name}</strong>!`, 'system');
     this.onStateChange();
     return true;
+  }
+
+  // Switch Enemy Pokémon for Trainer and PvP battles
+  switchEnemyPokemon(index) {
+    if (!this.enemyParty || !this.enemyParty[index]) return false;
+    const targetMon = this.enemyParty[index];
+    if (targetMon.currentHp <= 0 || targetMon.isFainted) return false;
+
+    this._hasEnemyChosenStarter = true;
+
+    if (this.enemyEntity && !this.enemyEntity.isFainted) {
+      this.recallEnemyPokemon(() => {
+        this.deployEnemyPokemon(index);
+      });
+      return true;
+    }
+
+    return this.deployEnemyPokemon(index);
   }
 
   checkMatchState() {
@@ -777,7 +839,27 @@ export class BattleEngine {
     if (this.playerEntity && !this.battleEnded && !this.isCountdownActive) {
       const res = this.playerEntity.executeSkill(index);
       if (res && this.isPvp && this.onPvpAction) {
-        this.onPvpAction({ type: 'skill', skillIndex: index });
+        const skill = this.playerEntity.skills ? this.playerEntity.skills[index] : null;
+        this.onPvpAction({
+          type: 'skill',
+          skillIndex: index,
+          skillData: skill ? {
+            name: skill.name,
+            type: skill.type,
+            category: skill.category,
+            executionType: skill.executionType,
+            typeCategory: skill.typeCategory,
+            color: skill.color,
+            sound: skill.sound,
+            beamWidth: skill.beamWidth,
+            duration: skill.duration,
+            speed: skill.speed,
+            radius: skill.radius,
+            projectileSize: skill.projectileSize,
+            visual: skill.visual,
+            internalName: skill.internalName,
+          } : null
+        });
       }
       return res;
     }
@@ -866,7 +948,15 @@ export class BattleEngine {
       }
     }
 
-    // 2. Update Pokéball Throw Arc Flight
+    if (this.rivalTrainer && this.rivalTrainer.throwTimer > 0) {
+      this.rivalTrainer.throwTimer -= dt;
+      if (this.rivalTrainer.throwTimer <= 0) {
+        this.rivalTrainer.isThrowing = false;
+        this.rivalTrainer.frame = 4;
+      }
+    }
+
+    // 2. Update Pokéball Throw Arc Flight (Player)
     if (this.activePokeball) {
       const pb = this.activePokeball;
       pb.progress += dt / pb.duration;
@@ -895,7 +985,7 @@ export class BattleEngine {
           particleSystem: this.particleSystem,
           projectileSystem: this.projectileSystem,
           engine: this,
-          onLog: (msg, type) => this.onLogMessage(msg, type),
+          onLog: (msg, type, ent) => this.onLogMessage(msg, type, ent),
           onStateChange: () => this.checkMatchState(),
         });
 
@@ -913,6 +1003,54 @@ export class BattleEngine {
           this.trainer.frame = 8;
         }
         this.onPokemonDeployed?.(pb.targetMon);
+        this.onStateChange();
+      }
+    }
+
+    // 2.2. Update Pokéball Throw Arc Flight (Enemy / Rival)
+    if (this.activeEnemyPokeball) {
+      const pb = this.activeEnemyPokeball;
+      pb.progress += dt / pb.duration;
+      pb.rotation -= dt * 16;
+      const t = Math.min(1.0, pb.progress);
+      pb.x = pb.startX + (pb.targetX - pb.startX) * t;
+      const arcHeight = Math.sin(t * Math.PI) * 75;
+      pb.y = pb.startY + (pb.targetY - pb.startY) * t - arcHeight;
+      this.particleSystem.spawnDust(pb.x, pb.y + 4, 1);
+
+      if (pb.progress >= 1.0) {
+        soundManager.playShoot();
+        this.particleSystem.spawnPixelBurst(pb.targetX, pb.targetY, pb.targetMon.baseColor || '#2196F3', 30, 220, 0.6, 5);
+        this.particleSystem.spawnShockwave(pb.targetX, pb.targetY, 70, '#FFFFFF', 0.4);
+        if (this.arena && this.arena.triggerScreenShake) {
+          this.arena.triggerScreenShake(8);
+        }
+
+        this.enemyEntity = new PokemonEntity({
+          data: pb.targetMon,
+          isPlayer: false,
+          initialX: pb.targetX,
+          initialY: pb.targetY,
+          initialFacing: 'left',
+          arena: this.arena,
+          particleSystem: this.particleSystem,
+          projectileSystem: this.projectileSystem,
+          engine: this,
+          onLog: (msg, type, ent) => this.onLogMessage(msg, type, ent),
+          onStateChange: () => this.checkMatchState(),
+        });
+
+        if (this.playerEntity) {
+          this.enemyEntity.setOpponent(this.playerEntity);
+          this.playerEntity.setOpponent(this.enemyEntity);
+        }
+
+        soundManager.playCry(pb.targetMon.cry);
+        this.activeEnemyPokeball = null;
+        if (this.rivalTrainer) {
+          this.rivalTrainer.isThrowing = false;
+          this.rivalTrainer.frame = 4;
+        }
         this.onStateChange();
       }
     }
@@ -982,7 +1120,7 @@ export class BattleEngine {
       }
     }
 
-    // 3. Update Anime Recall Laser Beam
+    // 3. Update Anime Recall Laser Beam (Player)
     if (this.activeRecallBeam) {
       const beam = this.activeRecallBeam;
       beam.timer -= dt;
@@ -1006,6 +1144,34 @@ export class BattleEngine {
         this.isIntroStandby = true;
         const cb = beam.callback;
         this.activeRecallBeam = null;
+        if (cb) cb();
+        this.onStateChange();
+      }
+    }
+
+    // 3.2. Update Anime Recall Laser Beam (Enemy / Rival)
+    if (this.activeEnemyRecallBeam) {
+      const beam = this.activeEnemyRecallBeam;
+      beam.timer -= dt;
+      const progress = Math.max(0, Math.min(1.0, 1 - (beam.timer / beam.duration)));
+
+      if (this.enemyEntity) {
+        this.enemyEntity.recallProgress = progress;
+        beam.targetX = this.enemyEntity.x;
+        beam.targetY = this.enemyEntity.y - 18;
+        if (Math.random() < 0.4) {
+          this.particleSystem.spawnPixelBurst(beam.targetX, beam.targetY, '#FFFFFF', 3, 90, 0.25, 2);
+        }
+      }
+
+      if (beam.timer <= 0) {
+        if (this.enemyEntity && this.enemyParty[this.activeEnemyIndex]) {
+          this.enemyParty[this.activeEnemyIndex].currentHp = this.enemyEntity.currentHp;
+          this.enemyParty[this.activeEnemyIndex].isFainted = this.enemyEntity.isFainted;
+        }
+        this.enemyEntity = null;
+        const cb = beam.callback;
+        this.activeEnemyRecallBeam = null;
         if (cb) cb();
         this.onStateChange();
       }
@@ -1099,8 +1265,21 @@ export class BattleEngine {
           // In PvP, enemy movement and actions are driven remotely via socket relay
           if (this._opponentMoveTimeout > 0) {
             this._opponentMoveTimeout -= dt;
-            if (this._opponentMoveTimeout <= 0) {
-              this._opponentMoving = false;
+            if (typeof this._opponentTargetX === 'number' && typeof this._opponentTargetY === 'number') {
+              const dx = this._opponentTargetX - this.enemyEntity.x;
+              const dy = this._opponentTargetY - this.enemyEntity.y;
+              const dist = Math.hypot(dx, dy);
+              if (dist > 60) {
+                this.enemyEntity.x = this._opponentTargetX;
+                this.enemyEntity.y = this._opponentTargetY;
+              } else if (dist > 1) {
+                this.enemyEntity.x += dx * Math.min(1.0, dt * 14);
+                this.enemyEntity.y += dy * Math.min(1.0, dt * 14);
+              }
+            }
+            if (this._opponentMoving && (this._opponentDirX !== 0 || this._opponentDirY !== 0)) {
+              this.enemyEntity.moveManual(this._opponentDirX, this._opponentDirY, dt);
+            } else {
               this.enemyEntity.moveManual(0, 0, dt);
             }
           } else {
@@ -1334,52 +1513,74 @@ export class BattleEngine {
       }
       ctx.restore();
     }
+
+    // 3. Enemy / Opponent Deploy Pokéball
+    if (this.activeEnemyPokeball) {
+      const epb = this.activeEnemyPokeball;
+      ctx.save();
+      ctx.translate(epb.x, epb.y);
+      ctx.rotate(epb.rotation);
+
+      if (this.pokeballImg && this.pokeballImg.complete && this.pokeballImg.naturalWidth > 0) {
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(this.pokeballImg, -9, -9, 18, 18);
+      } else {
+        ctx.fillStyle = '#EF4444';
+        ctx.beginPath();
+        ctx.arc(0, 0, 8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
   }
 
   renderRecallBeam(ctx) {
-    if (!this.activeRecallBeam) return;
-    const b = this.activeRecallBeam;
-    ctx.save();
+    const beams = [this.activeRecallBeam, this.activeEnemyRecallBeam].filter(Boolean);
+    if (beams.length === 0) return;
 
-    // Outer intense anime red/white energy aura
-    ctx.beginPath();
-    ctx.moveTo(b.startX, b.startY);
-    ctx.lineTo(b.targetX, b.targetY);
-    ctx.strokeStyle = 'rgba(255, 60, 90, 0.85)';
-    ctx.lineWidth = 14 + Math.sin(Date.now() * 0.03) * 4;
-    ctx.lineCap = 'round';
-    ctx.stroke();
+    for (const b of beams) {
+      ctx.save();
 
-    // Inner pure brilliant white laser beam
-    ctx.beginPath();
-    ctx.moveTo(b.startX, b.startY);
-    ctx.lineTo(b.targetX, b.targetY);
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 6;
-    ctx.lineCap = 'round';
-    ctx.stroke();
+      // Outer intense anime red/white energy aura
+      ctx.beginPath();
+      ctx.moveTo(b.startX, b.startY);
+      ctx.lineTo(b.targetX, b.targetY);
+      ctx.strokeStyle = 'rgba(255, 60, 90, 0.85)';
+      ctx.lineWidth = 14 + Math.sin(Date.now() * 0.03) * 4;
+      ctx.lineCap = 'round';
+      ctx.stroke();
 
-    // Flare at trainer's Pokéball
-    const gradStart = ctx.createRadialGradient(b.startX, b.startY, 2, b.startX, b.startY, 20);
-    gradStart.addColorStop(0, '#FFFFFF');
-    gradStart.addColorStop(0.5, 'rgba(255, 60, 90, 0.9)');
-    gradStart.addColorStop(1, 'rgba(255, 60, 90, 0)');
-    ctx.fillStyle = gradStart;
-    ctx.beginPath();
-    ctx.arc(b.startX, b.startY, 20, 0, Math.PI * 2);
-    ctx.fill();
+      // Inner pure brilliant white laser beam
+      ctx.beginPath();
+      ctx.moveTo(b.startX, b.startY);
+      ctx.lineTo(b.targetX, b.targetY);
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      ctx.stroke();
 
-    // Radial flare surrounding recalled Pokémon
-    const gradEnd = ctx.createRadialGradient(b.targetX, b.targetY, 4, b.targetX, b.targetY, 44);
-    gradEnd.addColorStop(0, '#FFFFFF');
-    gradEnd.addColorStop(0.4, 'rgba(255, 80, 100, 0.85)');
-    gradEnd.addColorStop(1, 'rgba(255, 80, 100, 0)');
-    ctx.fillStyle = gradEnd;
-    ctx.beginPath();
-    ctx.arc(b.targetX, b.targetY, 44, 0, Math.PI * 2);
-    ctx.fill();
+      // Flare at trainer's Pokéball
+      const gradStart = ctx.createRadialGradient(b.startX, b.startY, 2, b.startX, b.startY, 20);
+      gradStart.addColorStop(0, '#FFFFFF');
+      gradStart.addColorStop(0.5, 'rgba(255, 60, 90, 0.9)');
+      gradStart.addColorStop(1, 'rgba(255, 60, 90, 0)');
+      ctx.fillStyle = gradStart;
+      ctx.beginPath();
+      ctx.arc(b.startX, b.startY, 20, 0, Math.PI * 2);
+      ctx.fill();
 
-    ctx.restore();
+      // Radial flare surrounding recalled Pokémon
+      const gradEnd = ctx.createRadialGradient(b.targetX, b.targetY, 4, b.targetX, b.targetY, 44);
+      gradEnd.addColorStop(0, '#FFFFFF');
+      gradEnd.addColorStop(0.4, 'rgba(255, 80, 100, 0.85)');
+      gradEnd.addColorStop(1, 'rgba(255, 80, 100, 0)');
+      ctx.fillStyle = gradEnd;
+      ctx.beginPath();
+      ctx.arc(b.targetX, b.targetY, 44, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
   }
 
   render() {

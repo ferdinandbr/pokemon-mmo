@@ -2901,16 +2901,22 @@ export const MOVES_BY_ID = {
       "rules": "Efeito secundário: executar somente quando o cálculo de chance do move confirmar sucesso."
     },
     "visual": {
-      "file": "core/thunder_01.png",
-      "cols": 5,
-      "rows": 2,
+      "file": "vfx/custom/electric_bolt_impact_blue.png",
+      "cols": 6,
+      "rows": 1,
       "startFrame": 0,
       "endFrame": 5,
       "fps": 24,
-      "key": "raio_eletrico",
-      "theme": "Relâmpago / Descarga Elétrica",
-      "scale": 0.55
-    },
+      "key": "bolt_strike",
+      "theme": "Investida com Carregamento Azul e Raio Fulminante (Bolt Strike)",
+      "scale": 1.15,
+      "color": "#38BDF8",
+      "isBoltStrike": true,
+      "hasElectricCharge": true,
+      "chargeColor": "#38BDF8",
+      "chargeFile": "vfx/custom/electric_charge_blue.png",
+      "applyElectrocuted": true
+},
     "activeCombatCompatible": true
   },
   "65": {
@@ -2944,16 +2950,24 @@ export const MOVES_BY_ID = {
       "rules": "Efeito secundário: executar somente quando o cálculo de chance do move confirmar sucesso."
     },
     "visual": {
-      "file": "vfx/electric/thunder.png",
-      "cols": 8,
+      "file": "vfx/custom/electric_bolt_impact_yellow.png",
+      "cols": 6,
       "rows": 1,
       "startFrame": 0,
-      "endFrame": 7,
+      "endFrame": 5,
       "fps": 24,
-      "key": "raio_eletrico",
-      "theme": "Descarga Elétrica de Relâmpago",
-      "scale": 0.75
-    },
+      "key": "thunder_strike",
+      "theme": "Carregamento no Usuário e Descida de Raio Dourado (Thunder)",
+      "scale": 1.25,
+      "color": "#FACC15",
+      "isThunder": true,
+      "onlySprite": true,
+      "noExtraVfx": true,
+      "hasElectricCharge": true,
+      "chargeColor": "#FACC15",
+      "chargeFile": "vfx/custom/electric_charge_yellow.png",
+      "applyElectrocuted": true
+},
     "activeCombatCompatible": true
   },
   "66": {
@@ -2987,16 +3001,22 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "core/thunder_01.png",
-      "cols": 5,
-      "rows": 2,
+      "file": "vfx/custom/electric_bolt_impact_yellow.png",
+      "cols": 6,
+      "rows": 1,
       "startFrame": 0,
       "endFrame": 5,
       "fps": 24,
-      "key": "raio_eletrico",
-      "theme": "Relâmpago / Descarga Elétrica",
-      "scale": 0.55
-    },
+      "key": "volt_tackle",
+      "theme": "Investida Eletrizada Dourada com Raio no Impacto (Volt Tackle)",
+      "scale": 1.2,
+      "color": "#FACC15",
+      "isVoltTackle": true,
+      "hasElectricCharge": true,
+      "chargeColor": "#FACC15",
+      "chargeFile": "vfx/custom/electric_charge_yellow.png",
+      "applyElectrocuted": true
+},
     "activeCombatCompatible": true
   },
   "67": {
@@ -3030,16 +3050,19 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "core/attack_physical_01.png",
-      "cols": 5,
-      "rows": 2,
+      "file": "vfx/pixel_fire/colored/yellow/group_4_2.png",
+      "cols": 14,
+      "rows": 1,
       "startFrame": 0,
-      "endFrame": 4,
+      "endFrame": 13,
       "fps": 24,
-      "key": "impacto_fisico",
-      "theme": "Impacto Físico (Estrela Branca)",
-      "scale": 0.5
-    },
+      "key": "zap_cannon",
+      "theme": "Canhão de Plasma Elétrico Puro com Eletrocussão (Zap Cannon)",
+      "scale": 1.25,
+      "color": "#FACC15",
+      "isZapCannon": true,
+      "applyElectrocuted": true
+},
     "activeCombatCompatible": true
   },
   "68": {
@@ -3073,16 +3096,22 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "core/attack_physical_01.png",
-      "cols": 5,
-      "rows": 2,
+      "file": "vfx/custom/electric_bolt_impact_blue.png",
+      "cols": 6,
+      "rows": 1,
       "startFrame": 0,
-      "endFrame": 4,
+      "endFrame": 5,
       "fps": 24,
-      "key": "impacto_fisico",
-      "theme": "Impacto Físico (Estrela Branca)",
-      "scale": 0.5
-    },
+      "key": "fusion_bolt",
+      "theme": "Ascensão Celeste e Mergulho com Relâmpago Azul (Fusion Bolt)",
+      "scale": 1.35,
+      "color": "#38BDF8",
+      "isFusionBolt": true,
+      "hasElectricCharge": true,
+      "chargeColor": "#38BDF8",
+      "chargeFile": "vfx/custom/electric_charge_blue.png",
+      "applyElectrocuted": true
+},
     "activeCombatCompatible": true
   },
   "69": {
@@ -3097,7 +3126,7 @@ export const MOVES_BY_ID = {
     "priority": 0,
     "vfxFamily": "explosion",
     "description": "A strong electric blast is loosed at the target. It may also leave the target with paralysis.",
-    "executionType": "projectile",
+    "executionType": "beam",
     "combatBehavior": {
       "isContact": false,
       "critStage": 0,
@@ -3116,16 +3145,22 @@ export const MOVES_BY_ID = {
       "rules": "Efeito secundário: executar somente quando o cálculo de chance do move confirmar sucesso."
     },
     "visual": {
-      "file": "vfx/electric/thunder.png",
-      "cols": 8,
+      "file": "vfx/custom/electrocuted_burst.png",
+      "cols": 6,
       "rows": 1,
       "startFrame": 0,
-      "endFrame": 7,
+      "endFrame": 5,
       "fps": 24,
-      "key": "raio_eletrico",
-      "theme": "Descarga Elétrica de Relâmpago",
-      "scale": 0.75
-    },
+      "key": "thunderbolt_beam",
+      "theme": "Feixe Elétrico Contínuo com Eletrocussão (Thunderbolt)",
+      "scale": 1.15,
+      "color": "#FACC15",
+      "isThunderbolt": true,
+      "hasElectricCharge": true,
+      "chargeColor": "#FACC15",
+      "chargeFile": "vfx/custom/electric_charge_yellow.png",
+      "applyElectrocuted": true
+},
     "activeCombatCompatible": true
   },
   "70": {
@@ -3159,15 +3194,21 @@ export const MOVES_BY_ID = {
       "rules": "Custo/recuo: resolver o dano ao usuário conforme a regra de combate, sem depender do VFX."
     },
     "visual": {
-      "file": "vfx/magic/explosion_effect.png",
-      "cols": 1,
-      "rows": 8,
-      "startFrame": 0,
-      "endFrame": 7,
-      "fps": 24,
-      "key": "impacto_fisico",
-      "theme": "Impacto Físico Elétrico",
-      "scale": 0.9
+          "file": "vfx/custom/electric_impact_burst_yellow.png",
+          "cols": 5,
+          "rows": 1,
+          "startFrame": 0,
+          "endFrame": 4,
+          "fps": 24,
+          "key": "wild_charge",
+          "theme": "Investida Feroz Eletrizada com Explosão no Impacto (Wild Charge)",
+          "scale": 1.25,
+          "color": "#FACC15",
+          "isWildCharge": true,
+          "hasElectricCharge": true,
+          "chargeColor": "#FACC15",
+          "chargeFile": "vfx/custom/electric_charge_yellow.png",
+          "applyElectrocuted": true
     },
     "activeCombatCompatible": true
   },
@@ -3183,7 +3224,7 @@ export const MOVES_BY_ID = {
     "priority": 0,
     "vfxFamily": "electric",
     "description": "A flare of electricity is loosed to strike the area around the user. It may also cause paralysis.",
-    "executionType": "projectile",
+    "executionType": "area",
     "combatBehavior": {
       "isContact": false,
       "critStage": 0,
@@ -3202,15 +3243,23 @@ export const MOVES_BY_ID = {
       "rules": "Efeito secundário: executar somente quando o cálculo de chance do move confirmar sucesso. Área/múltiplos alvos: calcular os alvos elegíveis pela área e regras do combate, sem duplicar dano."
     },
     "visual": {
-      "file": "core/attack_physical_01.png",
-      "cols": 5,
-      "rows": 2,
-      "startFrame": 0,
-      "endFrame": 4,
-      "fps": 24,
-      "key": "impacto_fisico",
-      "theme": "Impacto Físico (Estrela Branca)",
-      "scale": 0.5
+          "file": "vfx/custom/electric_impact_burst_yellow.png",
+          "cols": 5,
+          "rows": 1,
+          "startFrame": 0,
+          "endFrame": 4,
+          "fps": 24,
+          "key": "discharge_burst",
+          "theme": "Carregamento no Usuário e Descarga Elétrica com Explosão Amarela (Discharge)",
+          "scale": 1.35,
+          "color": "#FACC15",
+          "isDischarge": true,
+          "onlySprite": true,
+          "noExtraVfx": true,
+          "hasElectricCharge": true,
+          "chargeColor": "#FACC15",
+          "chargeFile": "vfx/custom/electric_charge_yellow.png",
+          "applyElectrocuted": true
     },
     "activeCombatCompatible": true
   },
@@ -3288,16 +3337,18 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "core/thunder_01.png",
+      "file": "core/punches.png",
       "cols": 5,
-      "rows": 2,
+      "rows": 1,
       "startFrame": 0,
-      "endFrame": 5,
+      "endFrame": 4,
       "fps": 24,
-      "key": "raio_eletrico",
-      "theme": "Relâmpago / Descarga Elétrica",
-      "scale": 0.55
-    },
+      "key": "volt_switch",
+      "theme": "Soco Elétrico Estilo Thunder Punch com Recuo (Volt Switch)",
+      "scale": 0.85,
+      "color": "#FACC15",
+      "isVoltSwitch": true
+},
     "activeCombatCompatible": true
   },
   "74": {
@@ -3374,16 +3425,18 @@ export const MOVES_BY_ID = {
       "rules": "Efeito secundário: executar somente quando o cálculo de chance do move confirmar sucesso."
     },
     "visual": {
-      "file": "core/thunder_01.png",
-      "cols": 5,
-      "rows": 2,
-      "startFrame": 0,
-      "endFrame": 5,
-      "fps": 24,
-      "key": "raio_eletrico",
-      "theme": "Relâmpago / Descarga Elétrica",
-      "scale": 0.55,
-      "onlySprite": true
+          "file": "vfx/custom/teeth_electric_yellow.png",
+          "cols": 5,
+          "rows": 5,
+          "startFrame": 0,
+          "endFrame": 4,
+          "fps": 24,
+          "key": "thunder_fang",
+          "theme": "Mordida de Presas Eletrificadas (Thunder Fang)",
+          "scale": 0.4,
+          "color": "#FACC15",
+          "isThunderFang": true,
+          "applyElectrocuted": true
     },
     "activeCombatCompatible": true
   },
@@ -3473,16 +3526,22 @@ export const MOVES_BY_ID = {
       "rules": "Atributos: atualizar estágios/valores no sistema de combate; a animação deve refletir a mudança confirmada."
     },
     "visual": {
-      "file": "core/grass.png",
-      "cols": 5,
-      "rows": 5,
-      "startFrame": 5,
-      "endFrame": 7,
-      "fps": 24,
-      "key": "folhas_vinha",
-      "theme": "Rede de Seda / Esporos de Inseto",
-      "scale": 0.55,
-      "offsetY": 22
+          "file": "vfx/custom/electroweb.png",
+          "cols": 5,
+          "rows": 1,
+          "startFrame": 0,
+          "endFrame": 4,
+          "fps": 20,
+          "key": "electroweb",
+          "theme": "Projétil de Onda Elétrica Dourada com Teia Elétrica Ajustada (Electroweb)",
+          "scale": 0.8,
+          "color": "#FACC15",
+          "isElectroweb": true,
+          "isElectricBoltProj": true,
+          "projectileFile": "vfx/custom/electroweb.png",
+          "applyElectrocuted": true,
+          "onlySprite": true,
+          "noExtraVfx": true
     },
     "activeCombatCompatible": true
   },
@@ -3561,15 +3620,22 @@ export const MOVES_BY_ID = {
       "rules": "Efeito secundário: executar somente quando o cálculo de chance do move confirmar sucesso."
     },
     "visual": {
-      "file": "vfx/electric/thunder.png",
-      "cols": 8,
-      "rows": 1,
-      "startFrame": 0,
-      "endFrame": 7,
-      "fps": 24,
-      "key": "raio_eletrico",
-      "theme": "Descarga Elétrica de Relâmpago",
-      "scale": 0.75
+          "file": "vfx/custom/electric_projectile_yellow.png",
+          "cols": 5,
+          "rows": 1,
+          "startFrame": 0,
+          "endFrame": 4,
+          "fps": 24,
+          "key": "thunder_shock",
+          "theme": "Projétil de Onda Elétrica com Impacto Explosivo Amarelo (Thunder Shock)",
+          "scale": 1,
+          "color": "#FACC15",
+          "isThunderShock": true,
+          "isElectricBoltProj": true,
+          "impactFile": "vfx/custom/electric_impact_burst_yellow.png",
+          "applyElectrocuted": true,
+          "onlySprite": true,
+          "noExtraVfx": true
     },
     "activeCombatCompatible": true
   },
@@ -3610,10 +3676,13 @@ export const MOVES_BY_ID = {
       "startFrame": 0,
       "endFrame": 13,
       "fps": 24,
-      "key": "raio_eletrico",
-      "theme": "Orbe de Plasma Elétrico (Electro Ball)",
-      "scale": 0.9
-    },
+      "key": "electro_ball",
+      "theme": "Orbe de Plasma Elétrico Veloz com Eletrocussão (Electro Ball)",
+      "scale": 0.95,
+      "color": "#FACC15",
+      "isElectroBall": true,
+      "applyElectrocuted": true
+},
     "activeCombatCompatible": true
   },
   "81": {
@@ -3697,19 +3766,21 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/custom/lightning_strike.png",
-      "cols": 10,
+      "file": "vfx/custom/electric_charge_yellow.png",
+      "cols": 6,
       "rows": 1,
       "startFrame": 0,
-      "endFrame": 9,
-      "fps": 14,
-      "key": "raio_magnet_rise",
-      "theme": "Raio de Levitação Eletromagnética",
-      "scale": 0.75,
-      "offsetY": -16,
+      "endFrame": 5,
+      "fps": 20,
+      "key": "magnet_rise",
+      "theme": "Carregamento Eletromagnético Levitação (Magnet Rise)",
+      "scale": 1.1,
       "target": "self",
-      "noExtraVfx": true
-    },
+      "isMagnetRise": true,
+      "hasElectricCharge": true,
+      "chargeColor": "#FACC15",
+      "chargeFile": "vfx/custom/electric_charge_yellow.png"
+},
     "activeCombatCompatible": true
   },
   "83": {
@@ -3743,19 +3814,20 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/custom/lightning_strike.png",
-      "cols": 10,
+      "file": "vfx/custom/electric_wave.png",
+      "cols": 6,
       "rows": 1,
       "startFrame": 0,
-      "endFrame": 9,
-      "fps": 14,
-      "key": "raio_thunder_wave",
-      "theme": "Raio Paralisante Onda de Trovão",
-      "scale": 0.75,
-      "offsetY": -16,
+      "endFrame": 5,
+      "fps": 20,
+      "key": "thunder_wave",
+      "theme": "Onda Expansiva de Paralisia Elétrica (Thunder Wave)",
+      "scale": 1.25,
       "target": "target",
-      "noExtraVfx": true
-    },
+      "color": "#FACC15",
+      "isThunderWave": true,
+      "applyElectrocuted": true
+},
     "activeCombatCompatible": true
   },
   "84": {
@@ -25047,7 +25119,7 @@ export const MOVES_BY_ID = {
     "priority": 0,
     "vfxFamily": "electric",
     "description": "The user attacks everything around it. The user's HP is restored by half the damage taken by those hit.",
-    "executionType": "projectile",
+    "executionType": "area",
     "combatBehavior": {
       "isContact": false,
       "critStage": 0,
@@ -25066,16 +25138,19 @@ export const MOVES_BY_ID = {
       "rules": "Cura: atualizar HP pela regra do move e comunicar o valor efetivamente restaurado."
     },
     "visual": {
-      "file": "core/attack_physical_01.png",
-      "cols": 5,
-      "rows": 2,
+      "file": "vfx/custom/electric_shockwave_rings.png",
+      "cols": 6,
+      "rows": 1,
       "startFrame": 0,
-      "endFrame": 4,
-      "fps": 24,
-      "key": "impacto_fisico",
-      "theme": "Impacto Físico (Estrela Branca)",
-      "scale": 0.5
-    },
+      "endFrame": 5,
+      "fps": 20,
+      "key": "parabolic_charge",
+      "theme": "Ondas de Choque Elétricas no Solo e Dreno de Vida (Parabolic Charge)",
+      "scale": 1.45,
+      "color": "#FACC15",
+      "isParabolicCharge": true,
+      "drainPercent": 0.5
+},
     "activeCombatCompatible": true
   },
   "571": {
@@ -26638,16 +26713,18 @@ export const MOVES_BY_ID = {
       "rules": "Área/múltiplos alvos: calcular os alvos elegíveis pela área e regras do combate, sem duplicar dano."
     },
     "visual": {
-      "file": "core/thunder_01.png",
-      "cols": 5,
-      "rows": 2,
+      "file": "vfx/custom/electric_terrain_decal.png",
+      "cols": 4,
+      "rows": 1,
       "startFrame": 0,
-      "endFrame": 5,
-      "fps": 24,
-      "key": "raio_eletrico",
-      "theme": "Relâmpago / Descarga Elétrica",
-      "scale": 0.55
-    },
+      "endFrame": 3,
+      "fps": 16,
+      "key": "electric_terrain",
+      "theme": "Terreno Elétrico com Fissuras e Raios Rastejantes (Electric Terrain)",
+      "scale": 1.6,
+      "target": "self",
+      "isElectricTerrain": true
+},
     "activeCombatCompatible": true
   },
   "605": {
