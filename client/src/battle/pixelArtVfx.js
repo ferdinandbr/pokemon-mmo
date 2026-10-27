@@ -1510,6 +1510,7 @@ export function renderCombatBeam(ctx, startX, startY, targetX, targetY, progress
   const isWaterStream = spriteVisual?.isWaterStream || vFile.includes('water_jet_stream') || sName.includes('hydro pump') || sName.includes('hidro bomba');
   const isBugBuzz = vFile.includes('bug_buzz') || spriteVisual?.isBugBuzz || sName.includes('bug buzz') || sName.includes('zumbido');
   const isSilverWind = spriteVisual?.isVolumetricSilverWind || vFile.includes('silver_wind') || sName.includes('silver wind') || sName.includes('vento de prata');
+  const isFairyWind = spriteVisual?.isFairyWind || vFile.includes('fairy_wind') || sName.includes('fairy wind') || sName.includes('vento de fada');
   const isCustomLaser = vFile.includes('signal_beam') || vFile.includes('beams/beam_');
 
   const getImage = (file) => {
@@ -1641,8 +1642,8 @@ export function renderCombatBeam(ctx, startX, startY, targetX, targetY, progress
       ctx.restore();
     }
   }
-  // 5. VOLUMETRIC SILVER WIND STREAM (DENSE WIND & DIAMOND SCALES)
-  else if (isSilverWind && curDist > 15) {
+  // 5. VOLUMETRIC SILVER WIND & FAIRY WIND STREAM
+  else if ((isSilverWind || isFairyWind) && curDist > 15) {
     const swImg = getImage(vFile || 'vfx/wind/silver_wind_volumetric.png');
     if (swImg && swImg.complete && swImg.naturalWidth > 0) {
       ctx.save();
@@ -1653,7 +1654,7 @@ export function renderCombatBeam(ctx, startX, startY, targetX, targetY, progress
       const fw = swImg.naturalWidth / cols;
       const fh = swImg.naturalHeight / rows;
 
-      const gustCount = 4;
+      const gustCount = 5;
       ctx.globalAlpha = alpha * 0.95;
 
       for (let g = 0; g < gustCount; g++) {
@@ -1666,14 +1667,70 @@ export function renderCombatBeam(ctx, startX, startY, targetX, targetY, progress
         const sy = row * fh;
 
         const gustAlpha = Math.sin(gT * Math.PI) * alpha * 0.95;
-        ctx.globalAlpha = gustAlpha;
-
         const gScale = (0.60 + gT * 0.35) * (width > 40 ? 1.3 : 0.9);
         const dw = fw * gScale;
         const dh = fh * gScale;
 
-        ctx.drawImage(swImg, sx, sy, fw, fh, gx - dw * 0.4, -dh / 2, dw, dh);
+        if (isFairyWind) {
+          // Dual-tone Pink & Blue volumetric gusts
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          // Pink outer layer
+          ctx.globalAlpha = gustAlpha * 0.85;
+          ctx.filter = 'sepia(0.6) hue-rotate(285deg) saturate(3.5) brightness(1.2)';
+          ctx.drawImage(swImg, sx, sy, fw, fh, gx - dw * 0.4, -dh / 2 - 3, dw, dh);
+
+          // Blue celestial layer
+          ctx.globalAlpha = gustAlpha * 0.75;
+          ctx.filter = 'sepia(0.6) hue-rotate(170deg) saturate(3) brightness(1.15)';
+          ctx.drawImage(swImg, sx, sy, fw, fh, gx - dw * 0.4, -dh / 2 + 3, dw * 0.95, dh * 0.95);
+          ctx.restore();
+        } else {
+          ctx.globalAlpha = gustAlpha;
+          ctx.drawImage(swImg, sx, sy, fw, fh, gx - dw * 0.4, -dh / 2, dw, dh);
+        }
       }
+
+      // Magical fairy sparkles and twinkling diamond stars along the wind stream
+      if (isFairyWind) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const numStars = 8;
+        for (let s = 0; s < numStars; s++) {
+          const sT = (p * 2.5 + s / numStars) % 1.0;
+          const sx = curDist * sT;
+          const sy = Math.sin(sT * Math.PI * 4 + s) * 16;
+          const sAlpha = Math.sin(sT * Math.PI) * 0.95;
+          const sColor = s % 2 === 0 ? '#FDA4AF' : '#67E8F9';
+          const sSize = 4.5 + Math.sin(p * 10 + s) * 2;
+
+          ctx.fillStyle = sColor;
+          ctx.globalAlpha = sAlpha;
+          ctx.shadowColor = sColor;
+          ctx.shadowBlur = 6;
+
+          ctx.beginPath();
+          ctx.moveTo(sx, sy - sSize);
+          ctx.lineTo(sx + sSize * 0.35, sy);
+          ctx.lineTo(sx, sy + sSize);
+          ctx.lineTo(sx - sSize * 0.35, sy);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.moveTo(sx - sSize, sy);
+          ctx.lineTo(sx, sy + sSize * 0.35);
+          ctx.lineTo(sx + sSize, sy);
+          ctx.lineTo(sx - sSize * 0.35, sy);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(Math.round(sx - 1), Math.round(sy - 1), 2, 2);
+        }
+        ctx.restore();
+      }
+
       ctx.restore();
     }
   }
@@ -4234,31 +4291,31 @@ export function renderElectrowebCombat(ctx, targetX, targetY, p, spritesheetImg,
   ctx.save();
 
   if (spritesheetImg && spritesheetImg.complete && spritesheetImg.naturalWidth > 0) {
-    const cols = 5;
+    const cols = 8;
     const fw = spritesheetImg.naturalWidth / cols;
     const fh = spritesheetImg.naturalHeight;
     const frame = Math.min(cols - 1, Math.floor(prog * cols));
     const sx = frame * fw;
 
-    const scale = (spriteVisual?.scale || 0.80) * 1.0;
+    const scale = (spriteVisual?.scale || 1.0) * 1.25;
     const dw = fw * scale;
     const dh = fh * scale;
 
     ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = Math.max(0.2, 1.0 - prog * 0.4);
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(spritesheetImg, sx, 0, fw, fh, targetX - dw / 2, targetY - dh / 2 - 6, dw, dh);
+    ctx.globalAlpha = Math.max(0.15, 1.0 - prog * 0.7);
+    ctx.filter = 'sepia(1) saturate(12) hue-rotate(15deg) brightness(1.2)';
+    ctx.drawImage(spritesheetImg, sx, 0, fw, fh, Math.round(targetX - dw / 2), Math.round(targetY - dh / 2), dw, dh);
     ctx.restore();
   }
 
   // Electric sparking nodes
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     const ang = Math.random() * Math.PI * 2;
-    const r = Math.random() * 18;
-    ctx.fillStyle = '#FFFFFF';
+    const r = Math.random() * 22;
+    ctx.fillStyle = i % 2 === 0 ? '#FEF08A' : '#FACC15';
     ctx.fillRect(Math.round(targetX + Math.cos(ang) * r), Math.round(targetY - 6 + Math.sin(ang) * r), 2, 2);
   }
   ctx.restore();
@@ -4298,7 +4355,7 @@ export function renderElectricTerrainCombat(ctx, targetX, targetY, p, spriteshee
 /**
  * 8. Electric Radial Impact Burst (5 frames, 64x64)
  */
-export function renderElectricBurstCombat(ctx, targetX, targetY, p, spritesheetImg, isBlue = false) {
+export function renderElectricBurstCombat(ctx, targetX, targetY, p, spritesheetImg, isBlue = false, isReversed = false) {
   const prog = Math.max(0, Math.min(1, p));
   ctx.save();
 
@@ -4306,20 +4363,753 @@ export function renderElectricBurstCombat(ctx, targetX, targetY, p, spritesheetI
     const cols = 5;
     const fw = spritesheetImg.naturalWidth / cols;
     const fh = spritesheetImg.naturalHeight;
-    const frame = Math.min(cols - 1, Math.floor(prog * cols));
+    const rawFrame = Math.min(cols - 1, Math.floor(prog * cols));
+    const frame = isReversed ? (cols - 1 - rawFrame) : rawFrame;
     const sx = frame * fw;
 
-    const scale = 1.35;
+    // Inverted/charging contracts from outer perimeter inwards into the pokemon center
+    const scale = isReversed ? (1.55 - prog * 0.35) : 1.35;
     const dw = fw * scale;
     const dh = fh * scale;
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = Math.max(0.15, 1.0 - prog * 0.4);
+    ctx.globalAlpha = isReversed ? Math.min(1.0, 0.35 + prog * 0.65) : Math.max(0.15, 1.0 - prog * 0.4);
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(spritesheetImg, sx, 0, fw, fh, targetX - dw / 2, targetY - dh / 2, dw, dh);
+    ctx.restore();
+
+    // Inverted converging electrical spark particles
+    if (isReversed) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = '#FEF08A';
+      for (let i = 0; i < 5; i++) {
+        const a = (prog * 18 + i * (Math.PI * 2 / 5));
+        const dist = (1.0 - prog) * 36;
+        ctx.globalAlpha = Math.sin(prog * Math.PI) * 0.85;
+        ctx.fillRect(Math.round(targetX + Math.cos(a) * dist - 1), Math.round(targetY + Math.sin(a) * dist - 1), 2.5, 2.5);
+      }
+      ctx.restore();
+    }
+  }
+
+  ctx.restore();
+}
+
+/**
+ * 9. Draining Kiss Impact Burst (core/attack_physical_01.png, 5 cols x 2 rows, 192x192, dual blue/pink fairy tinted)
+ */
+export function renderDrainingKissCombat(ctx, targetX, targetY, p, spritesheetImg, spriteVisual = null) {
+  const prog = Math.max(0, Math.min(1, p));
+  ctx.save();
+
+  if (spritesheetImg && spritesheetImg.complete && spritesheetImg.naturalWidth > 0) {
+    const cols = 5;
+    const rows = 2;
+    const totalFrames = 5;
+    const fw = spritesheetImg.naturalWidth / cols;
+    const fh = spritesheetImg.naturalHeight / rows;
+    const frame = Math.min(totalFrames - 1, Math.floor(prog * totalFrames));
+    const sx = (frame % cols) * fw;
+    const sy = Math.floor(frame / cols) * fh;
+
+    const baseScale = spriteVisual?.scale || 0.5;
+    const alpha = 1.0 - prog * 0.4;
+
+    // Pass 1: Blue outer celestial burst
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = Math.max(0.1, alpha * 0.95);
+    ctx.filter = 'hue-rotate(170deg) saturate(3) brightness(1.2)';
+    const dwB = fw * baseScale * (1.0 + prog * 0.2);
+    const dhB = fh * baseScale * (1.0 + prog * 0.2);
+    ctx.drawImage(spritesheetImg, sx, sy, fw, fh, Math.round(targetX - dwB / 2), Math.round(targetY - dhB / 2 - 8), dwB, dhB);
+    ctx.restore();
+
+    // Pass 2: Pink inner fairy flash
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = Math.max(0.1, alpha * 0.9);
+    ctx.filter = 'hue-rotate(285deg) saturate(3.5) brightness(1.25)';
+    const dwP = fw * baseScale * (0.95 + prog * 0.18);
+    const dhP = fh * baseScale * (0.95 + prog * 0.18);
+    ctx.drawImage(spritesheetImg, sx, sy, fw, fh, Math.round(targetX - dwP / 2), Math.round(targetY - dhP / 2 - 8), dwP, dhP);
+    ctx.restore();
+
+    // Pass 3: White starlight core
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = Math.max(0.05, alpha * 0.7);
+    ctx.filter = 'brightness(2.2) contrast(1.4)';
+    const dwW = fw * baseScale * 0.8;
+    const dhW = fh * baseScale * 0.8;
+    ctx.drawImage(spritesheetImg, sx, sy, fw, fh, Math.round(targetX - dwW / 2), Math.round(targetY - dhW / 2 - 8), dwW, dhW);
+    ctx.restore();
+  }
+
+  // Fairy magical sparkle dust around impact
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 6; i++) {
+    const a = (prog * 12 + i * (Math.PI / 3));
+    const dist = prog * 30;
+    ctx.fillStyle = i % 2 === 0 ? '#38BDF8' : '#FDA4AF';
+    ctx.globalAlpha = Math.sin(prog * Math.PI) * 0.9;
+    ctx.fillRect(Math.round(targetX + Math.cos(a) * dist - 1), Math.round(targetY - 8 + Math.sin(a) * dist - 1), 2.5, 2.5);
+  }
+  ctx.restore();
+
+  ctx.restore();
+}
+
+/**
+ * 10. Misty Terrain Expansion (Propagating explosion across whole terrain without kisses)
+ * Enhanced with 4-point fairy star glints, ascending fairy dust motes, and multi-layer pastel ground glow.
+ */
+function drawMistyFairyStar(ctx, x, y, size, alpha, color = '#FFFFFF', glowColor = '#F472B6') {
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+  ctx.shadowColor = glowColor;
+  ctx.shadowBlur = size * 2.2;
+  ctx.fillStyle = color;
+
+  // Diamond 4-point core
+  ctx.beginPath();
+  ctx.moveTo(x, y - size);
+  ctx.lineTo(x + size * 0.32, y);
+  ctx.lineTo(x, y + size);
+  ctx.lineTo(x - size * 0.32, y);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(x - size, y);
+  ctx.lineTo(x, y + size * 0.32);
+  ctx.lineTo(x + size, y);
+  ctx.lineTo(x, y - size * 0.32);
+  ctx.closePath();
+  ctx.fill();
+
+  // White brilliant center flare
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(Math.round(x - 1), Math.round(y - 1), 2, 2);
+  ctx.restore();
+}
+
+export function renderMistyTerrainCombat(ctx, originX, originY, p, spritesheetImg, spriteVisual = null) {
+  const prog = Math.max(0, Math.min(1, p));
+  ctx.save();
+
+  // 1. Cascading Lateral Explosions across the terrain floor
+  if (spritesheetImg && spritesheetImg.complete && spritesheetImg.naturalWidth > 0) {
+    const cols = 49;
+    const fw = spritesheetImg.naturalWidth / cols;
+    const fh = spritesheetImg.naturalHeight;
+    const frame = Math.min(cols - 1, Math.floor(prog * cols));
+    const sx = frame * fw;
+
+    // Center burst propagating outward
+    const scale = 2.4;
+    const dw = fw * scale;
+    const dh = fh * scale;
+
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = Math.max(0.1, (1.0 - prog * 0.5) * 0.85);
+    ctx.filter = 'sepia(0.6) hue-rotate(280deg) saturate(4) brightness(1.1)';
+    // Squeeze slightly vertically for isometric terrain perspective
+    ctx.drawImage(spritesheetImg, sx, 0, fw, fh, originX - dw / 2, originY + 8 - (dh * 0.65) / 2, dw, dh * 0.65);
+    ctx.restore();
+
+    // Secondary flanking propagation puffs across the arena
+    const flankOffsets = [-75, 75];
+    for (let f = 0; f < flankOffsets.length; f++) {
+      const fProg = Math.max(0, Math.min(1, (prog - 0.12) / 0.88));
+      if (fProg > 0) {
+        const fFrame = Math.min(cols - 1, Math.floor(fProg * cols));
+        const fSx = fFrame * fw;
+        const fScale = 1.6;
+        const fDw = fw * fScale;
+        const fDh = fh * fScale;
+
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = Math.max(0.05, (1.0 - fProg * 0.6) * 0.65);
+        ctx.filter = 'sepia(0.5) hue-rotate(260deg) saturate(3) brightness(1.1)';
+        ctx.drawImage(spritesheetImg, fSx, 0, fw, fh, originX + flankOffsets[f] - fDw / 2, originY + 12 - (fDh * 0.6) / 2, fDw, fDh * 0.6);
+        ctx.restore();
+      }
+    }
+  }
+
+  // 2. Multi-layer Ethereal Ground Mist & Fairy Halo Ring
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const mistWidth = 280;
+  const mistHeight = 48;
+  const mistAlpha = Math.sin(prog * Math.PI) * 0.42;
+
+  // Outer fairy halo boundary
+  ctx.strokeStyle = '#F472B6';
+  ctx.lineWidth = 1.5;
+  ctx.globalAlpha = mistAlpha * 0.6;
+  ctx.beginPath();
+  ctx.ellipse(originX, originY + 12, (mistWidth / 2) * 0.95, (mistHeight / 2) * 0.95, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Multi-stop pastel radial mist
+  const mistGrad = ctx.createRadialGradient(originX, originY + 12, 10, originX, originY + 12, mistWidth / 2);
+  mistGrad.addColorStop(0, 'rgba(244, 114, 182, ' + mistAlpha + ')');
+  mistGrad.addColorStop(0.35, 'rgba(251, 113, 133, ' + (mistAlpha * 0.75) + ')');
+  mistGrad.addColorStop(0.70, 'rgba(224, 231, 255, ' + (mistAlpha * 0.45) + ')');
+  mistGrad.addColorStop(1, 'rgba(244, 114, 182, 0)');
+  ctx.fillStyle = mistGrad;
+  ctx.beginPath();
+  ctx.ellipse(originX, originY + 12, mistWidth / 2, mistHeight / 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // 3. Ascending Fairy Dust Motes & Wisps (Poeira Feérica Ascendente)
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const numFairyMotes = 18;
+  for (let m = 0; m < numFairyMotes; m++) {
+    const mProg = (prog * 2.0 + m / numFairyMotes) % 1.0;
+    const mSpread = ((m * 43) % Math.round(mistWidth * 0.82)) - (mistWidth * 0.41);
+    const mx = originX + mSpread + Math.sin(prog * 12 + m * 2) * 7;
+    const my = originY + 12 - mProg * 38 - Math.cos(prog * 9 + m) * 3;
+    const mAlpha = Math.sin(mProg * Math.PI) * Math.sin(prog * Math.PI) * 0.95;
+    const mColor = m % 3 === 0 ? '#FFFFFF' : (m % 3 === 1 ? '#FDA4AF' : '#FEF08A');
+
+    ctx.fillStyle = mColor;
+    ctx.globalAlpha = mAlpha;
+    ctx.shadowColor = '#F472B6';
+    ctx.shadowBlur = 6;
+    ctx.fillRect(Math.round(mx - 1), Math.round(my - 1), 2.5, 2.5);
+  }
+  ctx.restore();
+
+  // 4. Twinkling 4-Point Fairy Star Glints (✦) across the battlefield
+  const starGlints = [
+    { dx: -95, dy: -6, phase: 0.10, size: 7.0, color: '#FFFFFF', glow: '#F472B6' },
+    { dx: -60, dy: 8, phase: 0.38, size: 5.5, color: '#FDA4AF', glow: '#FB7185' },
+    { dx: -22, dy: -12, phase: 0.68, size: 8.0, color: '#FFFFFF', glow: '#FEF08A' },
+    { dx: 18, dy: 6, phase: 0.22, size: 6.0, color: '#FEF08A', glow: '#F472B6' },
+    { dx: 55, dy: -8, phase: 0.52, size: 7.5, color: '#FFFFFF', glow: '#FDA4AF' },
+    { dx: 90, dy: 8, phase: 0.82, size: 5.0, color: '#FDA4AF', glow: '#C084FC' },
+    { dx: -40, dy: -18, phase: 0.58, size: 6.0, color: '#FEF08A', glow: '#F472B6' },
+    { dx: 38, dy: -16, phase: 0.32, size: 6.5, color: '#FFFFFF', glow: '#FEF08A' }
+  ];
+
+  for (let g = 0; g < starGlints.length; g++) {
+    const sg = starGlints[g];
+    const gCycle = Math.sin((prog * 4 + sg.phase) * Math.PI);
+    if (gCycle > 0) {
+      const gAlpha = gCycle * Math.sin(prog * Math.PI) * 0.95;
+      const gx = originX + sg.dx;
+      const gy = originY + 12 + sg.dy;
+      drawMistyFairyStar(ctx, gx, gy, sg.size * (0.7 + gCycle * 0.3), gAlpha, sg.color, sg.glow);
+    }
+  }
+
+  ctx.restore();
+}
+
+/**
+ * 11. Play Rough Combat Impact (vfx/custom/play_rough_impact.png, 5 frames, 48x32)
+ * Rapid energetic playful bites/snaps accompanied by comic fairy stars and sparkle bursts.
+ */
+export function renderPlayRoughCombat(ctx, targetX, targetY, p, spritesheetImg, spriteVisual = null) {
+  const prog = Math.max(0, Math.min(1, p));
+  ctx.save();
+
+  // 1. Playful Multi-Hit Snaps (2 staggered strikes at alternating playful angles)
+  const strikes = [
+    { startP: 0.00, endP: 0.65, dx: -8, dy: -6, angle: -0.22, scale: 0.90 },
+    { startP: 0.35, endP: 1.00, dx: 8, dy: 4, angle: 0.26, scale: 1.00 }
+  ];
+
+  if (spritesheetImg && spritesheetImg.complete && spritesheetImg.naturalWidth > 0) {
+    const cols = 5;
+    const rows = 2;
+    const totalFrames = 5;
+    const fw = spritesheetImg.naturalWidth / cols;
+    const fh = spritesheetImg.naturalHeight / rows;
+
+    for (let i = 0; i < strikes.length; i++) {
+      const st = strikes[i];
+      if (prog >= st.startP && prog <= st.endP) {
+        const stProg = (prog - st.startP) / (st.endP - st.startP);
+        const frame = Math.min(totalFrames - 1, Math.floor(stProg * totalFrames));
+        const sx = (frame % cols) * fw;
+        const sy = Math.floor(frame / cols) * fh;
+
+        const baseScale = (spriteVisual?.scale || 0.5) * st.scale;
+        const dw = fw * baseScale;
+        const dh = fh * baseScale;
+        const alpha = Math.max(0.1, 1.0 - stProg * 0.4);
+
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.translate(targetX + st.dx, targetY + st.dy - 8);
+        ctx.rotate(st.angle);
+
+        // Pass 1: Outer Celestial Blue
+        ctx.save();
+        ctx.globalAlpha = Math.max(0.1, alpha * 0.95);
+        ctx.filter = 'hue-rotate(170deg) saturate(3) brightness(1.2)';
+        const dwB = dw * (1.0 + stProg * 0.18);
+        const dhB = dh * (1.0 + stProg * 0.18);
+        ctx.drawImage(spritesheetImg, sx, sy, fw, fh, -dwB / 2, -dhB / 2, dwB, dhB);
+        ctx.restore();
+
+        // Pass 2: Inner Fairy Pink
+        ctx.save();
+        ctx.globalAlpha = Math.max(0.1, alpha * 0.9);
+        ctx.filter = 'hue-rotate(285deg) saturate(3.5) brightness(1.25)';
+        const dwP = dw * (0.95 + stProg * 0.16);
+        const dhP = dh * (0.95 + stProg * 0.16);
+        ctx.drawImage(spritesheetImg, sx, sy, fw, fh, -dwP / 2, -dhP / 2, dwP, dhP);
+        ctx.restore();
+
+        // Pass 3: White Starlight Core
+        ctx.save();
+        ctx.globalAlpha = Math.max(0.05, alpha * 0.7);
+        ctx.filter = 'brightness(2.2) contrast(1.4)';
+        const dwW = dw * 0.78;
+        const dhW = dh * 0.78;
+        ctx.drawImage(spritesheetImg, sx, sy, fw, fh, -dwW / 2, -dhW / 2, dwW, dhW);
+        ctx.restore();
+
+        ctx.restore();
+      }
+    }
+  }
+
+  // 2. Playful Fairy Stars & Dust Popping Around Target
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const stars = [
+    { ang: 0.4, dist: 24, size: 6, color: '#FEF08A', glow: '#F472B6' },
+    { ang: 1.8, dist: 28, size: 5, color: '#FDA4AF', glow: '#FB7185' },
+    { ang: 3.2, dist: 22, size: 7, color: '#FFFFFF', glow: '#FEF08A' },
+    { ang: 4.6, dist: 26, size: 5.5, color: '#F472B6', glow: '#FDA4AF' }
+  ];
+
+  for (let s = 0; s < stars.length; s++) {
+    const star = stars[s];
+    const sP = (prog * 2.2 + s * 0.25) % 1.0;
+    const d = sP * star.dist;
+    const sx = targetX + Math.cos(star.ang + prog * 3) * d;
+    const sy = targetY - 10 + Math.sin(star.ang + prog * 3) * d;
+    const sAlpha = Math.sin(sP * Math.PI) * Math.sin(prog * Math.PI) * 0.95;
+
+    ctx.fillStyle = star.color;
+    ctx.globalAlpha = sAlpha;
+    ctx.shadowColor = star.glow;
+    ctx.shadowBlur = 6;
+    ctx.fillRect(Math.round(sx - 1.5), Math.round(sy - 1.5), 3, 3);
+  }
+  ctx.restore();
+
+  // 3. Playful Impact Shockwave
+  if (prog >= 0.20) {
+    const ringP = (prog - 0.20) / 0.80;
+    const rAlpha = (1.0 - ringP) * 0.75;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = '#FDA4AF';
+    ctx.lineWidth = 2.0 * rAlpha;
+    ctx.globalAlpha = rAlpha;
+    ctx.beginPath();
+    ctx.ellipse(targetX, targetY, ringP * 34, ringP * 18, 0, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.restore();
   }
 
   ctx.restore();
 }
+
+/**
+ * 12. Moonblast Burst / Gather (core/attack_physical_01.png, 10 frames total: 5 cols x 2 rows, 192x192)
+ * Renders in celestial dual tone (Moonlight Blue / Fairy Pink):
+ * - If isReverse === true: played on the caster in reverse (4 -> 0), converging rays of moonlight inward!
+ * - If isReverse === false: played on the target forward (0 -> 4), exploding outward upon impact!
+ */
+export function renderMoonblastBurst(ctx, x, y, p, spritesheetImg, spriteVisual = null, isReverse = false) {
+  const prog = Math.max(0, Math.min(1, p));
+  ctx.save();
+
+  if (spritesheetImg && spritesheetImg.complete && spritesheetImg.naturalWidth > 0) {
+    const cols = 5;
+    const rows = 2;
+    const fw = spritesheetImg.naturalWidth / cols;
+    const fh = spritesheetImg.naturalHeight / rows;
+    const totalFrames = 5;
+
+    // Calculate frame index
+    let frameRel;
+    if (isReverse) {
+      frameRel = Math.floor((1.0 - prog) * totalFrames);
+    } else {
+      frameRel = Math.floor(prog * totalFrames);
+    }
+    frameRel = Math.max(0, Math.min(totalFrames - 1, frameRel));
+
+    const sx = (frameRel % cols) * fw;
+    const sy = Math.floor(frameRel / cols) * fh;
+
+    const baseScale = spriteVisual?.scale || 0.5;
+    const alphaBase = isReverse ? (0.3 + prog * 0.7) : (1.0 - prog * 0.4);
+
+    // Pass 1: Celestial Moon-Blue Glow (Outer celestial aura)
+    const scaleBlue = baseScale * (isReverse ? (1.15 - prog * 0.15) : (1.0 + prog * 0.2));
+    const dwBlue = fw * scaleBlue;
+    const dhBlue = fh * scaleBlue;
+
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = Math.max(0.1, alphaBase * 0.9);
+    ctx.filter = 'hue-rotate(170deg) saturate(3) brightness(1.2)';
+    ctx.drawImage(spritesheetImg, sx, sy, fw, fh, x - dwBlue / 2, y - dhBlue / 2, dwBlue, dhBlue);
+    ctx.restore();
+
+    // Pass 2: Fairy Pink / Rose Rays (Inner/Interlocking fairy flash)
+    const scalePink = baseScale * (isReverse ? (1.05 - prog * 0.1) : (0.95 + prog * 0.18));
+    const dwPink = fw * scalePink;
+    const dhPink = fh * scalePink;
+
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = Math.max(0.1, alphaBase * 0.85);
+    ctx.filter = 'hue-rotate(285deg) saturate(3.5) brightness(1.25)';
+    ctx.drawImage(spritesheetImg, sx, sy, fw, fh, x - dwPink / 2, y - dhPink / 2, dwPink, dhPink);
+    ctx.restore();
+
+    // Pass 3: Brilliant Pure White Starlight Core
+    const scaleWhite = baseScale * 0.78;
+    const dwWhite = fw * scaleWhite;
+    const dhWhite = fh * scaleWhite;
+
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = Math.max(0.05, alphaBase * 0.65);
+    ctx.filter = 'brightness(2.2) contrast(1.4)';
+    ctx.drawImage(spritesheetImg, sx, sy, fw, fh, x - dwWhite / 2, y - dhWhite / 2, dwWhite, dhWhite);
+    ctx.restore();
+  }
+
+  // Fairy / Moon starlight particles
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const numGlints = 6;
+  for (let g = 0; g < numGlints; g++) {
+    const ang = g * (Math.PI * 2 / numGlints) + (isReverse ? -prog * 3 : prog * 3);
+    const rad = isReverse ? (35 * (1.0 - prog)) : (15 + prog * 32);
+    const gx = x + Math.cos(ang) * rad;
+    const gy = y + Math.sin(ang) * rad;
+    const gAlpha = Math.sin(prog * Math.PI) * 0.9;
+
+    ctx.fillStyle = g % 2 === 0 ? '#38BDF8' : '#F472B6';
+    ctx.globalAlpha = gAlpha;
+    ctx.shadowColor = g % 2 === 0 ? '#38BDF8' : '#F472B6';
+    ctx.shadowBlur = 6;
+    ctx.fillRect(Math.round(gx - 1.5), Math.round(gy - 1.5), 3, 3);
+  }
+  ctx.restore();
+
+  ctx.restore();
+}
+
+/**
+ * Procedural Pixel-Art Pink Padlock with Animated Shackle
+ */
+export function drawPinkPadlock(ctx, cx, cy, isLocked = true, scale = 1.0, alpha = 1.0) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(Math.round(cx), Math.round(cy));
+  ctx.scale(scale, scale);
+
+  // 1. Shackle (Arch)
+  const shackleY = isLocked ? -6 : -11;
+  ctx.save();
+  ctx.lineWidth = 3.2;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#FBCFE8'; // Rose silver arch
+  ctx.shadowColor = '#F472B6';
+  ctx.shadowBlur = 6;
+  ctx.beginPath();
+  ctx.arc(0, shackleY, 7, Math.PI, 0, false);
+  ctx.lineTo(7, shackleY + (isLocked ? 6 : 2));
+  ctx.stroke();
+  ctx.restore();
+
+  // 2. Padlock Body (Rounded Pink Box)
+  const bw = 20;
+  const bh = 16;
+  const bx = -bw / 2;
+  const by = -2;
+
+  // Dark pink shadow bevel
+  ctx.fillStyle = '#831843';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(bx - 1, by - 1, bw + 2, bh + 2, 4);
+  else ctx.rect(bx - 1, by - 1, bw + 2, bh + 2);
+  ctx.fill();
+
+  // Vibrant Pink Gradient Body
+  const bodyGrad = ctx.createLinearGradient(bx, by, bx, by + bh);
+  bodyGrad.addColorStop(0, '#FB7185');
+  bodyGrad.addColorStop(0.5, '#F472B6');
+  bodyGrad.addColorStop(1, '#DB2777');
+  ctx.fillStyle = bodyGrad;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 3);
+  else ctx.rect(bx, by, bw, bh);
+  ctx.fill();
+
+  // Top/left specular highlight
+  ctx.strokeStyle = '#FDF2F8';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(bx + 3, by + 1.5);
+  ctx.lineTo(bx + bw - 3, by + 1.5);
+  ctx.stroke();
+
+  // 3. Golden Keyhole
+  ctx.fillStyle = '#FEF08A';
+  ctx.shadowColor = '#FEF08A';
+  ctx.shadowBlur = 4;
+  ctx.beginPath();
+  ctx.arc(0, by + 6, 2.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(-1.2, by + 6);
+  ctx.lineTo(1.2, by + 6);
+  ctx.lineTo(2, by + 11);
+  ctx.lineTo(-2, by + 11);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
+}
+
+/**
+ * 13. Fairy Lock: MediumStar detonates on target, followed by a Pink Padlock snapping shut above enemy
+ */
+export function renderFairyLockImpact(ctx, targetX, targetY, p, spritesheetImg, spriteVisual = null) {
+  const prog = Math.max(0, Math.min(1, p));
+  ctx.save();
+
+  // 1. Phase 1: MediumStar impact burst on opponent center
+  if (prog <= 0.50 && spritesheetImg && spritesheetImg.complete && spritesheetImg.naturalWidth > 0) {
+    const cols = 60;
+    const fw = 64;
+    const fh = 64;
+    const p1 = prog / 0.50;
+    const frame = Math.floor(p1 * 40) % cols;
+    const sx = frame * fw;
+    const scale = (0.8 + p1 * 0.4);
+    const dw = fw * scale;
+    const dh = fh * scale;
+    const alpha = Math.sin(p1 * Math.PI) * 0.95;
+
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = '#F472B6';
+    ctx.shadowBlur = 14;
+    ctx.drawImage(spritesheetImg, sx, 0, fw, fh, Math.round(targetX - dw / 2), Math.round(targetY - dh / 2 - 8), dw, dh);
+    ctx.restore();
+  }
+
+  // 2. Phase 2: Pink Padlock appears above enemy head (targetY - 38)
+  if (prog >= 0.15) {
+    const lockProg = (prog - 0.15) / 0.85;
+    const isLocked = lockProg >= 0.25;
+    const lockY = (targetY - 38) + (lockProg < 0.25 ? (1.0 - lockProg / 0.25) * -12 : Math.sin(lockProg * 10) * 2);
+    const scale = lockProg < 0.25 ? 0.8 + (lockProg / 0.25) * 0.35 : (lockProg < 0.40 ? 1.25 : 1.05);
+    const alpha = lockProg > 0.80 ? (1.0 - lockProg) / 0.20 : Math.min(1.0, lockProg * 4.0);
+
+    // Lock snap flash starburst
+    if (lockProg >= 0.22 && lockProg <= 0.42) {
+      const snapP = (lockProg - 0.22) / 0.20;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = '#FEF08A';
+      ctx.lineWidth = 2.0;
+      ctx.globalAlpha = (1.0 - snapP) * 0.9;
+      const snapRad = snapP * 28;
+      ctx.beginPath();
+      ctx.arc(targetX, lockY, snapRad, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Mini golden glints
+      ctx.fillStyle = '#FFFFFF';
+      for (let g = 0; g < 4; g++) {
+        const ga = g * (Math.PI / 2) + snapP * 2;
+        ctx.fillRect(Math.round(targetX + Math.cos(ga) * snapRad - 1), Math.round(lockY + Math.sin(ga) * snapRad - 1), 3, 3);
+      }
+      ctx.restore();
+    }
+
+    // Floating fairy chains/rings wrapping around target
+    if (isLocked) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let c = 0; c < 3; c++) {
+        const ca = (lockProg * 6 + c * (Math.PI * 2 / 3));
+        const cx = targetX + Math.cos(ca) * 24;
+        const cy = (targetY - 10) + Math.sin(ca) * 12;
+        ctx.strokeStyle = '#F472B6';
+        ctx.lineWidth = 1.8;
+        ctx.globalAlpha = Math.sin(lockProg * Math.PI) * 0.75;
+        ctx.strokeRect(Math.round(cx - 4), Math.round(cy - 3), 8, 6);
+      }
+      ctx.restore();
+    }
+
+    // Draw the Pink Padlock!
+    drawPinkPadlock(ctx, targetX, lockY, isLocked, scale, alpha);
+  }
+
+  ctx.restore();
+}
+
+/**
+ * 14. Geomancy: Multi-pass Fairy Colors on core/attack_physical_01.png + Rising Cosmic Starlight Aura
+ */
+export function renderGeomancyBuff(ctx, x, y, p, spritesheetImg, spriteVisual = null) {
+  const prog = Math.max(0, Math.min(1, p));
+  ctx.save();
+
+  // Multi-pulsing rising waves of attack_physical_01 with fairy coloring
+  if (spritesheetImg && spritesheetImg.complete && spritesheetImg.naturalWidth > 0) {
+    const cols = 5;
+    const rows = 2;
+    const totalFrames = 5;
+    const fw = spritesheetImg.naturalWidth / cols;
+    const fh = spritesheetImg.naturalHeight / rows;
+    const baseScale = spriteVisual?.scale || 0.5;
+
+    // 2 ascending pulses
+    const pulseCount = 2;
+    for (let pulse = 0; pulse < pulseCount; pulse++) {
+      const pOffset = pulse * 0.32;
+      if (prog < pOffset) continue;
+      const pulseProg = Math.min(1.0, (prog - pOffset) / 0.65);
+      const frame = Math.min(totalFrames - 1, Math.floor(pulseProg * totalFrames));
+      const sx = (frame % cols) * fw;
+      const sy = Math.floor(frame / cols) * fh;
+      const pulseY = y - pulseProg * 22;
+      const alpha = Math.sin(pulseProg * Math.PI) * 0.95;
+
+      // Pass 1: Celestial Blue Outer Ring
+      ctx.save();
+      ctx.imageSmoothingEnabled = false;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = alpha * 0.9;
+      ctx.filter = 'hue-rotate(170deg) saturate(3) brightness(1.2)';
+      const dwB = fw * baseScale * (0.95 + pulseProg * 0.25);
+      const dhB = fh * baseScale * (0.95 + pulseProg * 0.25);
+      ctx.drawImage(spritesheetImg, sx, sy, fw, fh, Math.round(x - dwB / 2), Math.round(pulseY - dhB / 2), dwB, dhB);
+      ctx.restore();
+
+      // Pass 2: Vivid Fairy Pink Main Glow
+      ctx.save();
+      ctx.imageSmoothingEnabled = false;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = alpha * 0.95;
+      ctx.filter = 'hue-rotate(285deg) saturate(3.5) brightness(1.25)';
+      const dwP = fw * baseScale * (0.9 + pulseProg * 0.22);
+      const dhP = fh * baseScale * (0.9 + pulseProg * 0.22);
+      ctx.drawImage(spritesheetImg, sx, sy, fw, fh, Math.round(x - dwP / 2), Math.round(pulseY - dhP / 2), dwP, dhP);
+      ctx.restore();
+
+      // Pass 3: Radiant Pure Starlight Core
+      ctx.save();
+      ctx.imageSmoothingEnabled = false;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = alpha * 0.7;
+      ctx.filter = 'brightness(2.2) contrast(1.4)';
+      const dwW = fw * baseScale * 0.75;
+      const dhW = fh * baseScale * 0.75;
+      ctx.drawImage(spritesheetImg, sx, sy, fw, fh, Math.round(x - dwW / 2), Math.round(pulseY - dhW / 2), dwW, dhW);
+      ctx.restore();
+    }
+  }
+
+  // Ascending fairy stat-boost sparkles & upward motes
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (let s = 0; s < 7; s++) {
+    const sa = s * (Math.PI * 2 / 7) + prog * 4;
+    const sRad = 16 + Math.sin(prog * 8 + s) * 8;
+    const sx = x + Math.cos(sa) * sRad;
+    const sy = (y + 4) - prog * 36 - s * 2;
+    const sAlpha = Math.sin(prog * Math.PI) * 0.85;
+
+    ctx.fillStyle = s % 2 === 0 ? '#F472B6' : (s % 3 === 0 ? '#38BDF8' : '#FEF08A');
+    ctx.globalAlpha = sAlpha;
+    ctx.shadowColor = ctx.fillStyle;
+    ctx.shadowBlur = 6;
+    ctx.fillRect(Math.round(sx - 1.5), Math.round(sy - 1.5), 3, 3);
+  }
+  ctx.restore();
+
+  ctx.restore();
+}
+
+/**
+ * 15. Dazzling Gleam Flare: Blinding Radiant Light Flare on Caster
+ */
+export function renderDazzleFlare(ctx, x, y, p) {
+  const prog = Math.max(0, Math.min(1, p));
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+
+  // 1. Blinding White/Pink Additive Corona
+  const rad = 14 + prog * 36;
+  const alpha = Math.sin(prog * Math.PI);
+  const grad = ctx.createRadialGradient(x, y, 0, x, y, rad);
+  grad.addColorStop(0, '#FFFFFF');
+  grad.addColorStop(0.35, '#FEF08A');
+  grad.addColorStop(0.7, '#F472B6');
+  grad.addColorStop(1, 'rgba(244, 114, 182, 0)');
+  ctx.fillStyle = grad;
+  ctx.globalAlpha = alpha * 0.9;
+  ctx.beginPath();
+  ctx.arc(x, y, rad, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 2. Multi-point radiant flare rays
+  const numRays = 8;
+  const rayLen = 22 + prog * 45;
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = Math.max(1, (1.0 - prog) * 2.5);
+  ctx.globalAlpha = alpha * 0.85;
+  ctx.shadowColor = '#FEF08A';
+  ctx.shadowBlur = 10;
+  for (let r = 0; r < numRays; r++) {
+    const ang = r * (Math.PI * 2 / numRays) + prog * 2.5;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(ang) * rayLen, y + Math.sin(ang) * rayLen);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+

@@ -38,6 +38,7 @@ export class BattleEngine {
 
     this.arena = new BattleArena(canvas);
     this.particleSystem = new ParticleSystem();
+    this.particleSystem.entitySource = () => [this.playerEntity, this.enemyEntity];
     this.projectileSystem = new ProjectileSystem(this.particleSystem, this.arena);
     this.clashSystem = new AttackClashSystem(this);
     this.inputManager = new InputManager();
@@ -454,6 +455,9 @@ export class BattleEngine {
           this._opponentDirX = action.dirX;
           this._opponentDirY = action.dirY;
         }
+        if (typeof action.stamina === 'number') {
+          this.enemyEntity.stamina = action.stamina;
+        }
         this._opponentMoving = (action.dirX !== 0 || action.dirY !== 0);
         this._opponentMoveTimeout = 0.16;
         break;
@@ -464,6 +468,9 @@ export class BattleEngine {
           this._opponentTargetY = action.y;
           this.enemyEntity.x = action.x;
           this.enemyEntity.y = action.y;
+        }
+        if (typeof action.stamina === 'number') {
+          this.enemyEntity.stamina = action.stamina;
         }
         this._opponentDirX = 0;
         this._opponentDirY = 0;
@@ -478,11 +485,14 @@ export class BattleEngine {
         break;
 
       case 'dodge':
-        this.enemyEntity.performEvasiveDodge(action.dirX || 0, action.dirY || 0);
+        if (typeof action.stamina === 'number') {
+          this.enemyEntity.stamina = action.stamina;
+        }
+        this.enemyEntity.performEvasiveDodge(action.dirX || 0, action.dirY || 0, true);
         break;
 
       case 'physical':
-        this.enemyEntity.executePhysicalAttack(true);
+        this.enemyEntity.executePhysicalAttack(true, action.hitNumber);
         break;
 
       case 'defensive':
@@ -766,7 +776,12 @@ export class BattleEngine {
     if (this.playerEntity && !this.battleEnded && !this.isCountdownActive) {
       const res = this.playerEntity.performEvasiveDodge(dirX, dirY);
       if (res && this.isPvp && this.onPvpAction) {
-        this.onPvpAction({ type: 'dodge', dirX: -dirX, dirY });
+        this.onPvpAction({
+          type: 'dodge',
+          dirX: -dirX,
+          dirY,
+          stamina: Math.round(this.playerEntity.stamina)
+        });
       }
       return res;
     }
@@ -777,7 +792,10 @@ export class BattleEngine {
     if (this.playerEntity && !this.battleEnded && !this.isCountdownActive) {
       const res = this.playerEntity.executePhysicalAttack();
       if (res && this.isPvp && this.onPvpAction) {
-        this.onPvpAction({ type: 'physical' });
+        this.onPvpAction({
+          type: 'physical',
+          hitNumber: this.playerEntity.comboStep
+        });
       }
       this.onStateChange();
       return res;
@@ -1218,7 +1236,8 @@ export class BattleEngine {
               dirX: -moveInput.dirX, // Mirror X direction for opponent perspective
               dirY: moveInput.dirY,
               x: Math.round(1024 - this.playerEntity.x), // Mirror X across arena center (512)
-              y: Math.round(this.playerEntity.y)
+              y: Math.round(this.playerEntity.y),
+              stamina: Math.round(this.playerEntity.stamina)
             });
             this._lastPvpSentMoving = true;
           } else if (this._lastPvpSentMoving) {
@@ -1228,7 +1247,8 @@ export class BattleEngine {
               dirX: 0,
               dirY: 0,
               x: Math.round(1024 - this.playerEntity.x),
-              y: Math.round(this.playerEntity.y)
+              y: Math.round(this.playerEntity.y),
+              stamina: Math.round(this.playerEntity.stamina)
             });
           }
         }
@@ -1238,10 +1258,14 @@ export class BattleEngine {
 
       // Auto-battle logic for player (only when explicitly enabled)
       if (!this.battleEnded && this.autoTurnEnabled && this.playerEntity.actionCooldown <= 0) {
-        this.playerAutoTimer -= dt;
-        if (this.playerAutoTimer <= 0) {
-          this.playerAutoTimer = 0.95;
-          this.executeAutoCombat(this.playerEntity);
+        if (this.playerEntity.comboWindowTimer > 0 && this.playerEntity.comboStep > 0 && this.playerEntity.physicalCooldown <= 0) {
+          this.executePlayerBasicAttack();
+        } else {
+          this.playerAutoTimer -= dt;
+          if (this.playerAutoTimer <= 0) {
+            this.playerAutoTimer = 0.95;
+            this.executeAutoCombat(this.playerEntity);
+          }
         }
       }
     }
@@ -1253,12 +1277,19 @@ export class BattleEngine {
           this.enemyEntity.updateTacticalAIMovement(dt);
           this.enemyEntity.update(dt);
 
-          // Enemy AI decision cadence
+          // Enemy AI decision cadence & dynamic combo chain in PvE
           if (!this.battleEnded && this.enemyEntity.actionCooldown <= 0) {
-            this.enemyAutoTimer -= dt;
-            if (this.enemyAutoTimer <= 0) {
-              this.enemyAutoTimer = 2.4;
-              this.executeEnemyAI(this.enemyEntity);
+            if (this.enemyEntity.comboWindowTimer > 0 && this.enemyEntity.comboStep > 0 && this.enemyEntity.physicalCooldown <= 0) {
+              const chainChance = this.enemyEntity.comboStep === 1 ? 0.75 : 0.65;
+              if (Math.random() < chainChance) {
+                this.enemyEntity.executePhysicalAttack();
+              }
+            } else {
+              this.enemyAutoTimer -= dt;
+              if (this.enemyAutoTimer <= 0) {
+                this.enemyAutoTimer = 2.4;
+                this.executeEnemyAI(this.enemyEntity);
+              }
             }
           }
         } else {
@@ -1336,6 +1367,7 @@ export class BattleEngine {
   // Enemy Tactical AI decision
   executeEnemyAI(enemy) {
     if (enemy.isFainted || !enemy.target || enemy.target.isFainted || this.battleEnded) return;
+    if (enemy.hitStunTimer > 0 || enemy.beamLockTimer > 0 || enemy.state === 'hurt') return;
 
     // Tactical stance shifts based on Guard Stamina:
     const guardRatio = (enemy.guardMeter || 0) / (enemy.guardMeterMax || 100);

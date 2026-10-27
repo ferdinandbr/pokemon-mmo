@@ -43,6 +43,13 @@ import {
   renderElectrowebCombat,
   renderElectricTerrainCombat,
   renderElectricBurstCombat,
+  renderDrainingKissCombat,
+  renderMistyTerrainCombat,
+  renderPlayRoughCombat,
+  renderMoonblastBurst,
+  renderFairyLockImpact,
+  renderGeomancyBuff,
+  renderDazzleFlare,
   PIXEL_COLOR_PALETTES,
 } from './pixelArtVfx.js';
 
@@ -92,6 +99,9 @@ const ANIMATION_FILES = [
   'vfx/custom/thief_swipe_dark.png',
   'vfx/custom/musical_notes_green.png',
   'vfx/custom/heart_burst.png',
+  'vfx/custom/MediumStar_64x64.png',
+  'vfx/custom/draining_kiss_burst.png',
+  'vfx/custom/play_rough_impact.png',
   'vfx/ice/ice_vfx_01.png',
   'vfx/ice/ice_vfx_02_active.png',
   'vfx/fire/fire_thrower_01.png',
@@ -161,16 +171,22 @@ export const ELEMENT_VFX_FILTERS = {
 
 export function getMoveAnimImg(file) {
   if (!file || typeof Image === 'undefined') return null;
-  if (!MOVE_ANIM_CACHE.has(file)) {
-    const img = new Image();
-    if (file.startsWith('/') || file.startsWith('http')) {
-      img.src = file;
-    } else {
-      img.src = `/assets/battle/animations/${file}`;
-    }
-    MOVE_ANIM_CACHE.set(file, img);
+  let cleanFile = file;
+  if (cleanFile.startsWith('/assets/battle/animations/')) {
+    cleanFile = cleanFile.slice('/assets/battle/animations/'.length);
+  } else if (cleanFile.startsWith('assets/battle/animations/')) {
+    cleanFile = cleanFile.slice('assets/battle/animations/'.length);
   }
-  return MOVE_ANIM_CACHE.get(file);
+  if (!MOVE_ANIM_CACHE.has(cleanFile)) {
+    const img = new Image();
+    if (cleanFile.startsWith('/') || cleanFile.startsWith('http')) {
+      img.src = cleanFile;
+    } else {
+      img.src = `/assets/battle/animations/${cleanFile}`;
+    }
+    MOVE_ANIM_CACHE.set(cleanFile, img);
+  }
+  return MOVE_ANIM_CACHE.get(cleanFile);
 }
 
 // Eagerly preload core animations at startup
@@ -222,6 +238,14 @@ export class ParticleSystem {
     this.electrowebs = [];
     this.electricTerrains = [];
     this.electricBursts = [];
+    this.kissBursts = [];
+    this.floatingHearts = [];
+    this.mistyTerrains = [];
+    this.playRoughs = [];
+    this.moonblasts = [];
+    this.fairyLocks = [];
+    this.geomancies = [];
+    this.dazzleFlares = [];
 
     this.maxParticles = 120; // Lean budget for locked 60 FPS without GC stutter
   }
@@ -263,6 +287,56 @@ export class ParticleSystem {
     this.electrowebs = [];
     this.electricTerrains = [];
     this.electricBursts = [];
+    this.kissBursts = [];
+    this.floatingHearts = [];
+    this.mistyTerrains = [];
+    this.playRoughs = [];
+    this.moonblasts = [];
+    this.fairyLocks = [];
+    this.geomancies = [];
+    this.dazzleFlares = [];
+  }
+
+  // ── Species size-aware VFX scaling ──────────────────────────────────────────
+  // Battler closest to a point (within its body reach), used when an effect was spawned by coordinates only
+  nearestEntity(x, y) {
+    const list = this.entitySource ? this.entitySource() : [];
+    let best = null;
+    let bestDist = Infinity;
+    for (const e of list) {
+      if (!e || e.isFainted) continue;
+      const reach = (e.radius || 21) * 2 + 28;
+      const d = Math.min(Math.hypot(e.x - x, e.y - y), Math.hypot(e.x - x, e.y - 20 - y));
+      if (d < reach && d < bestDist) {
+        best = e;
+        bestDist = d;
+      }
+    }
+    return best;
+  }
+
+  // Resolved once per effect: the visual size of the battler it belongs to (1 = reference body)
+  vfxScaleOf(fx, x, y, owner = null) {
+    if (fx.vfxScale === undefined) {
+      const ent = owner || fx.entity || fx.target || this.nearestEntity(x, y);
+      fx.vfxScale = ent?.vfxScale || 1;
+    }
+    return fx.vfxScale;
+  }
+
+  // Draws an effect scaled around its anchor so it stays glued to the same point of the body
+  drawScaled(ctx, fx, x, y, draw, owner = null) {
+    const s = this.vfxScaleOf(fx, x, y, owner);
+    if (Math.abs(s - 1) < 0.01) {
+      draw();
+      return;
+    }
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(s, s);
+    ctx.translate(-x, -y);
+    draw();
+    ctx.restore();
   }
 
   // Spawn cinematic luminous burst with flash core, directional sparks & organic embers
@@ -808,11 +882,12 @@ export class ParticleSystem {
     });
   }
 
-  spawnElectricBolt(targetX, targetY, duration = 0.55, isBlue = false, visual = null, onHit = null, target = null, skill = null) {
+  spawnElectricBolt(targetX, targetY, duration = 0.26, isBlue = false, visual = null, onHit = null, target = null, skill = null) {
+    const computedDuration = (visual && visual.fps && visual.cols) ? (visual.cols / visual.fps) : duration;
     this.electricBolts.push({
       targetX,
       targetY,
-      duration,
+      duration: computedDuration || 0.26,
       time: 0,
       isBlue,
       visual,
@@ -880,13 +955,108 @@ export class ParticleSystem {
     });
   }
 
-  spawnElectricBurst(x, y, duration = 0.35, isBlue = false) {
+  spawnElectricBurst(x, y, duration = 0.35, isBlue = false, isReversed = false) {
     this.electricBursts.push({
       x,
       y,
       duration,
       time: 0,
       isBlue,
+      isReversed,
+    });
+  }
+
+  // Draining Kiss: 49-frame explosion from draining_kiss_burst.png
+  spawnKissBurst(x, y, duration = 0.65, visual = null) {
+    this.kissBursts.push({
+      x,
+      y,
+      duration,
+      time: 0,
+      visual,
+    });
+  }
+
+  // Cute floating hearts rising from kiss or fairy charm
+  spawnFloatingHearts(x, y, count = 6) {
+    for (let i = 0; i < count; i++) {
+      this.floatingHearts.push({
+        x: x + (Math.random() - 0.5) * 24,
+        y: y + (Math.random() - 0.5) * 16,
+        vy: -40 - Math.random() * 50,
+        vx: (Math.random() - 0.5) * 35,
+        life: 0,
+        maxLife: 0.65 + Math.random() * 0.35,
+        scale: 0.75 + Math.random() * 0.5,
+        char: Math.random() < 0.6 ? '♥' : '💖',
+      });
+    }
+  }
+
+  // Misty Terrain: Grand propagating misty explosion across arena floor
+  spawnMistyTerrain(x, y, duration = 4.0, visual = null) {
+    this.mistyTerrains.push({
+      x,
+      y,
+      duration,
+      time: 0,
+      visual,
+    });
+  }
+
+  // Play Rough: 5-frame energetic snaps with stars from play_rough_impact.png
+  spawnPlayRough(x, y, duration = 0.50, visual = null) {
+    this.playRoughs.push({
+      x,
+      y,
+      duration,
+      time: 0,
+      visual,
+    });
+  }
+
+  // Moonblast: Dual blue/pink celestial blast from core/attack_physical_01.png
+  // isReverse: true on caster (converging inward), false on target (exploding outward)
+  spawnMoonblast(x, y, duration = 0.45, visual = null, isReverse = false) {
+    this.moonblasts.push({
+      x,
+      y,
+      duration,
+      time: 0,
+      visual,
+      isReverse,
+    });
+  }
+
+  // Fairy Lock: MediumStar detonates on target and Pink Padlock snaps shut above enemy
+  spawnFairyLock(x, y, duration = 0.90, visual = null) {
+    this.fairyLocks.push({
+      x,
+      y,
+      duration,
+      time: 0,
+      visual,
+    });
+  }
+
+  // Geomancy: Ascending cosmic aura with fairy colors on core/attack_physical_01.png
+  spawnGeomancy(x, y, duration = 0.70, visual = null) {
+    this.geomancies.push({
+      x,
+      y,
+      duration,
+      time: 0,
+      visual,
+    });
+  }
+
+  // Dazzling Gleam Flare: Blinding light flare directly on player when casting
+  spawnDazzleFlare(x, y, duration = 0.45) {
+    this.dazzleFlares.push({
+      x,
+      y,
+      duration,
+      time: 0,
     });
   }
 
@@ -1441,6 +1611,80 @@ export class ParticleSystem {
       }
     }
 
+    // 33. Update Kiss Bursts
+    for (let i = this.kissBursts.length - 1; i >= 0; i--) {
+      const kb = this.kissBursts[i];
+      kb.time += dt;
+      if (kb.time >= kb.duration) {
+        this.kissBursts.splice(i, 1);
+      }
+    }
+
+    // 34. Update Floating Hearts
+    for (let i = this.floatingHearts.length - 1; i >= 0; i--) {
+      const fh = this.floatingHearts[i];
+      fh.life += dt;
+      fh.x += fh.vx * dt;
+      fh.y += fh.vy * dt;
+      if (fh.life >= fh.maxLife) {
+        this.floatingHearts.splice(i, 1);
+      }
+    }
+
+    // 35. Update Misty Terrains
+    for (let i = this.mistyTerrains.length - 1; i >= 0; i--) {
+      const mt = this.mistyTerrains[i];
+      mt.time += dt;
+      if (mt.time >= mt.duration) {
+        this.mistyTerrains.splice(i, 1);
+      }
+    }
+
+    // 36. Update Play Roughs
+    for (let i = this.playRoughs.length - 1; i >= 0; i--) {
+      const pr = this.playRoughs[i];
+      pr.time += dt;
+      if (pr.time >= pr.duration) {
+        this.playRoughs.splice(i, 1);
+      }
+    }
+
+    // 37. Update Moonblasts
+    for (let i = this.moonblasts.length - 1; i >= 0; i--) {
+      const mb = this.moonblasts[i];
+      mb.time += dt;
+      if (mb.time >= mb.duration) {
+        this.moonblasts.splice(i, 1);
+      }
+    }
+
+    // 38. Update Fairy Locks
+    for (let i = this.fairyLocks.length - 1; i >= 0; i--) {
+      const fl = this.fairyLocks[i];
+      fl.time += dt;
+      if (fl.time >= fl.duration) {
+        this.fairyLocks.splice(i, 1);
+      }
+    }
+
+    // 39. Update Geomancies
+    for (let i = this.geomancies.length - 1; i >= 0; i--) {
+      const gm = this.geomancies[i];
+      gm.time += dt;
+      if (gm.time >= gm.duration) {
+        this.geomancies.splice(i, 1);
+      }
+    }
+
+    // 40. Update Dazzle Flares
+    for (let i = this.dazzleFlares.length - 1; i >= 0; i--) {
+      const df = this.dazzleFlares[i];
+      df.time += dt;
+      if (df.time >= df.duration) {
+        this.dazzleFlares.splice(i, 1);
+      }
+    }
+
     // 21. Update Air Cutters
     for (let i = this.airCutters.length - 1; i >= 0; i--) {
       const ac = this.airCutters[i];
@@ -1599,21 +1843,21 @@ export class ParticleSystem {
     // 3. Render Area & Ground Attacks
     for (let i = 0; i < this.fireBlasts.length; i++) {
       const fb = this.fireBlasts[i];
-      renderPixelFireBlast(ctx, fb.x, fb.y, fb.time / fb.duration);
+      this.drawScaled(ctx, fb, fb.x, fb.y, () => renderPixelFireBlast(ctx, fb.x, fb.y, fb.time / fb.duration));
     }
 
     for (let i = 0; i < this.stoneEdges.length; i++) {
       const se = this.stoneEdges[i];
       const prog = Math.min(1.0, se.time / se.duration);
       const img = se.img || (se.visual?.file ? getMoveAnimImg(se.visual.file) : null);
-      renderCombatEarth(ctx, se.targetX, se.targetY, prog, img, se.visual);
+      this.drawScaled(ctx, se, se.targetX, se.targetY, () => renderCombatEarth(ctx, se.targetX, se.targetY, prog, img, se.visual));
     }
 
     for (let i = 0; i < this.lightnings.length; i++) {
       const l = this.lightnings[i];
       const prog = Math.min(1.0, l.time / l.duration);
       const img = l.img || (l.visual?.file ? getMoveAnimImg(l.visual.file) : null);
-      renderCombatLightning(ctx, l.targetX, l.targetY, prog, img, l.visual, l.onlySprite);
+      this.drawScaled(ctx, l, l.targetX, l.targetY, () => renderCombatLightning(ctx, l.targetX, l.targetY, prog, img, l.visual, l.onlySprite));
     }
 
     // 4. Render Melee / Hit VFX Overlays (Authentic Move Catalog)
@@ -1621,21 +1865,21 @@ export class ParticleSystem {
       const s = this.slashes[i];
       const prog = Math.min(1.0, s.time / s.duration);
       const img = s.img || (s.visual?.file ? getMoveAnimImg(s.visual.file) : null);
-      renderCombatSlash(ctx, s.x, s.y, prog, s.color, img, s.visual);
+      this.drawScaled(ctx, s, s.x, s.y, () => renderCombatSlash(ctx, s.x, s.y, prog, s.color, img, s.visual));
     }
 
     for (let i = 0; i < this.bites.length; i++) {
       const b = this.bites[i];
       const prog = Math.min(1.0, b.time / b.duration);
       const img = b.img || (b.visual?.file ? getMoveAnimImg(b.visual.file) : null);
-      renderCombatBite(ctx, b.x, b.y, prog, img, b.visual);
+      this.drawScaled(ctx, b, b.x, b.y, () => renderCombatBite(ctx, b.x, b.y, prog, img, b.visual));
     }
 
     for (let i = 0; i < this.punches.length; i++) {
       const p = this.punches[i];
       const prog = Math.min(1.0, p.time / p.duration);
       const img = p.img || (p.visual?.file ? getMoveAnimImg(p.visual.file) : null);
-      renderCombatPunch(ctx, p.x, p.y, prog, p.color, img, p.visual);
+      this.drawScaled(ctx, p, p.x, p.y, () => renderCombatPunch(ctx, p.x, p.y, prog, p.color, img, p.visual));
     }
 
     // 4.1. Buffs & Barriers (Authentic Move Catalog)
@@ -1643,7 +1887,7 @@ export class ParticleSystem {
       const bf = this.buffs[i];
       const prog = Math.min(1.0, bf.time / bf.duration);
       const img = bf.img || (bf.visual?.file ? getMoveAnimImg(bf.visual.file) : null);
-      renderCombatBuff(ctx, bf.x, bf.y, prog, bf.type, img, bf.visual, getMoveAnimImg);
+      this.drawScaled(ctx, bf, bf.x, bf.y, () => renderCombatBuff(ctx, bf.x, bf.y, prog, bf.type, img, bf.visual, getMoveAnimImg));
     }
 
     // 4.2. Sound Waves (Authentic Move Catalog)
@@ -1681,41 +1925,41 @@ export class ParticleSystem {
     // 4.6. Specialized Elemental VFX
     for (let i = 0; i < this.foliageBursts.length; i++) {
       const fb = this.foliageBursts[i];
-      renderPixelFoliageBurst(ctx, fb.x, fb.y, fb.time / fb.duration, fb.color);
+      this.drawScaled(ctx, fb, fb.x, fb.y, () => renderPixelFoliageBurst(ctx, fb.x, fb.y, fb.time / fb.duration, fb.color));
     }
 
     for (let i = 0; i < this.poisonBursts.length; i++) {
       const pb = this.poisonBursts[i];
-      renderPixelPoisonBurst(ctx, pb.x, pb.y, pb.time / pb.duration, pb.color);
+      this.drawScaled(ctx, pb, pb.x, pb.y, () => renderPixelPoisonBurst(ctx, pb.x, pb.y, pb.time / pb.duration, pb.color));
     }
 
     for (let i = 0; i < this.iceCrystals.length; i++) {
       const ic = this.iceCrystals[i];
-      renderPixelIceCrystals(ctx, ic.x, ic.y, ic.time / ic.duration, ic.color);
+      this.drawScaled(ctx, ic, ic.x, ic.y, () => renderPixelIceCrystals(ctx, ic.x, ic.y, ic.time / ic.duration, ic.color));
     }
 
     for (let i = 0; i < this.shadowPulses.length; i++) {
       const sp = this.shadowPulses[i];
-      renderPixelShadowPulse(ctx, sp.x, sp.y, sp.time / sp.duration, sp.color);
+      this.drawScaled(ctx, sp, sp.x, sp.y, () => renderPixelShadowPulse(ctx, sp.x, sp.y, sp.time / sp.duration, sp.color));
     }
 
     for (let i = 0; i < this.psychicRings.length; i++) {
       const pr = this.psychicRings[i];
-      renderPixelPsychicRings(ctx, pr.x, pr.y, pr.time / pr.duration, pr.color);
+      this.drawScaled(ctx, pr, pr.x, pr.y, () => renderPixelPsychicRings(ctx, pr.x, pr.y, pr.time / pr.duration, pr.color));
     }
 
     for (let i = 0; i < this.statArrows.length; i++) {
       const sa = this.statArrows[i];
       const cx = (sa.entity && !sa.entity.isFainted) ? sa.entity.x : sa.x;
       const cy = (sa.entity && !sa.entity.isFainted) ? sa.entity.y : sa.y;
-      renderPixelStatArrows(ctx, cx, cy, sa.time / sa.duration, sa.isBuff, sa.color);
+      this.drawScaled(ctx, sa, cx, cy, () => renderPixelStatArrows(ctx, cx, cy, sa.time / sa.duration, sa.isBuff, sa.color));
     }
 
     for (let i = 0; i < this.elementalSpirals.length; i++) {
       const es = this.elementalSpirals[i];
       const cx = (es.entity && !es.entity.isFainted) ? es.entity.x : es.x;
       const cy = (es.entity && !es.entity.isFainted) ? es.entity.y : es.y;
-      renderPixelElementalBuffSpiral(ctx, cx, cy, es.time / es.duration, es.elemType, es.color);
+      this.drawScaled(ctx, es, cx, cy, () => renderPixelElementalBuffSpiral(ctx, cx, cy, es.time / es.duration, es.elemType, es.color));
     }
 
     // 4.8. Move Spritesheet Animations
@@ -1733,8 +1977,9 @@ export class ParticleSystem {
         const row = Math.floor(actualFrame / ma.cols);
         const sx = col * fw;
         const sy = row * fh;
-        const dw = fw * ma.scale;
-        const dh = fh * ma.scale;
+        const sizeScale = this.vfxScaleOf(ma, ma.x, ma.y, ma.entity);
+        const dw = fw * ma.scale * sizeScale;
+        const dh = fh * ma.scale * sizeScale;
 
         let renderX = ma.x;
         let renderY = ma.y;
@@ -1803,19 +2048,19 @@ export class ParticleSystem {
     for (let i = 0; i < this.whirlwinds.length; i++) {
       const ww = this.whirlwinds[i];
       const img = getMoveAnimImg(ww.visual?.file || 'vfx/wind/whirlwind.png');
-      renderWhirlwindCombat(ctx, ww.targetX, ww.targetY, Math.min(1.0, ww.time / ww.duration), img, ww.visual, ww.skill?.type);
+      this.drawScaled(ctx, ww, ww.targetX, ww.targetY, () => renderWhirlwindCombat(ctx, ww.targetX, ww.targetY, Math.min(1.0, ww.time / ww.duration), img, ww.visual, ww.skill?.type));
     }
 
     for (let i = 0; i < this.nightDazes.length; i++) {
       const nd = this.nightDazes[i];
       const img = getMoveAnimImg(nd.visual?.file || 'vfx/dark/night_daze_burst.png');
-      renderNightDazeCombat(ctx, nd.targetX, nd.targetY, Math.min(1.0, nd.time / nd.duration), img, nd.visual);
+      this.drawScaled(ctx, nd, nd.targetX, nd.targetY, () => renderNightDazeCombat(ctx, nd.targetX, nd.targetY, Math.min(1.0, nd.time / nd.duration), img, nd.visual));
     }
 
     for (let i = 0; i < this.spacialRends.length; i++) {
       const sr = this.spacialRends[i];
       const img = getMoveAnimImg(sr.visual?.file || 'vfx/dimension/spacial_rend.png');
-      renderSpacialRendCombat(ctx, sr.targetX, sr.targetY, Math.min(1.0, sr.time / sr.duration), img, sr.visual);
+      this.drawScaled(ctx, sr, sr.targetX, sr.targetY, () => renderSpacialRendCombat(ctx, sr.targetX, sr.targetY, Math.min(1.0, sr.time / sr.duration), img, sr.visual));
     }
 
     // 4.10. Burning Auras
@@ -1825,7 +2070,7 @@ export class ParticleSystem {
       const isRedFire = ba.visual?.file?.includes('pixel_fire') || ba.visual?.isDragonDance || ba.color === '#FF5722' || ba.color === '#EF4444' || ba.color === '#F08030';
       const defaultImg = isRedFire ? 'vfx/pixel_fire/colored/red/group_4_5.png' : 'vfx/fire/dragon_breath_stream.png';
       const img = ba.visual?.file ? getMoveAnimImg(ba.visual.file) : getMoveAnimImg(defaultImg);
-      renderBurningAuraCombat(ctx, ba.targetX, ba.targetY, prog, img, ba.visual, ba.color, ba.filter);
+      this.drawScaled(ctx, ba, ba.targetX, ba.targetY, () => renderBurningAuraCombat(ctx, ba.targetX, ba.targetY, prog, img, ba.visual, ba.color, ba.filter));
     }
 
 
@@ -1840,14 +2085,14 @@ export class ParticleSystem {
     for (let i = 0; i < this.parabolicRings.length; i++) {
       const pr = this.parabolicRings[i];
       const img = getMoveAnimImg('vfx/custom/electric_shockwave_rings.png');
-      renderParabolicRingsCombat(ctx, pr.targetX, pr.targetY, Math.min(1.0, pr.time / pr.duration), img, pr.visual);
+      this.drawScaled(ctx, pr, pr.targetX, pr.targetY, () => renderParabolicRingsCombat(ctx, pr.targetX, pr.targetY, Math.min(1.0, pr.time / pr.duration), img, pr.visual));
     }
 
     // 4.13. Electric Waves
     for (let i = 0; i < this.electricWaves.length; i++) {
       const ew = this.electricWaves[i];
       const img = getMoveAnimImg('vfx/custom/electric_wave.png');
-      renderElectricWaveCombat(ctx, ew.targetX, ew.targetY, Math.min(1.0, ew.time / ew.duration), img, ew.visual);
+      this.drawScaled(ctx, ew, ew.targetX, ew.targetY, () => renderElectricWaveCombat(ctx, ew.targetX, ew.targetY, Math.min(1.0, ew.time / ew.duration), img, ew.visual));
     }
 
     // 4.14. Electric Charges
@@ -1855,21 +2100,21 @@ export class ParticleSystem {
       const ec = this.electricCharges[i];
       const file = ec.isBlue ? 'vfx/custom/electric_charge_blue.png' : 'vfx/custom/electric_charge_yellow.png';
       const img = getMoveAnimImg(file);
-      renderElectricChargeCombat(ctx, ec.targetX, ec.targetY, Math.min(1.0, ec.time / ec.duration), img, null, ec.isBlue);
+      this.drawScaled(ctx, ec, ec.targetX, ec.targetY, () => renderElectricChargeCombat(ctx, ec.targetX, ec.targetY, Math.min(1.0, ec.time / ec.duration), img, null, ec.isBlue));
     }
 
-    // 4.15. Electrowebs
+    // 4.15. Electrowebs (Yellow Spider Web)
     for (let i = 0; i < this.electrowebs.length; i++) {
       const ew = this.electrowebs[i];
-      const img = getMoveAnimImg('vfx/custom/electroweb.png');
-      renderElectrowebCombat(ctx, ew.targetX, ew.targetY, Math.min(1.0, ew.time / ew.duration), img, ew.visual);
+      const img = getMoveAnimImg('vfx/custom/spider_web.png');
+      this.drawScaled(ctx, ew, ew.targetX, ew.targetY, () => renderElectrowebCombat(ctx, ew.targetX, ew.targetY, Math.min(1.0, ew.time / ew.duration), img, ew.visual));
     }
 
     // 4.16. Electrocuted Overlays
     for (let i = 0; i < this.electrocutedOverlays.length; i++) {
       const eo = this.electrocutedOverlays[i];
       const img = getMoveAnimImg('vfx/custom/electrocuted_burst.png');
-      renderElectrocutedCombat(ctx, eo.targetX, eo.targetY, Math.min(1.0, eo.time / eo.duration), img);
+      this.drawScaled(ctx, eo, eo.targetX, eo.targetY, () => renderElectrocutedCombat(ctx, eo.targetX, eo.targetY, Math.min(1.0, eo.time / eo.duration), img));
     }
 
     // 4.17. Electric Impact Bursts
@@ -1877,7 +2122,7 @@ export class ParticleSystem {
       const eb = this.electricBursts[i];
       const file = eb.isBlue ? 'vfx/custom/electric_impact_burst_blue.png' : 'vfx/custom/electric_impact_burst_yellow.png';
       const img = getMoveAnimImg(file);
-      renderElectricBurstCombat(ctx, eb.x, eb.y, Math.min(1.0, eb.time / eb.duration), img, eb.isBlue);
+      this.drawScaled(ctx, eb, eb.x, eb.y, () => renderElectricBurstCombat(ctx, eb.x, eb.y, Math.min(1.0, eb.time / eb.duration), img, eb.isBlue, eb.isReversed));
     }
 
     // 4.17. Electric Bolts
@@ -1885,7 +2130,74 @@ export class ParticleSystem {
       const eb = this.electricBolts[i];
       const file = eb.isBlue ? 'vfx/custom/electric_bolt_impact_blue.png' : 'vfx/custom/electric_bolt_impact_yellow.png';
       const img = getMoveAnimImg(file);
-      renderElectricBoltImpactCombat(ctx, eb.targetX, eb.targetY, Math.min(1.0, eb.time / eb.duration), img, eb.visual, eb.isBlue);
+      this.drawScaled(ctx, eb, eb.targetX, eb.targetY, () => renderElectricBoltImpactCombat(ctx, eb.targetX, eb.targetY, Math.min(1.0, eb.time / eb.duration), img, eb.visual, eb.isBlue));
+    }
+
+    // 4.18. Misty Terrains (Propagating explosion & misty veil on ground)
+    for (let i = 0; i < this.mistyTerrains.length; i++) {
+      const mt = this.mistyTerrains[i];
+      const img = getMoveAnimImg('vfx/custom/draining_kiss_burst.png');
+      renderMistyTerrainCombat(ctx, mt.x, mt.y, Math.min(1.0, mt.time / mt.duration), img, mt.visual);
+    }
+
+    // 4.19. Kiss Bursts (Draining Kiss core/attack_physical_01.png blue/pink fairy impact)
+    for (let i = 0; i < this.kissBursts.length; i++) {
+      const kb = this.kissBursts[i];
+      const img = getMoveAnimImg('core/attack_physical_01.png');
+      this.drawScaled(ctx, kb, kb.x, kb.y, () => renderDrainingKissCombat(ctx, kb.x, kb.y, Math.min(1.0, kb.time / kb.duration), img, kb.visual));
+    }
+
+    // 4.20. Floating Hearts
+    if (this.floatingHearts.length > 0) {
+      ctx.save();
+      ctx.font = 'bold 15px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (let i = 0; i < this.floatingHearts.length; i++) {
+        const fh = this.floatingHearts[i];
+        const prog = fh.life / fh.maxLife;
+        const alpha = Math.sin(prog * Math.PI);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#FB7185';
+        ctx.shadowColor = '#F472B6';
+        ctx.shadowBlur = 8;
+        ctx.fillText(fh.char, Math.round(fh.x), Math.round(fh.y));
+      }
+      ctx.restore();
+    }
+
+    // 4.21. Play Rough Impacts (core/attack_physical_01.png, 5 frames, blue/pink)
+    for (let i = 0; i < this.playRoughs.length; i++) {
+      const pr = this.playRoughs[i];
+      const img = getMoveAnimImg('core/attack_physical_01.png');
+      this.drawScaled(ctx, pr, pr.x, pr.y, () => renderPlayRoughCombat(ctx, pr.x, pr.y, Math.min(1.0, pr.time / pr.duration), img, pr.visual));
+    }
+
+    // 4.22. Moonblast Gather & Impact (core/attack_physical_01.png, blue/pink, isReverse support)
+    for (let i = 0; i < this.moonblasts.length; i++) {
+      const mb = this.moonblasts[i];
+      const img = getMoveAnimImg('core/attack_physical_01.png');
+      this.drawScaled(ctx, mb, mb.x, mb.y, () => renderMoonblastBurst(ctx, mb.x, mb.y, Math.min(1.0, mb.time / mb.duration), img, mb.visual, mb.isReverse));
+    }
+
+    // 4.23. Fairy Locks (MediumStar_64x64.png + Pink Padlock)
+    for (let i = 0; i < this.fairyLocks.length; i++) {
+      const fl = this.fairyLocks[i];
+      const img = getMoveAnimImg('vfx/custom/MediumStar_64x64.png');
+      this.drawScaled(ctx, fl, fl.x, fl.y, () => renderFairyLockImpact(ctx, fl.x, fl.y, Math.min(1.0, fl.time / fl.duration), img, fl.visual));
+    }
+
+    // 4.24. Geomancy (core/attack_physical_01.png with fairy colors)
+    for (let i = 0; i < this.geomancies.length; i++) {
+      const gm = this.geomancies[i];
+      const img = getMoveAnimImg('core/attack_physical_01.png');
+      this.drawScaled(ctx, gm, gm.x, gm.y, () => renderGeomancyBuff(ctx, gm.x, gm.y, Math.min(1.0, gm.time / gm.duration), img, gm.visual));
+    }
+
+    // 4.25. Dazzle Flares (Blinding light flare on caster)
+    for (let i = 0; i < this.dazzleFlares.length; i++) {
+      const df = this.dazzleFlares[i];
+      this.drawScaled(ctx, df, df.x, df.y, () => renderDazzleFlare(ctx, df.x, df.y, Math.min(1.0, df.time / df.duration)));
     }
 
     // 5. High-Performance Batched Particle Rendering (Zero Inner Save/Restore)

@@ -1878,15 +1878,15 @@
     "semantic_hash": "f19842938ce58dd019724d70d3989c52"
   },
   "client/src/battle/battleEngine.js": {
-    "mtime": 1792721627.4662795,
-    "seen": 1792790479.981063,
-    "ast_hash": "1f6bcd0bedc6aa6b93038f6f84785fe2",
+    "mtime": 1792864621.7237983,
+    "seen": 1792970120.4024832,
+    "ast_hash": "621fd162ed3e5cdf78610bed75b2f665",
     "semantic_hash": ""
   },
   "client/src/battle/battleHud.js": {
-    "mtime": 1792721027.641189,
-    "seen": 1792790479.981063,
-    "ast_hash": "6ab37455c0f2f57edbb15004ad8eff52",
+    "mtime": 1792887287.8276432,
+    "seen": 1792970120.4024832,
+    "ast_hash": "54f9be5395599912a10959b28fd11e02",
     "semantic_hash": ""
   },
   "client/src/battle/check_visuals.mjs": {
@@ -1914,27 +1914,27 @@
     "semantic_hash": "20dcb78f68e5abd2de2d673c54461e98"
   },
   "client/src/battle/movesDatabase.js": {
-    "mtime": 1792779652.793237,
-    "seen": 1792790479.983062,
-    "ast_hash": "3e3f8a947c5c30d5defb45f0a3867109",
+    "mtime": 1793067882.1118157,
+    "seen": 1793068667.7687905,
+    "ast_hash": "73b90a934dd5a8a667e0018c35922a4a",
     "semantic_hash": ""
   },
   "client/src/battle/overworldSprite.js": {
-    "mtime": 1792720775.4856057,
-    "seen": 1792790479.983062,
-    "ast_hash": "dada493463c84e95238af7f9cdb11dbd",
+    "mtime": 1792887076.8075387,
+    "seen": 1792970120.4034832,
+    "ast_hash": "f1cc0bb54adf3008a73dc813d2fdecf0",
     "semantic_hash": ""
   },
   "client/src/battle/particleSystem.js": {
-    "mtime": 1792778264.5461092,
-    "seen": 1792790479.983062,
-    "ast_hash": "99c2b14e92a503c7aba73f4dd23d987a",
+    "mtime": 1793068145.3818548,
+    "seen": 1793068667.7687905,
+    "ast_hash": "45316e0cf7c97dcf5c8d99ec8332dc31",
     "semantic_hash": ""
   },
   "client/src/battle/pixelArtVfx.js": {
-    "mtime": 1792790421.4960022,
-    "seen": 1792790479.983062,
-    "ast_hash": "6a7ac49c696a259fa9800335e00066cb",
+    "mtime": 1793068909.879769,
+    "seen": 1793069017.6540246,
+    "ast_hash": "13258e84846278056914d2c23493185f",
     "semantic_hash": ""
   },
   "client/src/battle/pokemonData.js": {
@@ -1944,15 +1944,15 @@
     "semantic_hash": ""
   },
   "client/src/battle/pokemonEntity.js": {
-    "mtime": 1792779687.3142734,
-    "seen": 1792790479.983062,
-    "ast_hash": "0613a98b090ccfa0ee5032abac20552b",
+    "mtime": 1793068189.6418028,
+    "seen": 1793068667.7687905,
+    "ast_hash": "adb61e3d3a4e7799eb55691b9492e99c",
     "semantic_hash": ""
   },
   "client/src/battle/projectileSystem.js": {
-    "mtime": 1792770971.5447772,
-    "seen": 1792790479.983062,
-    "ast_hash": "f9a060e741067634ed8d018eb32817a3",
+    "mtime": 1793067963.9485366,
+    "seen": 1793068667.7687905,
+    "ast_hash": "2721fc3d3c378580950f4e941e789dcb",
     "semantic_hash": ""
   },
   "client/src/battle/soundManager.js": {
@@ -2646,9 +2646,9 @@
     "semantic_hash": ""
   },
   "client/public/moves_catalog.html": {
-    "mtime": 1792790423.5984993,
-    "seen": 1792790480.0166981,
-    "ast_hash": "e532472516ff0ff7335852f553c97bd4",
+    "mtime": 1793068942.9271896,
+    "seen": 1793069017.6940224,
+    "ast_hash": "02e8a2161c7e84db04892b40a9911473",
     "semantic_hash": ""
   },
   "docker-compose.yml": {
@@ -2817,6 +2817,36 @@
     "mtime": 1792767683.5842412,
     "seen": 1792790480.0187366,
     "ast_hash": "be991c1724cbc3e569aaded4548486f7",
+    "semantic_hash": ""
+  },
+  "client/public/assets/maps/kanto.json": {
+    "mtime": 1792195046.222913,
+    "seen": 1792791055.2419403,
+    "ast_hash": "",
+    "semantic_hash": ""
+  },
+  "client/src/battle/speciesSizeData.js": {
+    "mtime": 1792791651.9569063,
+    "seen": 1792970120.405482,
+    "ast_hash": "e8f88820e58722a4fa9bfb0e3873ea53",
+    "semantic_hash": ""
+  },
+  "scripts/analyze_sprite_sizes.mjs": {
+    "mtime": 1792791418.8841498,
+    "seen": 1792970120.4174783,
+    "ast_hash": "4d9ca5c66e11f0ebca74628e171108c9",
+    "semantic_hash": ""
+  },
+  "scripts/generate_species_size.mjs": {
+    "mtime": 1792791615.2148895,
+    "seen": 1792970120.4234767,
+    "ast_hash": "2d2fc9d88de0465d080da14dbf535a11",
+    "semantic_hash": ""
+  },
+  "pokemon_gen1_altura_peso.md": {
+    "mtime": 1792791020.8752842,
+    "seen": 1792970120.446469,
+    "ast_hash": "c9599a3f90a47e6295da9f94821295f6",
     "semantic_hash": ""
   }
 }

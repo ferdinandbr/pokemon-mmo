@@ -40,8 +40,9 @@ export function getProjectileVisuals(p) {
   if (internalName === 'PINMISSILE' || internalName === 'FELLSTINGER' || p.isPinMissile || p.skillData?.visual?.file?.includes('pin_missile_spike')) {
     return { isPinMissile: true, decal: 'crack', decalRadius: 18 };
   }
-  if (internalName === 'STRINGSHOT' || p.isStringShot || p.skillData?.visual?.file?.includes('string_shot_silk')) {
-    return { isStringShot: true, decal: 'shadow', decalRadius: 20 };
+  if (internalName === 'STRINGSHOT' || p.isStringShot || internalName === 'ELECTROWEB' || p.isElectroweb || p.skillData?.visual?.file?.includes('string_shot_silk')) {
+    const isYellow = Boolean(internalName === 'ELECTROWEB' || p.isElectroweb || p.skillData?.visual?.isElectroweb || p.skillData?.type === 'Electric');
+    return { isStringShot: true, isElectroweb: isYellow, isYellow, decal: isYellow ? 'zap_burn' : 'shadow', decalRadius: 20 };
   }
   if (internalName === 'SPIDERWEB' || internalName === 'STICKYWEB' || p.isWeb) {
     return { frames: SPIDER_WEB_FRAMES, palette: PIXEL_COLOR_PALETTES.bug, decal: 'shadow', decalRadius: 28 };
@@ -55,14 +56,40 @@ export function getProjectileVisuals(p) {
   if (skillId === 'water_gun' || type === 'Water') {
     return { frames: WATER_DROPLET_FRAMES, palette: PIXEL_COLOR_PALETTES.water, decal: 'wet', decalRadius: 24 };
   }
-  if (internalName === 'ELECTROWEB' || p.isElectroweb || p.skillData?.visual?.isElectroweb) {
-    return { isElectricBoltProj: true, isElectroweb: true, decal: 'zap_burn', decalRadius: 26 };
+  if (internalName === 'DISCHARGE' || p.isDischarge || p.skillData?.visual?.isDischarge ||
+      internalName === 'THUNDERWAVE' || p.isThunderWave || p.skillData?.visual?.isThunderWave ||
+      internalName === 'PARABOLICCHARGE' || p.isParabolicCharge || p.skillData?.visual?.isParabolicCharge) {
+    return { isElectricBoltProj: true, isDischarge: Boolean(p.isDischarge), isThunderWave: Boolean(p.isThunderWave), isParabolicCharge: Boolean(p.isParabolicCharge), decal: 'zap_burn', decalRadius: 26 };
   }
-  if (internalName === 'ZAPCANNON' || p.isZapCannon || p.skillData?.visual?.isZapCannon) {
-    return { frames: FOCUS_BLAST_FRAMES, palette: PIXEL_COLOR_PALETTES.electric, isZapCannon: true, decal: 'zap_burn', decalRadius: 30 };
+  if (internalName === 'ZAPCANNON' || p.isZapCannon || p.skillData?.visual?.isZapCannon ||
+      internalName === 'ELECTROBALL' || p.isElectroBall || p.skillData?.visual?.isElectroBall) {
+    return {
+      frames: FOCUS_BLAST_FRAMES,
+      palette: PIXEL_COLOR_PALETTES.electric,
+      isZapCannon: true,
+      isElectroBall: true,
+      hasLobArc: Boolean(internalName === 'ELECTROBALL' || p.isElectroBall || p.hasLobArc || p.skillData?.visual?.hasLobArc),
+      decal: 'zap_burn',
+      decalRadius: 30
+    };
   }
-  if (internalName === 'ELECTROBALL' || p.isElectroBall || p.skillData?.visual?.isElectroBall) {
-    return { frames: ELECTRIC_SPARK_FRAMES, palette: PIXEL_COLOR_PALETTES.electric, isElectroBall: true, decal: 'zap_burn', decalRadius: 24 };
+  if (internalName === 'DAZZLINGGLEAM' || p.isDazzlingGleam || p.skillData?.visual?.isDazzlingGleam) {
+    return { isDazzlingGleam: true, decal: 'scorch', decalRadius: 26 };
+  }
+  if (internalName === 'FAIRYLOCK' || p.isFairyLock || p.skillData?.visual?.isFairyLock) {
+    return { isFairyLock: true, decal: 'shadow', decalRadius: 22 };
+  }
+  if (internalName === 'DISARMINGVOICE' || p.isDisarmingVoice || p.skillData?.visual?.isDisarmingVoice) {
+    return { isDisarmingVoice: true, decal: 'shadow', decalRadius: 22 };
+  }
+  if (internalName === 'MOONBLAST' || p.isMoonblast || p.skillData?.visual?.isMoonblast) {
+    return {
+      frames: FOCUS_BLAST_FRAMES,
+      palette: { outer: '#38BDF8', mid: '#F472B6', core: '#FFFFFF', glow: 'rgba(56, 189, 248, 0.45)' },
+      decal: 'scorch',
+      decalRadius: 24,
+      isMoonblast: true
+    };
   }
   if (internalName === 'THUNDERSHOCK' || p.isThunderShock || p.skillData?.visual?.isThunderShock || skillId === 'thunder_shock') {
     return { isElectricBoltProj: true, isThunderShock: true, decal: 'zap_burn', decalRadius: 24 };
@@ -124,6 +151,9 @@ export class ProjectileSystem {
     type = 'Fire',
     skillData,
     onHit,
+    hasLobArc = false,
+    isElectroBall = false,
+    arcHeight = 45,
   }) {
     const dx = targetX - startX;
     const dy = targetY - startY;
@@ -140,6 +170,10 @@ export class ProjectileSystem {
       id: projectileId,
       sourceEntity,
       targetEntity,
+      startX,
+      startY,
+      targetX,
+      targetY,
       x: startX,
       y: startY,
       vx,
@@ -154,6 +188,11 @@ export class ProjectileSystem {
       trailTimer: 0,
       hitEntities: new Set(), // Strict single-hit registration set
       clashWonReduced: false,
+      isElectroBall: Boolean(isElectroBall || skillData?.visual?.isElectroBall || skillData?.internalName === 'ELECTROBALL'),
+      hasLobArc: Boolean(hasLobArc || isElectroBall || skillData?.visual?.hasLobArc || skillData?.visual?.isElectroBall || skillData?.internalName === 'ELECTROBALL'),
+      arcHeight: arcHeight || skillData?.visual?.arcHeight || 45,
+      totalDist: dist || 1,
+      traveledDist: 0,
     });
 
     return projectileId;
@@ -170,6 +209,9 @@ export class ProjectileSystem {
 
       p.x += p.vx * dt;
       p.y += p.vy * dt;
+      if (p.hasLobArc) {
+        p.traveledDist = (p.traveledDist || 0) + p.speed * dt;
+      }
 
       // Check collision with static arena obstacles (tactical blocking)
       if (this.arena && this.arena.checkObstacleCollision) {
@@ -284,8 +326,10 @@ export class ProjectileSystem {
                 // Fallback impact spritesheet if onHit is not present
                 const vfile = p.skillData?.visual?.file || '';
                 const isStreamBody = vfile.includes('dragon_breath_stream') || vfile.includes('pixel_fire/colored');
-                const isImpactExplosion = !isStreamBody && (p.skillData?.type !== 'Fire' || p.skillData?.vfxFamily === 'explosion' || vfile.includes('explosion') || vfile.includes('burst'));
-                if (p.skillData?.visual && isImpactExplosion && this.particleSystem && typeof this.particleSystem.spawnMoveSpriteAnim === 'function') {
+                const isZapCannonProj = p.skillData?.internalName === 'ZAPCANNON' || p.skillData?.visual?.isZapCannon || vfile.includes('electric_impact_burst');
+                if (isZapCannonProj && this.particleSystem && typeof this.particleSystem.spawnElectricBurst === 'function') {
+                  this.particleSystem.spawnElectricBurst(p.x, p.y, 0.40, false);
+                } else if (p.skillData?.visual && !isStreamBody && (p.skillData?.type !== 'Fire' || p.skillData?.vfxFamily === 'explosion' || vfile.includes('explosion') || vfile.includes('burst')) && this.particleSystem && typeof this.particleSystem.spawnMoveSpriteAnim === 'function') {
                   this.particleSystem.spawnMoveSpriteAnim(p.x, p.y, p.skillData.visual, 0);
                 }
                 const vis = getProjectileVisuals(p);
@@ -501,9 +545,11 @@ export class ProjectileSystem {
       }
 
       // Dedicated String Shot Spiral Silk Strand Projectile
+      // Dedicated String Shot & Electroweb Spiral Silk Strand Projectile
       if (vis.isStringShot) {
         const silkImg = getMoveAnimImg('vfx/custom/string_shot_silk.png');
         const angle = Math.atan2(p.vy, p.vx);
+        const isYellow = Boolean(vis.isYellow || vis.isElectroweb || p.isElectroweb || p.skillData?.type === 'Electric');
 
         if (silkImg && silkImg.complete && silkImg.naturalWidth > 0) {
           const cols = 6;
@@ -519,31 +565,53 @@ export class ProjectileSystem {
           // Connecting silk strand from attacker to projectile head
           if (typeof p.startX === 'number' && typeof p.startY === 'number') {
             ctx.save();
-            ctx.lineWidth = 3.0;
-            ctx.strokeStyle = 'rgba(30, 41, 59, 0.7)';
+            ctx.lineWidth = 3.2;
+            ctx.strokeStyle = isYellow ? 'rgba(161, 98, 7, 0.85)' : 'rgba(30, 41, 59, 0.7)';
             ctx.beginPath();
             ctx.moveTo(Math.round(p.startX), Math.round(p.startY));
             ctx.lineTo(Math.round(p.x), Math.round(p.y));
             ctx.stroke();
 
-            ctx.lineWidth = 1.5;
-            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.8;
+            ctx.strokeStyle = isYellow ? '#FACC15' : '#ffffff';
             ctx.beginPath();
             ctx.moveTo(Math.round(p.startX), Math.round(p.startY));
             ctx.lineTo(Math.round(p.x), Math.round(p.y));
             ctx.stroke();
+
+            if (isYellow) {
+              ctx.lineWidth = 0.9;
+              ctx.strokeStyle = '#FEF08A';
+              ctx.stroke();
+            }
             ctx.restore();
           }
 
           ctx.save();
           ctx.imageSmoothingEnabled = false;
+          if (isYellow) {
+            ctx.filter = 'sepia(1) saturate(12) hue-rotate(15deg) brightness(1.2)';
+          }
           ctx.translate(Math.round(p.x), Math.round(p.y));
           ctx.rotate(angle);
           ctx.drawImage(silkImg, sx, sy, fw, fh, -dw * 0.55, -dh / 2, dw, dh);
           ctx.restore();
+
+          if (isYellow) {
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            for (let t = 1; t <= 3; t++) {
+              const rx = p.x - Math.cos(angle) * (t * 10);
+              const ry = p.y - Math.sin(angle) * (t * 10);
+              ctx.fillStyle = t % 2 === 0 ? '#FEF08A' : '#FACC15';
+              ctx.globalAlpha = 0.85;
+              ctx.fillRect(Math.round(rx - 1), Math.round(ry - 1), 2, 2);
+            }
+            ctx.restore();
+          }
         } else {
           ctx.save();
-          ctx.fillStyle = '#ffffff';
+          ctx.fillStyle = isYellow ? '#FACC15' : '#ffffff';
           ctx.fillRect(Math.round(p.x - 2), Math.round(p.y - 2), 4, 4);
           ctx.restore();
         }
@@ -595,19 +663,270 @@ export class ProjectileSystem {
         continue;
       }
 
+      // Dedicated Disarming Voice Sonic Wave Projectile (Pink sound wave + notes + hearts + MediumStar_64x64.png)
+      if (vis.isDisarmingVoice || p.isDisarmingVoice) {
+        const starImg = getMoveAnimImg('vfx/custom/MediumStar_64x64.png');
+        const angle = Math.atan2(p.vy, p.vx);
+
+        // 1. Expanding Sonic Wave Arc Rings in Pink/Magenta behind the star
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (let w = 1; w <= 3; w++) {
+          const waveDist = w * 16;
+          const wx = p.x - Math.cos(angle) * waveDist;
+          const wy = p.y - Math.sin(angle) * waveDist;
+          const waveRadius = 10 + w * 6;
+          const waveAlpha = (1 - w / 4) * 0.85;
+
+          ctx.strokeStyle = w === 1 ? '#FB7185' : (w === 2 ? '#F472B6' : '#E879F9');
+          ctx.lineWidth = 2.5 - w * 0.4;
+          ctx.globalAlpha = waveAlpha;
+          ctx.beginPath();
+          ctx.arc(wx, wy, waveRadius, angle - Math.PI * 0.55, angle + Math.PI * 0.55);
+          ctx.stroke();
+
+          // Subtle acoustic vibration ripple
+          ctx.lineWidth = 1.0;
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.beginPath();
+          ctx.arc(wx, wy, waveRadius * 0.75, angle - Math.PI * 0.4, angle + Math.PI * 0.4);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // 2. Floating Musical Notes and Cute Pink Hearts along the acoustic trail
+        ctx.save();
+        ctx.font = 'bold 13px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const notes = ['♪', '♫', '♥', '♬'];
+        for (let n = 0; n < 3; n++) {
+          const nDist = 18 + n * 18;
+          const nx = p.x - Math.cos(angle) * nDist + Math.sin(p.life * 12 + n * 2) * 8;
+          const ny = p.y - Math.sin(angle) * nDist + Math.cos(p.life * 12 + n * 2) * 8;
+          const char = notes[(Math.floor(p.life * 6) + n) % notes.length];
+          ctx.fillStyle = char === '♥' ? '#F43F5E' : (n % 2 === 0 ? '#FB7185' : '#FFFFFF');
+          ctx.shadowColor = '#F472B6';
+          ctx.shadowBlur = 6;
+          ctx.fillText(char, Math.round(nx), Math.round(ny));
+        }
+        ctx.restore();
+
+        // 3. Central Magic Star (vfx/custom/MediumStar_64x64.png, 60 frames)
+        if (starImg && starImg.complete && starImg.naturalWidth > 0) {
+          const cols = 60;
+          const fw = 64;
+          const fh = 64;
+          const frame = Math.floor(p.life * 30) % cols;
+          const sx = frame * fw;
+          const scale = 0.85;
+          const dw = fw * scale;
+          const dh = fh * scale;
+
+          ctx.save();
+          ctx.imageSmoothingEnabled = false;
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.shadowColor = '#F472B6';
+          ctx.shadowBlur = 10;
+          ctx.translate(Math.round(p.x), Math.round(p.y));
+          ctx.rotate(angle);
+          ctx.drawImage(starImg, sx, 0, fw, fh, -dw / 2, -dh / 2, dw, dh);
+          ctx.restore();
+        } else {
+          ctx.save();
+          ctx.fillStyle = '#F472B6';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+        continue;
+      }
+
+      // Dedicated Dazzling Gleam Projectile: Brilliant Radiant Starlight + MediumStar_64x64.png + Prism Trail
+      if (vis.isDazzlingGleam || p.isDazzlingGleam) {
+        const starImg = getMoveAnimImg('vfx/custom/MediumStar_64x64.png');
+        const angle = Math.atan2(p.vy, p.vx);
+
+        // 1. Radiant Multi-Prism Starlight Trail
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = 1; i <= 4; i++) {
+          const tDist = i * 14;
+          const tx = p.x - Math.cos(angle) * tDist;
+          const ty = p.y - Math.sin(angle) * tDist;
+          const rad = (5 - i) * 3.5;
+          const alpha = (1 - i / 5) * 0.85;
+
+          const grad = ctx.createRadialGradient(tx, ty, 0, tx, ty, rad * 2);
+          grad.addColorStop(0, '#FFFFFF');
+          grad.addColorStop(0.4, i % 2 === 0 ? '#FEF08A' : '#F472B6');
+          grad.addColorStop(1, 'rgba(244, 114, 182, 0)');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(tx, ty, rad * 2, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Small cross glints
+          ctx.fillStyle = '#FFFFFF';
+          ctx.globalAlpha = alpha;
+          ctx.fillRect(Math.round(tx - 1), Math.round(ty - rad), 2, rad * 2);
+          ctx.fillRect(Math.round(tx - rad), Math.round(ty - 1), rad * 2, 2);
+        }
+        ctx.restore();
+
+        // 2. Central Rotating MediumStar with Blinding White/Pink Additive Glow
+        if (starImg && starImg.complete && starImg.naturalWidth > 0) {
+          const cols = 60;
+          const fw = 64;
+          const fh = 64;
+          const frame = Math.floor(p.life * 32) % cols;
+          const sx = frame * fw;
+          const scale = 1.05;
+          const dw = fw * scale;
+          const dh = fh * scale;
+
+          ctx.save();
+          ctx.imageSmoothingEnabled = false;
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.shadowColor = '#FEF08A';
+          ctx.shadowBlur = 18;
+          ctx.translate(Math.round(p.x), Math.round(p.y));
+          ctx.rotate(p.life * 6);
+          ctx.drawImage(starImg, sx, 0, fw, fh, -dw / 2, -dh / 2, dw, dh);
+
+          // Additive core flare
+          ctx.fillStyle = '#FFFFFF';
+          ctx.globalAlpha = 0.65;
+          ctx.beginPath();
+          ctx.arc(0, 0, 7, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        } else {
+          ctx.save();
+          ctx.fillStyle = '#FEF08A';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+        continue;
+      }
+
+      // Dedicated Fairy Lock Projectile: Traveling Pink Starlight Star + Fairy Binding Sparkles
+      if (vis.isFairyLock || p.isFairyLock) {
+        const starImg = getMoveAnimImg('vfx/custom/MediumStar_64x64.png');
+        const angle = Math.atan2(p.vy, p.vx);
+
+        // 1. Trailing Fairy Binding Rings & Sparkles
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = 1; i <= 3; i++) {
+          const rDist = i * 16;
+          const rx = p.x - Math.cos(angle) * rDist;
+          const ry = p.y - Math.sin(angle) * rDist;
+          const rAlpha = (1 - i / 4) * 0.75;
+          ctx.strokeStyle = '#F472B6';
+          ctx.lineWidth = 1.8;
+          ctx.globalAlpha = rAlpha;
+          ctx.beginPath();
+          ctx.arc(rx, ry, 6 + i * 2, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // 2. Central Star
+        if (starImg && starImg.complete && starImg.naturalWidth > 0) {
+          const cols = 60;
+          const fw = 64;
+          const fh = 64;
+          const frame = Math.floor(p.life * 30) % cols;
+          const sx = frame * fw;
+          const scale = 0.95;
+          const dw = fw * scale;
+          const dh = fh * scale;
+
+          ctx.save();
+          ctx.imageSmoothingEnabled = false;
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.shadowColor = '#F472B6';
+          ctx.shadowBlur = 12;
+          ctx.translate(Math.round(p.x), Math.round(p.y));
+          ctx.rotate(angle);
+          ctx.drawImage(starImg, sx, 0, fw, fh, -dw / 2, -dh / 2, dw, dh);
+          ctx.restore();
+        } else {
+          ctx.save();
+          ctx.fillStyle = '#F472B6';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+        continue;
+      }
+
+      let drawX = p.x;
+      let drawY = p.y;
+      if (p.hasLobArc) {
+        const arcProg = Math.min(1.0, Math.max(0.0, (p.traveledDist || 0) / (p.totalDist || 1)));
+        const arcOffset = -Math.sin(arcProg * Math.PI) * (p.arcHeight || 45);
+        drawY = p.y + arcOffset;
+
+        // Trailing animated electric projectile frames along the lob arc (replacing the grey ground shadow)
+        if (p.isElectroBall || vis.isElectroBall) {
+          const trailImg = getMoveAnimImg('vfx/custom/electric_projectile_yellow.png');
+          if (trailImg && trailImg.complete && trailImg.naturalWidth > 0) {
+            const cols = 5;
+            const fw = trailImg.naturalWidth / cols;
+            const fh = trailImg.naturalHeight;
+            const numTrails = 3;
+            for (let t = 0; t < numTrails; t++) {
+              const dDist = t === 0 ? 4 : 4 + t * 20;
+              if ((p.traveledDist || 0) < dDist * 0.3) continue;
+              const trailDist = Math.max(0, (p.traveledDist || 0) - dDist);
+              const trailProg = Math.min(1.0, trailDist / (p.totalDist || 1));
+              const tX = (p.startX ?? p.x) + ((p.targetX ?? p.x) - (p.startX ?? p.x)) * trailProg;
+              const tGroundY = (p.startY ?? p.y) + ((p.targetY ?? p.y) - (p.startY ?? p.y)) * trailProg;
+              const tArc = -Math.sin(trailProg * Math.PI) * (p.arcHeight || 45);
+              const tY = tGroundY + tArc;
+
+              const dArcDy = -Math.cos(trailProg * Math.PI) * Math.PI * (p.arcHeight || 45) / (p.totalDist || 1);
+              const tAngle = Math.atan2(((p.targetY ?? p.y) - (p.startY ?? p.y)) / (p.totalDist || 1) + dArcDy, ((p.targetX ?? p.x) - (p.startX ?? p.x)) / (p.totalDist || 1));
+
+              const tFrame = Math.floor((p.life * 24 + t * 2)) % cols;
+              const sx = tFrame * fw;
+              const tScale = (1.0 - t * 0.22) * 1.05;
+              const dw = fw * tScale;
+              const dh = fh * tScale;
+              const tAlpha = (1.0 - t / numTrails) * 0.85;
+
+              ctx.save();
+              ctx.imageSmoothingEnabled = false;
+              ctx.globalCompositeOperation = 'lighter';
+              ctx.globalAlpha = tAlpha;
+              ctx.translate(Math.round(tX), Math.round(tY));
+              ctx.rotate(tAngle);
+              ctx.drawImage(trailImg, sx, 0, fw, fh, -dw * 0.88, -dh / 2, dw, dh);
+              ctx.restore();
+            }
+          }
+        }
+      }
+
       const rotation = Math.atan2(p.vy, p.vx) + Math.PI / 2;
       const frameIdx = Math.floor(p.life * 14) % vis.frames.length;
 
       // Render authentic 16-bit pixel projectile frame (calibrated scale 2 so it is proportional to Pokemon)
-      renderPixelMatrix(ctx, p.x, p.y, vis.frames[frameIdx], vis.palette, 2, rotation, 1.0);
+      renderPixelMatrix(ctx, drawX, drawY, vis.frames[frameIdx], vis.palette, 2, rotation, 1.0);
 
       // Micro pixel glint aura
       ctx.save();
       const pSize = 2;
       for (let i = 0; i < 3; i++) {
         const ang = (p.life * 12 + i * 2.1) % (Math.PI * 2);
-        const gx = Math.round(p.x + Math.cos(ang) * (p.radius * 0.7));
-        const gy = Math.round(p.y + Math.sin(ang) * (p.radius * 0.7));
+        const gx = Math.round(drawX + Math.cos(ang) * (p.radius * 0.7));
+        const gy = Math.round(drawY + Math.sin(ang) * (p.radius * 0.7));
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(gx, gy, pSize, pSize);
       }

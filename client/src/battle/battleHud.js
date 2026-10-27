@@ -204,6 +204,15 @@ export class BattleHud {
               <span class="bcard-hp-text" id="enemy-hp-text">--</span>
             </div>
 
+            <!-- Row 3.5: Enemy Movement Stamina Bar -->
+            <div class="bcard-stamina-track" id="enemy-stamina-track" title="Stamina de Esquiva do Oponente">
+              <div class="bcard-stamina-fill" id="enemy-stamina-fill" style="width: 100%;"></div>
+              <div class="bcard-stamina-info">
+                <span class="bcard-stamina-lbl">STAMINA</span>
+                <span class="bcard-stamina-text" id="enemy-stamina-text">--/--</span>
+              </div>
+            </div>
+
             <!-- Row 4: Pokéballs (Remaining Pokémon) -->
             <div class="bcard-party-balls enemy-balls" id="enemy-party-dots"></div>
           </div>
@@ -240,6 +249,15 @@ export class BattleHud {
             <div class="bcard-hp-track">
               <div class="bcard-hp-fill healthy" id="player-hp-fill" style="width: 100%;"></div>
               <span class="bcard-hp-text" id="player-hp-text">--</span>
+            </div>
+
+            <!-- Row 3.5: Player Movement Stamina Bar (Dash de 2 cliques) -->
+            <div class="bcard-stamina-track" id="player-stamina-track" title="Stamina de Esquiva / Dash [Duplo Clique]">
+              <div class="bcard-stamina-fill" id="player-stamina-fill" style="width: 100%;"></div>
+              <div class="bcard-stamina-info">
+                <span class="bcard-stamina-lbl">STAMINA</span>
+                <span class="bcard-stamina-text" id="player-stamina-text">--/--</span>
+              </div>
             </div>
 
             <!-- Row 4: Pokéballs (Remaining Pokémon) -->
@@ -279,8 +297,8 @@ export class BattleHud {
           </div>
         </div>
 
-        <!-- TOP COMBAT ACTION TICKER (Placed directly below Top Databoxes) -->
-        <div class="combat-ticker-wrap" id="combat-ticker-wrap">
+        <!-- TOP COMBAT ACTION TICKER (Ocultado a pedido do usuário: manter eventos apenas nas HUDs dos respectivos pokémons) -->
+        <div class="combat-ticker-wrap" id="combat-ticker-wrap" style="display: none !important;">
           <div class="combat-ticker-banner" id="combat-ticker-banner">
             <span class="combat-ticker-icon" id="combat-ticker-icon">⚔️</span>
             <span class="combat-ticker-text" id="combat-ticker-text">Prepare-se para a batalha!</span>
@@ -292,18 +310,22 @@ export class BattleHud {
           <div class="swsh-action-container" id="battle-action-panel">
             <div class="swsh-main-menu" id="battle-main-menu">
               <button class="swsh-action-btn btn-fight active" id="bbtn-fight" title="Lutar [1 / ESPAÇO]">
+                <span class="swsh-btn-badge">1</span>
                 <span class="swsh-btn-arrow">▶</span>
                 <span class="swsh-btn-lbl">FIGHT</span>
               </button>
               <button class="swsh-action-btn btn-bag" id="bbtn-bag" title="Mochila [2 / B]">
+                <span class="swsh-btn-badge">2</span>
                 <span class="swsh-btn-arrow">▶</span>
                 <span class="swsh-btn-lbl">BAG</span>
               </button>
               <button class="swsh-action-btn btn-pokemon" id="bbtn-pokemon" title="Equipe Pokémon [3 / P]">
+                <span class="swsh-btn-badge">3</span>
                 <span class="swsh-btn-arrow">▶</span>
                 <span class="swsh-btn-lbl">POKÉMON</span>
               </button>
               <button class="swsh-action-btn btn-run" id="bbtn-run" title="Fugir da Batalha [4 / F]">
+                <span class="swsh-btn-badge">4</span>
                 <span class="swsh-btn-arrow">▶</span>
                 <span class="swsh-btn-lbl">RUN</span>
               </button>
@@ -447,7 +469,7 @@ export class BattleHud {
             </div>
 
             <!-- 3. Round Basic Attack Button [Espaço] -->
-            <button class="battle-round-action-btn btn-action-atk" id="bbtn-basic-atk" title="Ataque Básico [Espaço] (Investida Curta)">
+            <button class="battle-round-action-btn btn-action-atk" id="bbtn-basic-atk" title="Ataque Básico [Espaço] (Combo 3-Hits)">
               <div class="round-btn-inner">
                 <span class="round-btn-hotkey round-btn-hotkey-atk">ESPAÇO</span>
                 <div class="round-atk-swords-row">
@@ -462,13 +484,63 @@ export class BattleHud {
                   </div>
                   <span class="atk-arrow-right">▶</span>
                 </div>
-                <span class="round-btn-lbl round-btn-lbl-atk">ATK</span>
+                <span class="round-btn-lbl round-btn-lbl-atk" id="atk-btn-lbl">ATK</span>
+                <div class="atk-combo-pips" id="atk-combo-pips">
+                  <span class="combo-pip" id="combo-pip-1"></span>
+                  <span class="combo-pip" id="combo-pip-2"></span>
+                  <span class="combo-pip" id="combo-pip-3"></span>
+                </div>
+              </div>
+              <div class="atk-combo-gauge-wrapper" id="atk-combo-gauge-wrap">
+                <div class="atk-combo-gauge" id="atk-combo-gauge"></div>
               </div>
               <div class="round-cd-overlay" id="atk-cd-overlay">
                 <span class="cd-timer-txt" id="atk-cd-timer"></span>
               </div>
             </button>
           </div>
+        </div>
+
+        <!-- BOTTOM BATTLE REWARDS / SUMMARY TRAY (Substitui os controles de ataque no fim do combate) -->
+        <div class="battle-rewards-tray hidden" id="battle-rewards-tray">
+          <div class="brt-header">
+            <span class="brt-badge-icon" id="brt-badge-icon">🏆</span>
+            <span class="brt-title" id="brt-title">VITÓRIA!</span>
+          </div>
+          <!-- Typewriter message box narrating victory -->
+          <div class="brt-typewriter-box" id="brt-typewriter-box">
+            <span class="brt-typewriter-text" id="brt-typewriter-text"></span>
+            <span class="brt-typewriter-cursor" id="brt-typewriter-cursor">▌</span>
+          </div>
+          <div class="brt-cards-row" id="brt-cards-row">
+            <!-- EXP Pokemon -->
+            <div class="brt-reward-pill pill-poke-exp" id="brt-poke-exp-pill">
+              <span class="brt-pill-icon">⚡</span>
+              <div class="brt-pill-info">
+                <span class="brt-pill-val" id="brt-poke-exp-val">+0 EXP</span>
+                <span class="brt-pill-lbl" id="brt-poke-exp-lbl">Pokémon</span>
+              </div>
+            </div>
+            <!-- EXP Treinador -->
+            <div class="brt-reward-pill pill-trainer-exp" id="brt-trainer-exp-pill">
+              <span class="brt-pill-icon">⭐</span>
+              <div class="brt-pill-info">
+                <span class="brt-pill-val" id="brt-trainer-exp-val">+0 EXP</span>
+                <span class="brt-pill-lbl">Treinador</span>
+              </div>
+            </div>
+            <!-- Gold -->
+            <div class="brt-reward-pill pill-gold" id="brt-gold-pill">
+              <span class="brt-pill-icon">💰</span>
+              <div class="brt-pill-info">
+                <span class="brt-pill-val" id="brt-gold-val">+$0</span>
+                <span class="brt-pill-lbl">Recompensa</span>
+              </div>
+            </div>
+          </div>
+          <button class="brt-continue-btn" id="bbtn-rewards-finish" title="Concluir Batalha [ESPAÇO / ESC]">
+            <span>CONTINUAR</span> <span class="brt-btn-key">[ESPAÇO / ESC]</span>
+          </button>
         </div>
 
         <!-- MODAL BACKDROP -->
@@ -1458,7 +1530,9 @@ export class BattleHud {
         type = 'heal';
       }
 
-      this.showEntityAction(targetEntityIsPlayer, bannerText, type);
+      if (type !== 'victory' && !lower.includes('exp') && !lower.includes('gold') && !lower.includes('recompensa')) {
+        this.showEntityAction(targetEntityIsPlayer, bannerText, type);
+      }
     }
 
     // Mirror to top combat action ticker banner (Ensure only 1 icon is displayed)
@@ -1493,6 +1567,21 @@ export class BattleHud {
 
   showMatchResult(outcome, winnerData, rewards = null) {
     this._matchEnded = true;
+
+    // Clear action bubbles under Pokémon HUDs so EXP/Gold never appear below Pokemon
+    const playerTicker = document.getElementById('player-action-ticker');
+    if (playerTicker) playerTicker.innerHTML = '';
+    const enemyTicker = document.getElementById('enemy-action-ticker');
+    if (enemyTicker) enemyTicker.innerHTML = '';
+
+    // Hide bottom combat controls and choices menu
+    const actionCluster = document.getElementById('battle-action-cluster');
+    const commandBar = document.getElementById('battle-command-bar');
+    const quickTray = document.getElementById('bquick-item-tray');
+    if (actionCluster) actionCluster.classList.add('hidden');
+    if (commandBar) commandBar.classList.add('hidden');
+    if (quickTray) quickTray.classList.add('hidden');
+
     const overlay = document.getElementById('match-result-overlay');
     const modalBox = document.getElementById('result-modal-box');
     const badgeIcon = document.getElementById('result-badge-icon');
@@ -1522,6 +1611,99 @@ export class BattleHud {
     // Calculate survivors
     const party = this.engine?.playerParty || [];
     const survivors = party.filter(p => p && (typeof p.currentHp === 'number' ? p.currentHp : p.maxHp) > 0 && !p.isFainted).length;
+
+    // Calculate rewards
+    const enemyMon = this.engine?.enemyEntity?.data;
+    const pName = playerMon?.name || 'Seu Pokémon';
+    const lvl = enemyMon?.level || 5;
+
+    const baseExp = enemyMon?.baseExp || 64;
+    const pokeExp = rewards?.pokeExp ?? Math.max(6, Math.floor(((baseExp * lvl) / 7) * 1.5));
+    const trainerExp = rewards?.trainerExp ?? Math.max(10, Math.floor(lvl * 18));
+    const gold = rewards?.gold ?? Math.max(20, Math.floor(lvl * 35));
+
+    // Render Bottom Center Rewards Tray (substitui os ataques no centro inferior com Typewriter)
+    const rewardsTray = document.getElementById('battle-rewards-tray');
+    if (rewardsTray) {
+      const brtBadge = document.getElementById('brt-badge-icon');
+      const brtTitle = document.getElementById('brt-title');
+      const brtPokeExpVal = document.getElementById('brt-poke-exp-val');
+      const brtPokeExpLbl = document.getElementById('brt-poke-exp-lbl');
+      const brtTrainerExpVal = document.getElementById('brt-trainer-exp-val');
+      const brtGoldVal = document.getElementById('brt-gold-val');
+      const finishBtn = document.getElementById('bbtn-rewards-finish');
+      const pokePill = document.getElementById('brt-poke-exp-pill');
+      const trainerPill = document.getElementById('brt-trainer-exp-pill');
+      const goldPill = document.getElementById('brt-gold-pill');
+      const typewriterWrap = document.getElementById('brt-typewriter-box');
+      const typewriterText = document.getElementById('brt-typewriter-text');
+      const typewriterCursor = document.getElementById('brt-typewriter-cursor');
+      const cardsRow = document.getElementById('brt-cards-row');
+
+      if (this._rewardsTypewriterTimer) {
+        clearInterval(this._rewardsTypewriterTimer);
+        this._rewardsTypewriterTimer = null;
+      }
+
+      if (isWin) {
+        if (brtBadge) brtBadge.textContent = '🏆';
+        if (brtTitle) brtTitle.textContent = `${pName.toUpperCase()} VENCEU!`;
+        if (pokePill) pokePill.style.display = 'flex';
+        if (trainerPill) trainerPill.style.display = 'flex';
+        if (goldPill) goldPill.style.display = 'flex';
+
+        if (brtPokeExpVal) brtPokeExpVal.textContent = `+${pokeExp} EXP`;
+        if (brtPokeExpLbl) brtPokeExpLbl.textContent = pName;
+        if (brtTrainerExpVal) brtTrainerExpVal.textContent = `+${trainerExp} EXP`;
+        if (brtGoldVal) brtGoldVal.textContent = `+$${gold}`;
+
+        // Classic Pokemon Typewriter narrative effect
+        const fullMessage = `${pName} derrotou o adversário com maestria! Recompensas da vitória resgatadas com sucesso!`;
+        if (typewriterText && typewriterWrap) {
+          typewriterWrap.style.display = 'flex';
+          typewriterText.textContent = '';
+          if (typewriterCursor) typewriterCursor.style.display = 'inline-block';
+          if (cardsRow) {
+            cardsRow.classList.add('brt-cards-revealed');
+          }
+
+          let charIdx = 0;
+          this._rewardsTypewriterTimer = setInterval(() => {
+            if (charIdx < fullMessage.length) {
+              typewriterText.textContent += fullMessage.charAt(charIdx);
+              charIdx++;
+            } else {
+              clearInterval(this._rewardsTypewriterTimer);
+              this._rewardsTypewriterTimer = null;
+              if (typewriterCursor) typewriterCursor.classList.add('cursor-blink');
+            }
+          }, 24);
+        }
+      } else {
+        if (brtBadge) brtBadge.textContent = '💀';
+        if (brtTitle) brtTitle.textContent = 'DERROTA...';
+        if (pokePill) pokePill.style.display = 'none';
+        if (trainerPill) trainerPill.style.display = 'none';
+        if (goldPill) goldPill.style.display = 'none';
+
+        if (typewriterText && typewriterWrap) {
+          typewriterWrap.style.display = 'flex';
+          typewriterText.textContent = 'Todos os seus Pokémon desmaiaram no combate...';
+          if (typewriterCursor) typewriterCursor.style.display = 'none';
+        }
+      }
+
+      if (finishBtn) {
+        finishBtn.onclick = () => {
+          if (this._rewardsTypewriterTimer) {
+            clearInterval(this._rewardsTypewriterTimer);
+            this._rewardsTypewriterTimer = null;
+          }
+          if (this.onFinish) this.onFinish();
+        };
+      }
+      rewardsTray.classList.remove('hidden');
+    }
 
     if (this.engine?.isPvp) {
       if (overlay && title && subtitle) {
@@ -1565,40 +1747,10 @@ export class BattleHud {
       // Wild victory: keep dialog in overworld
       if (overlay) overlay.classList.add('hidden');
 
-      const enemyMon = this.engine?.enemyEntity?.data;
-      const pName = playerMon?.name || 'Seu Pokémon';
-      const lvl = enemyMon?.level || 5;
-
-      const baseExp = enemyMon?.baseExp || 64;
-      const pokeExp = Math.max(6, Math.floor(((baseExp * lvl) / 7) * 1.5));
-      const trainerExp = Math.max(10, Math.floor(lvl * 18));
-      const gold = Math.max(20, Math.floor(lvl * 35));
-
       const victoryMsg = `🎉 <strong>${pName}</strong> venceu! <b>+${pokeExp} EXP</b> para ${pName} | <b>+${trainerExp} EXP</b> de Treinador | <b>+$${gold}</b>! (Pressione ESC ou clique para sair)`;
       this.addLog(victoryMsg, 'victory');
     } else {
-      if (overlay && title && subtitle) {
-        if (modalBox) {
-          modalBox.className = 'result-modal modal-defeat';
-        }
-        if (badgeIcon) {
-          badgeIcon.textContent = '💀';
-        }
-        title.textContent = 'DERROTA...';
-        title.className = 'result-title defeat';
-        subtitle.textContent = 'Todos os seus Pokémon desmaiaram!';
-        if (statusVal) {
-          statusVal.textContent = 'DERROTADO';
-          statusVal.className = 'metric-val status-loss';
-        }
-        if (teamVal) {
-          teamVal.textContent = '0 Vivos (FNT)';
-        }
-        if (btnText) {
-          btnText.textContent = 'Retornar ao Mundo';
-        }
-        overlay.classList.remove('hidden');
-      }
+      if (overlay) overlay.classList.add('hidden');
       this.addLog('💀 Todos os seus Pokémon foram derrotados...', 'faint');
     }
   }
@@ -1974,6 +2126,27 @@ export class BattleHud {
         pHpFill.className = `bcard-hp-fill ${pPercent > 50 ? 'healthy' : pPercent > 20 ? 'moderate' : 'danger'}`;
       }
 
+      // Player Movement Stamina Bar (Dash Stamina escalada por Level e IVs)
+      const pStaminaTrack = document.getElementById('player-stamina-track');
+      const pStaminaFill = document.getElementById('player-stamina-fill');
+      const pStaminaText = document.getElementById('player-stamina-text');
+      if (pStaminaFill && pStaminaText) {
+        const curStamina = Math.round(p.stamina ?? 100);
+        const maxStamina = p.maxStamina ?? 100;
+        const sPercent = Math.max(0, Math.min(100, (curStamina / maxStamina) * 100));
+        pStaminaFill.style.width = `${sPercent}%`;
+        pStaminaText.textContent = `${curStamina}/${maxStamina}`;
+        pStaminaText.title = `Stamina: ${curStamina} / ${maxStamina} (Gasto por Dash: ${p.dashStaminaCost || 30})`;
+
+        if (curStamina < (p.dashStaminaCost || 30)) {
+          pStaminaFill.className = 'bcard-stamina-fill stamina-exhausted';
+        } else if (sPercent <= 35) {
+          pStaminaFill.className = 'bcard-stamina-fill stamina-low';
+        } else {
+          pStaminaFill.className = 'bcard-stamina-fill';
+        }
+      }
+
       // Player PMD Portrait Emotion
       const pAvatarImg = document.getElementById('player-avatar-img');
       if (pAvatarImg && p.data) {
@@ -2011,14 +2184,21 @@ export class BattleHud {
         }
       }
 
-      // Basic Attack Cooldown Overlay
+      // Basic Attack Cooldown & Combo Dynamic Feedback
       const atkCdOverlay = document.getElementById('atk-cd-overlay');
       const atkCdTimer = document.getElementById('atk-cd-timer');
       const atkBtn = document.getElementById('bbtn-basic-atk');
+      const atkBtnLbl = document.getElementById('atk-btn-lbl');
+      const pip1 = document.getElementById('combo-pip-1');
+      const pip2 = document.getElementById('combo-pip-2');
+      const pip3 = document.getElementById('combo-pip-3');
+      const atkGaugeWrap = document.getElementById('atk-combo-gauge-wrap');
+      const atkGauge = document.getElementById('atk-combo-gauge');
+
       if (atkCdOverlay && atkCdTimer) {
         if (p.physicalCooldown > 0) {
           atkCdOverlay.style.display = 'flex';
-          const maxCd = p.physicalAttack?.cooldown || 0.8;
+          const maxCd = p.physicalAttack?.cooldown || 0.7;
           const progress = Math.max(0, Math.min(1, p.physicalCooldown / maxCd));
           const deg = Math.round(progress * 360);
           atkCdOverlay.style.background = `conic-gradient(from 0deg, rgba(0, 0, 0, 0.78) 0deg ${deg}deg, rgba(0, 0, 0, 0.22) ${deg}deg 360deg)`;
@@ -2028,6 +2208,53 @@ export class BattleHud {
           atkCdOverlay.style.display = 'none';
           atkCdTimer.textContent = '';
           atkBtn?.classList.remove('on-cooldown');
+        }
+      }
+
+      // Combo Pips and Dynamic Button State
+      const comboStep = p.comboStep || 0;
+      const comboTimer = p.comboWindowTimer || 0;
+      const maxComboWin = p.comboMaxWindow || 0.85;
+
+      if (atkBtn) {
+        if (comboStep === 1) {
+          atkBtn.classList.add('combo-ready-2');
+          atkBtn.classList.remove('combo-ready-3');
+          if (atkBtnLbl) atkBtnLbl.textContent = 'HIT 2!';
+          pip1?.classList.add('active-1');
+          pip2?.classList.remove('active-2');
+          pip3?.classList.remove('active-3');
+        } else if (comboStep === 2) {
+          atkBtn.classList.remove('combo-ready-2');
+          atkBtn.classList.add('combo-ready-3');
+          if (atkBtnLbl) atkBtnLbl.textContent = 'FINISH!';
+          pip1?.classList.add('active-1');
+          pip2?.classList.add('active-2');
+          pip3?.classList.remove('active-3');
+        } else {
+          atkBtn.classList.remove('combo-ready-2', 'combo-ready-3');
+          if (atkBtnLbl) atkBtnLbl.textContent = 'ATK';
+          pip1?.classList.remove('active-1');
+          pip2?.classList.remove('active-2');
+          pip3?.classList.remove('active-3');
+        }
+      }
+
+      if (atkGaugeWrap && atkGauge) {
+        if (comboStep > 0 && comboTimer > 0) {
+          atkGaugeWrap.style.display = 'block';
+          const pct = Math.max(0, Math.min(100, (comboTimer / maxComboWin) * 100));
+          atkGauge.style.width = `${pct}%`;
+          if (comboStep === 2) {
+            atkGauge.style.background = 'linear-gradient(90deg, #f97316, #ef4444)';
+            atkGauge.style.boxShadow = '0 0 6px #ef4444';
+          } else {
+            atkGauge.style.background = 'linear-gradient(90deg, #facc15, #f97316)';
+            atkGauge.style.boxShadow = '0 0 6px #facc15';
+          }
+        } else {
+          atkGaugeWrap.style.display = 'none';
+          atkGauge.style.width = '0%';
         }
       }
 
@@ -2088,6 +2315,27 @@ export class BattleHud {
       if (eHpFill) {
         eHpFill.style.width = `${ePercent}%`;
         eHpFill.className = `bcard-hp-fill ${ePercent > 50 ? 'healthy' : ePercent > 20 ? 'moderate' : 'danger'}`;
+      }
+
+      // Enemy Movement Stamina Bar
+      const eStaminaTrack = document.getElementById('enemy-stamina-track');
+      const eStaminaFill = document.getElementById('enemy-stamina-fill');
+      const eStaminaText = document.getElementById('enemy-stamina-text');
+      if (eStaminaFill && eStaminaText) {
+        const eCurStamina = Math.round(e.stamina ?? 100);
+        const eMaxStamina = e.maxStamina ?? 100;
+        const esPercent = Math.max(0, Math.min(100, (eCurStamina / eMaxStamina) * 100));
+        eStaminaFill.style.width = `${esPercent}%`;
+        eStaminaText.textContent = `${eCurStamina}/${eMaxStamina}`;
+        eStaminaText.title = `Stamina: ${eCurStamina} / ${eMaxStamina}`;
+
+        if (eCurStamina < (e.dashStaminaCost || 30)) {
+          eStaminaFill.className = 'bcard-stamina-fill stamina-exhausted';
+        } else if (esPercent <= 35) {
+          eStaminaFill.className = 'bcard-stamina-fill stamina-low';
+        } else {
+          eStaminaFill.className = 'bcard-stamina-fill';
+        }
       }
 
       // Enemy PMD Portrait Emotion

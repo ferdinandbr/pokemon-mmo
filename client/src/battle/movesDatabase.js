@@ -2957,17 +2957,14 @@ export const MOVES_BY_ID = {
       "endFrame": 5,
       "fps": 24,
       "key": "thunder_strike",
-      "theme": "Carregamento no Usuário e Descida de Raio Dourado (Thunder)",
+      "theme": "Descida de Raio Dourado no Alvo (Thunder)",
       "scale": 1.25,
       "color": "#FACC15",
       "isThunder": true,
       "onlySprite": true,
       "noExtraVfx": true,
-      "hasElectricCharge": true,
-      "chargeColor": "#FACC15",
-      "chargeFile": "vfx/custom/electric_charge_yellow.png",
       "applyElectrocuted": true
-},
+    },
     "activeCombatCompatible": true
   },
   "66": {
@@ -3050,19 +3047,19 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/pixel_fire/colored/yellow/group_4_2.png",
-      "cols": 14,
+      "file": "vfx/custom/electric_impact_burst_yellow.png",
+      "cols": 5,
       "rows": 1,
       "startFrame": 0,
-      "endFrame": 13,
+      "endFrame": 4,
       "fps": 24,
       "key": "zap_cannon",
-      "theme": "Canhão de Plasma Elétrico Puro com Eletrocussão (Zap Cannon)",
-      "scale": 1.25,
+      "theme": "Impacto de Canhão Elétrico Dourado (Zap Cannon)",
+      "scale": 1.45,
       "color": "#FACC15",
       "isZapCannon": true,
       "applyElectrocuted": true
-},
+    },
     "activeCombatCompatible": true
   },
   "68": {
@@ -3243,23 +3240,21 @@ export const MOVES_BY_ID = {
       "rules": "Efeito secundário: executar somente quando o cálculo de chance do move confirmar sucesso. Área/múltiplos alvos: calcular os alvos elegíveis pela área e regras do combate, sem duplicar dano."
     },
     "visual": {
-          "file": "vfx/custom/electric_impact_burst_yellow.png",
-          "cols": 5,
-          "rows": 1,
-          "startFrame": 0,
-          "endFrame": 4,
-          "fps": 24,
-          "key": "discharge_burst",
-          "theme": "Carregamento no Usuário e Descarga Elétrica com Explosão Amarela (Discharge)",
-          "scale": 1.35,
-          "color": "#FACC15",
-          "isDischarge": true,
-          "onlySprite": true,
-          "noExtraVfx": true,
-          "hasElectricCharge": true,
-          "chargeColor": "#FACC15",
-          "chargeFile": "vfx/custom/electric_charge_yellow.png",
-          "applyElectrocuted": true
+      "file": "vfx/custom/electric_impact_burst_yellow.png",
+      "cols": 5,
+      "rows": 1,
+      "startFrame": 0,
+      "endFrame": 4,
+      "fps": 24,
+      "key": "discharge_burst",
+      "theme": "Descarga Radial no Conjurador e Disparos Elétricos Amarelos (Discharge)",
+      "scale": 1.35,
+      "color": "#FACC15",
+      "isDischarge": true,
+      "projectileFile": "vfx/custom/electric_projectile_yellow.png",
+      "projectileCols": 5,
+      "projectileFps": 24,
+      "applyElectrocuted": true
     },
     "activeCombatCompatible": true
   },
@@ -3526,22 +3521,20 @@ export const MOVES_BY_ID = {
       "rules": "Atributos: atualizar estágios/valores no sistema de combate; a animação deve refletir a mudança confirmada."
     },
     "visual": {
-          "file": "vfx/custom/electroweb.png",
-          "cols": 5,
-          "rows": 1,
-          "startFrame": 0,
-          "endFrame": 4,
-          "fps": 20,
-          "key": "electroweb",
-          "theme": "Projétil de Onda Elétrica Dourada com Teia Elétrica Ajustada (Electroweb)",
-          "scale": 0.8,
-          "color": "#FACC15",
-          "isElectroweb": true,
-          "isElectricBoltProj": true,
-          "projectileFile": "vfx/custom/electroweb.png",
-          "applyElectrocuted": true,
-          "onlySprite": true,
-          "noExtraVfx": true
+      "file": "vfx/custom/string_shot_silk.png",
+      "cols": 6,
+      "rows": 1,
+      "startFrame": 0,
+      "endFrame": 5,
+      "fps": 18,
+      "key": "electroweb",
+      "theme": "Teia e Jato de Seda Elétrica Amarela (Electroweb)",
+      "scale": 1.0,
+      "offsetY": 0,
+      "color": "#FACC15",
+      "isElectroweb": true,
+      "isStringShot": true,
+      "filter": "sepia(1) saturate(12) hue-rotate(15deg) brightness(1.2)"
     },
     "activeCombatCompatible": true
   },
@@ -3670,19 +3663,24 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/pixel_fire/colored/yellow/group_4_2.png",
-      "cols": 14,
+      "file": "vfx/custom/electric_impact_burst_yellow.png",
+      "cols": 5,
       "rows": 1,
       "startFrame": 0,
-      "endFrame": 13,
+      "endFrame": 4,
       "fps": 24,
       "key": "electro_ball",
-      "theme": "Orbe de Plasma Elétrico Veloz com Eletrocussão (Electro Ball)",
-      "scale": 0.95,
+      "theme": "Esfera Elétrica Parabólica com Rastro Elétrico Amarelo e Impacto Explosivo (Electro Ball)",
+      "scale": 1.45,
       "color": "#FACC15",
       "isElectroBall": true,
+      "hasLobArc": true,
+      "arcHeight": 45,
+      "trailFile": "vfx/custom/electric_projectile_yellow.png",
+      "trailCols": 5,
+      "trailFps": 24,
       "applyElectrocuted": true
-},
+    },
     "activeCombatCompatible": true
   },
   "81": {
@@ -3723,15 +3721,20 @@ export const MOVES_BY_ID = {
       "rules": "Atributos: atualizar estágios/valores no sistema de combate; a animação deve refletir a mudança confirmada."
     },
     "visual": {
-      "file": "core/attack_physical_01.png",
+      "file": "vfx/custom/electric_impact_burst_yellow.png",
       "cols": 5,
-      "rows": 2,
+      "rows": 1,
       "startFrame": 0,
       "endFrame": 4,
-      "fps": 24,
-      "key": "impacto_fisico",
-      "theme": "Impacto Físico (Estrela Branca)",
-      "scale": 0.5
+      "fps": 20,
+      "key": "charge",
+      "theme": "Concentração Elétrica Invertida de Carga (Charge)",
+      "scale": 1.40,
+      "target": "self",
+      "color": "#FACC15",
+      "isCharge": true,
+      "isElectricInverted": true,
+      "reversed": true
     },
     "activeCombatCompatible": true
   },
@@ -3766,21 +3769,21 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/custom/electric_charge_yellow.png",
-      "cols": 6,
+      "file": "vfx/custom/electric_impact_burst_yellow.png",
+      "cols": 5,
       "rows": 1,
       "startFrame": 0,
-      "endFrame": 5,
+      "endFrame": 4,
       "fps": 20,
       "key": "magnet_rise",
-      "theme": "Carregamento Eletromagnético Levitação (Magnet Rise)",
-      "scale": 1.1,
+      "theme": "Levitação Magnética com Concentração Elétrica Invertida (Magnet Rise)",
+      "scale": 1.40,
       "target": "self",
+      "color": "#FACC15",
       "isMagnetRise": true,
-      "hasElectricCharge": true,
-      "chargeColor": "#FACC15",
-      "chargeFile": "vfx/custom/electric_charge_yellow.png"
-},
+      "isElectricInverted": true,
+      "reversed": true
+    },
     "activeCombatCompatible": true
   },
   "83": {
@@ -3795,7 +3798,7 @@ export const MOVES_BY_ID = {
     "priority": 0,
     "vfxFamily": "status",
     "description": "A weak electric charge is launched at the target. It causes paralysis if it hits.",
-    "executionType": "buff",
+    "executionType": "projectile",
     "combatBehavior": {
       "isContact": false,
       "critStage": 0,
@@ -3814,20 +3817,20 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/custom/electric_wave.png",
-      "cols": 6,
+      "file": "vfx/custom/electric_projectile_yellow.png",
+      "cols": 5,
       "rows": 1,
       "startFrame": 0,
-      "endFrame": 5,
-      "fps": 20,
+      "endFrame": 4,
+      "fps": 24,
       "key": "thunder_wave",
-      "theme": "Onda Expansiva de Paralisia Elétrica (Thunder Wave)",
-      "scale": 1.25,
+      "theme": "Onda Frontal Cônica de Paralisia Elétrica (Thunder Wave)",
+      "scale": 1.0,
       "target": "target",
       "color": "#FACC15",
       "isThunderWave": true,
       "applyElectrocuted": true
-},
+    },
     "activeCombatCompatible": true
   },
   "84": {
@@ -25119,7 +25122,7 @@ export const MOVES_BY_ID = {
     "priority": 0,
     "vfxFamily": "electric",
     "description": "The user attacks everything around it. The user's HP is restored by half the damage taken by those hit.",
-    "executionType": "area",
+    "executionType": "projectile",
     "combatBehavior": {
       "isContact": false,
       "critStage": 0,
@@ -25132,25 +25135,26 @@ export const MOVES_BY_ID = {
       "secondaryChance": 0
     },
     "spec": {
-      "vfx": "Raio em zigue-zague com segmentos angulares, núcleo amarelo/branco e borda dourada; faíscas curtas se espalham no contato.",
-      "animation": "Um ou vários segmentos aparecem em sequência rápida; o raio pisca em poucos frames; explosão de faíscas e flash breve no alvo.",
-      "combat": "Pode ser raio descendente, projétil elétrico, aura de investida ou descarga radial. Paralisia é um efeito de gameplay separado do efeito luminoso.",
+      "vfx": "Descarga de raios frontais em direção ao alvo, retornando energia drenada ao usuário com absorção elétrica invertida.",
+      "animation": "Disparo frontal de raios dourados que atingem o oponente e fluem de volta para o Pokémon, absorvendo carga em espiral invertida.",
+      "combat": "Dano elétrico frontal seguido de absorção de 50% do dano causado diretamente na barra de vida do usuário.",
       "rules": "Cura: atualizar HP pela regra do move e comunicar o valor efetivamente restaurado."
     },
     "visual": {
-      "file": "vfx/custom/electric_shockwave_rings.png",
-      "cols": 6,
+      "file": "vfx/custom/electric_projectile_yellow.png",
+      "cols": 5,
       "rows": 1,
       "startFrame": 0,
-      "endFrame": 5,
-      "fps": 20,
+      "endFrame": 4,
+      "fps": 24,
       "key": "parabolic_charge",
-      "theme": "Ondas de Choque Elétricas no Solo e Dreno de Vida (Parabolic Charge)",
-      "scale": 1.45,
+      "theme": "Descarga Frontal com Dreno de Retorno e Carga Invertida (Parabolic Charge)",
+      "scale": 1.0,
       "color": "#FACC15",
       "isParabolicCharge": true,
-      "drainPercent": 0.5
-},
+      "drainPercent": 0.5,
+      "applyElectrocuted": true
+    },
     "activeCombatCompatible": true
   },
   "571": {
@@ -25290,7 +25294,7 @@ export const MOVES_BY_ID = {
     "accuracy": 100,
     "pp": 40,
     "priority": 0,
-    "vfxFamily": "ice",
+    "vfxFamily": "projectile",
     "description": "Letting out a charming cry, the user does emotional damage to opposing Pokémon. This attack never misses.",
     "executionType": "projectile",
     "combatBehavior": {
@@ -25305,20 +25309,23 @@ export const MOVES_BY_ID = {
       "secondaryChance": 0
     },
     "spec": {
-      "vfx": "Cristais com pontas rígidas, flocos quadrados e paleta branco/ciano/azul. Evitar blur; usar brilhos pontuais e pequenos fragmentos.",
-      "animation": "Congelamento visual rápido na origem ou no alvo; cristais surgem em 2--4 etapas; rajada de neve ou projétil; fragmentos se quebram no impacto.",
-      "combat": "Feixe, projétil, tempestade ou cristal que cai conforme o move. Congelamento/slow só é aplicado se a lógica do golpe determinar sucesso.",
-      "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
+      "vfx": "Ondas sonoras concêntricas em tons de rosa e magenta acompanhadas de notas musicais, corações e uma estrela mágica brilhante.",
+      "animation": "O Pokémon emite uma canção encantadora; ondas sonoras cor-de-rosa com notas musicais e corações viajam até o alvo com a estrela girando no núcleo; explosão de brilho e charme no impacto.",
+      "combat": "Projétil de som e magia feérica que nunca erra o alvo.",
+      "rules": "Resolver acerto e dano na lógica de combate; VFX apresenta o charme e ressonância sonora."
     },
     "visual": {
-      "file": "core/ice_01.png",
-      "cols": 5,
-      "rows": 2,
+      "file": "vfx/custom/MediumStar_64x64.png",
+      "cols": 60,
+      "rows": 1,
       "startFrame": 0,
-      "endFrame": 8,
-      "fps": 24,
-      "key": "gelo_nevasca",
-      "theme": "Nevasca e Estilhaços de Gelo"
+      "endFrame": 59,
+      "fps": 30,
+      "key": "disarming_voice",
+      "theme": "Onda Sonora Encantada com Estrela Mágica, Notas Musicais e Corações (Disarming Voice)",
+      "scale": 1.0,
+      "color": "#F472B6",
+      "isDisarmingVoice": true
     },
     "activeCombatCompatible": true
   },
@@ -25434,14 +25441,14 @@ export const MOVES_BY_ID = {
     "accuracy": 100,
     "pp": 10,
     "priority": 0,
-    "vfxFamily": "water",
+    "vfxFamily": "dash",
     "description": "The user steals the target's energy with a kiss. The user's HP is restored by over half of the damage taken by the target.",
-    "executionType": "projectile",
+    "executionType": "dash",
     "combatBehavior": {
-      "isContact": false,
+      "isContact": true,
       "critStage": 0,
       "multiHit": null,
-      "drainPercent": 0,
+      "drainPercent": 0.75,
       "recoilPercent": 0,
       "healPercent": 0,
       "isBarrier": false,
@@ -25449,20 +25456,24 @@ export const MOVES_BY_ID = {
       "secondaryChance": 0
     },
     "spec": {
-      "vfx": "Gotículas quadradas em tons de azul/ciano/branco, bolhas com highlight e respingos angulares. Jatos usam faixa principal e partículas laterais.",
-      "animation": "Disparo ou jato contínuo; gotículas se espalham no impacto e caem com gravidade simples; bolhas podem subir antes de estourar.",
-      "combat": "Projetil, cone ou feixe de acordo com a descrição. Poça wet é opcional e cosmética; não deve alterar velocidade ou colisão sem regra explícita.",
+      "vfx": "Investida rápida feérica cor-de-rosa; no impacto, grande explosão de partículas mágicas e corações que drenam a energia do oponente de volta para o atacante.",
+      "animation": "O Pokémon avança em dash veloz com esteira mágica; ao atingir o alvo, explode em brilho feérico e corações flutuantes, restaurando parte do HP.",
+      "combat": "Investida direta de contato que causa dano e absorve 75% do dano causado em cura.",
       "rules": "Cura: atualizar HP pela regra do move e comunicar o valor efetivamente restaurado."
     },
     "visual": {
-      "file": "core/burst_01.png",
+      "file": "core/attack_physical_01.png",
       "cols": 5,
       "rows": 2,
       "startFrame": 0,
       "endFrame": 4,
       "fps": 24,
-      "key": "brilho_feerico",
-      "theme": "Brilho Feérico Encantado"
+      "key": "draining_kiss",
+      "theme": "Impacto Feérico Estelar (Azul / Rosa) e Corações Drenados (Draining Kiss)",
+      "scale": 0.5,
+      "color": "#38BDF8",
+      "secondaryColor": "#F472B6",
+      "isDrainingKiss": true
     },
     "activeCombatCompatible": true
   },
@@ -25613,9 +25624,9 @@ export const MOVES_BY_ID = {
     "accuracy": 100,
     "pp": 10,
     "priority": 0,
-    "vfxFamily": "ground",
+    "vfxFamily": "buff",
     "description": "The user covers the ground under everyone's feet with mist for five turns. This protects Pokémon on the ground from status conditions.",
-    "executionType": "area",
+    "executionType": "buff",
     "combatBehavior": {
       "isContact": false,
       "critStage": 0,
@@ -25628,20 +25639,23 @@ export const MOVES_BY_ID = {
       "secondaryChance": 0
     },
     "spec": {
-      "vfx": "Rachaduras, poeira, fragmentos e formas angulares que emergem do chão. Usar pixels duros, sombra projetada e variação de escala; evitar partículas circulares lisas.",
-      "animation": "Aviso no chão por 120--250 ms; erupção em sequência ou simultânea; pico de impacto com tremor proporcional; fragmentos caem e desaparecem.",
-      "combat": "Definir uma ou mais zonas de impacto no terreno. Aplicar dano apenas dentro das zonas no frame de ativação; persistência/armadilhas ficam separadas do dano inicial.",
-      "rules": "Atributos: atualizar estágios/valores no sistema de combate; a animação deve refletir a mudança confirmada. Área/múltiplos alvos: calcular os alvos elegíveis pela área e regras do combate, sem duplicar dano."
+      "vfx": "Grande explosão mágica de névoa feérica sem corações/beijos, que se propaga por todo o terreno da arena em ondas suaves de névoa pastel.",
+      "animation": "O conjurador libera uma explosão expansiva de partículas místicas que se espalha em camadas de névoa pelo solo, protegendo a equipe.",
+      "combat": "Cria um terreno de névoa protetor que impede status negativos.",
+      "rules": "Atributos: atualizar estágios/valores no sistema de combate; a animação deve refletir a mudança confirmada."
     },
     "visual": {
-      "file": "core/burst_01.png",
-      "cols": 5,
-      "rows": 2,
+      "file": "vfx/custom/draining_kiss_burst.png",
+      "cols": 49,
+      "rows": 1,
       "startFrame": 0,
-      "endFrame": 4,
-      "fps": 24,
-      "key": "brilho_feerico",
-      "theme": "Brilho Feérico Encantado"
+      "endFrame": 48,
+      "fps": 30,
+      "key": "misty_terrain",
+      "theme": "Explosão de Névoa Feérica que se Propaga pelo Terreno (Misty Terrain)",
+      "scale": 2.2,
+      "color": "#F472B6",
+      "isMistyTerrain": true
     },
     "activeCombatCompatible": true
   },
@@ -25698,7 +25712,7 @@ export const MOVES_BY_ID = {
     "accuracy": 90,
     "pp": 10,
     "priority": 0,
-    "vfxFamily": "psychic",
+    "vfxFamily": "dash",
     "description": "The user plays rough with the target and attacks it. This may also lower the target's Attack stat.",
     "executionType": "dash",
     "combatBehavior": {
@@ -25713,20 +25727,24 @@ export const MOVES_BY_ID = {
       "secondaryChance": 0
     },
     "spec": {
-      "vfx": "Anéis concêntricos, losangos e orbes com núcleo branco e aura magenta, violeta, rosa ou dourada, conforme o golpe. Partículas orbitais pequenas.",
-      "animation": "Carga com pulsação de escala; liberação em onda, orbe ou explosão; distorção curta no alvo e desaparecimento por etapas.",
-      "combat": "Definir explicitamente se o efeito persegue, viaja em linha, explode em área ou apenas envolve o usuário. Buffs e debuffs são resolvidos pela lógica de combate.",
-      "rules": "Efeito secundário: executar somente quando o cálculo de chance do move confirmar sucesso. Atributos: atualizar estágios/valores no sistema de combate; a animação deve refletir a mudança confirmada."
+      "vfx": "Sequência de impactos brincalhões feéricos no alvo com estrelas, detonações estelares em azul/rosa com core/attack_physical_01.png.",
+      "animation": "O atacante avança em investida e desfere impactos brincalhões enérgicos com estrelas e estalos feéricos no alvo.",
+      "combat": "Ataque físico de contato que atinge com força e pode reduzir o ataque do oponente.",
+      "rules": "Efeito secundário: executar somente quando o cálculo de chance do move confirmar sucesso."
     },
     "visual": {
-      "file": "core/burst_01.png",
+      "file": "core/attack_physical_01.png",
       "cols": 5,
       "rows": 2,
       "startFrame": 0,
       "endFrame": 4,
       "fps": 24,
-      "key": "brilho_feerico",
-      "theme": "Brilho Feérico Encantado"
+      "key": "play_rough",
+      "theme": "Impacto Brincalhão Feérico Estelar (Azul / Rosa)",
+      "scale": 0.5,
+      "color": "#38BDF8",
+      "secondaryColor": "#F472B6",
+      "isPlayRough": true
     },
     "activeCombatCompatible": true
   },
@@ -25755,20 +25773,26 @@ export const MOVES_BY_ID = {
       "secondaryChance": 0
     },
     "spec": {
-      "vfx": "Feixe ou fluxo direcionado com núcleo claro, borda colorida e pequenas partículas. Para ondas sonoras, usar anéis/linhas de distorção; para sopros, partículas em leque.",
-      "animation": "Carregamento breve quando apropriado; emitir feixe por duração configurável ou disparar onda curta; animar brilho e largura em pulsos sem suavização bilinear.",
-      "combat": "Pode ser instantâneo, contínuo ou em pulso, conforme a descrição. Verificar colisão ao longo do feixe/volume durante sua janela ativa e encerrar ao fim da duração.",
-      "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
+      "vfx": "Rajada volumétrica de vento feérico em tons de rosa e azul com estrelas cintilantes e poeira mágica usando vfx/wind/silver_wind_volumetric.png.",
+      "animation": "O atacante canaliza o poder dos ventos feéricos gerando correntes encantadas em rosa e azul que varrem o adversário.",
+      "combat": "Feixe volumétrico especial do tipo fada que atinge o oponente à distância.",
+      "rules": "Resolver acerto e dano na lógica de combate; VFX apresenta a rajada feérica."
     },
     "visual": {
-      "file": "core/burst_01.png",
-      "cols": 5,
-      "rows": 2,
+      "file": "vfx/wind/silver_wind_volumetric.png",
+      "cols": 4,
+      "rows": 4,
       "startFrame": 0,
-      "endFrame": 4,
-      "fps": 24,
-      "key": "brilho_feerico",
-      "theme": "Brilho Feérico Encantado"
+      "endFrame": 15,
+      "fps": 20,
+      "key": "fairy_wind",
+      "theme": "Vento Feérico Encantado (Rosa / Azul)",
+      "scale": 1.15,
+      "offsetY": 0,
+      "color": "#F472B6",
+      "secondaryColor": "#38BDF8",
+      "isFairyWind": true,
+      "isVolumetricSilverWind": true
     },
     "activeCombatCompatible": true
   },
@@ -25782,7 +25806,7 @@ export const MOVES_BY_ID = {
     "accuracy": 100,
     "pp": 15,
     "priority": 0,
-    "vfxFamily": "explosion",
+    "vfxFamily": "projectile",
     "description": "Borrowing the power of the moon, the user attacks the target. This may also lower the target's Sp. Atk stat.",
     "executionType": "projectile",
     "combatBehavior": {
@@ -25797,20 +25821,24 @@ export const MOVES_BY_ID = {
       "secondaryChance": 0
     },
     "spec": {
-      "vfx": "Burst em camadas: núcleo branco/amarelo, anel externo colorido, fragmentos quadrados e fumaça em blocos. A forma deve ser irregular, não um gradiente circular liso.",
-      "animation": "Antecipação legível; expansão em 2--4 passos; frame de brilho máximo curto; dissipação em fumaça/brasas. Screen shake apenas no pico.",
-      "combat": "Definir raio e instante único de dano. Golpes de autodestruição devem resolver o nocaute do usuário pela regra de combate, não pela animação.",
-      "rules": "Efeito secundário: executar somente quando o cálculo de chance do move confirmar sucesso. Atributos: atualizar estágios/valores no sistema de combate; a animação deve refletir a mudança confirmada."
+      "vfx": "Convergência de luz lunar no conjurador em reverse e detonação estelar dual azul/rosa no alvo com core/attack_physical_01.png.",
+      "animation": "O atacante canaliza o poder da lua reunindo raios estelares, disparando um projétil lunar que detona em azul e rosa feérico.",
+      "combat": "Projétil especial poderoso que atinge o alvo com energia lunar e pode reduzir o Sp. Atk adversário.",
+      "rules": "Efeito secundário: executar somente quando o cálculo de chance do move confirmar sucesso."
     },
     "visual": {
-      "file": "core/burst_01.png",
+      "file": "core/attack_physical_01.png",
       "cols": 5,
       "rows": 2,
       "startFrame": 0,
       "endFrame": 4,
       "fps": 24,
-      "key": "brilho_feerico",
-      "theme": "Brilho Feérico Encantado"
+      "key": "moonblast",
+      "theme": "Explosão Lunar Feérica (Azul / Rosa)",
+      "scale": 0.5,
+      "color": "#38BDF8",
+      "secondaryColor": "#F472B6",
+      "isMoonblast": true
     },
     "activeCombatCompatible": true
   },
@@ -25867,9 +25895,9 @@ export const MOVES_BY_ID = {
     "accuracy": 100,
     "pp": 10,
     "priority": 0,
-    "vfxFamily": "psychic",
+    "vfxFamily": "status",
     "description": "By locking down the battlefield, the user keeps all Pokémon from fleeing during the next turn.",
-    "executionType": "buff",
+    "executionType": "status",
     "combatBehavior": {
       "isContact": false,
       "critStage": 0,
@@ -25882,20 +25910,24 @@ export const MOVES_BY_ID = {
       "secondaryChance": 0
     },
     "spec": {
-      "vfx": "Anéis concêntricos, losangos e orbes com núcleo branco e aura magenta, violeta, rosa ou dourada, conforme o golpe. Partículas orbitais pequenas.",
-      "animation": "Carga com pulsação de escala; liberação em onda, orbe ou explosão; distorção curta no alvo e desaparecimento por etapas.",
-      "combat": "Definir explicitamente se o efeito persegue, viaja em linha, explode em área ou apenas envolve o usuário. Buffs e debuffs são resolvidos pela lógica de combate.",
-      "rules": "Área/múltiplos alvos: calcular os alvos elegíveis pela área e regras do combate, sem duplicar dano."
+      "vfx": "Estrela mágica feérica lançada no oponente; ao atingir, detona em brilho rosa e fecha um cadeado mágico rosa sobre o alvo.",
+      "animation": "O atacante projeta a estrela mágica até o oponente; ao atingir, estrelas giratórias e partículas feéricas cercam o alvo enquanto um cadeado rosa se tranca acima da sua cabeça.",
+      "combat": "Golpe de status que impede o adversário de fugir ou trocar de posição.",
+      "rules": "Aplicar status de bloqueio de fuga e exibir o cadeado rosa no oponente."
     },
     "visual": {
-      "file": "core/burst_01.png",
-      "cols": 5,
-      "rows": 2,
+      "file": "vfx/custom/MediumStar_64x64.png",
+      "cols": 60,
+      "rows": 1,
       "startFrame": 0,
-      "endFrame": 4,
-      "fps": 24,
-      "key": "brilho_feerico",
-      "theme": "Brilho Feérico Encantado"
+      "endFrame": 59,
+      "fps": 30,
+      "key": "fairy_lock",
+      "theme": "Estrela Feérica e Cadeado Rosa no Oponente (Fairy Lock)",
+      "scale": 1.0,
+      "color": "#F472B6",
+      "secondaryColor": "#FB7185",
+      "isFairyLock": true
     },
     "activeCombatCompatible": true
   },
@@ -26578,9 +26610,12 @@ export const MOVES_BY_ID = {
       "startFrame": 0,
       "endFrame": 4,
       "fps": 24,
-      "key": "impacto_fisico",
-      "theme": "Impacto Físico (Estrela Branca)",
-      "scale": 0.5
+      "key": "geomancy",
+      "theme": "Aura Cósmica Feérica (Rosa e Azul Estelar) (Geomancy)",
+      "scale": 0.5,
+      "color": "#F472B6",
+      "secondaryColor": "#38BDF8",
+      "isGeomancy": true
     },
     "activeCombatCompatible": true
   },
@@ -26713,18 +26748,19 @@ export const MOVES_BY_ID = {
       "rules": "Área/múltiplos alvos: calcular os alvos elegíveis pela área e regras do combate, sem duplicar dano."
     },
     "visual": {
-      "file": "vfx/custom/electric_terrain_decal.png",
-      "cols": 4,
+      "file": "vfx/custom/electric_projectile_yellow.png",
+      "cols": 5,
       "rows": 1,
       "startFrame": 0,
-      "endFrame": 3,
-      "fps": 16,
+      "endFrame": 4,
+      "fps": 24,
       "key": "electric_terrain",
-      "theme": "Terreno Elétrico com Fissuras e Raios Rastejantes (Electric Terrain)",
-      "scale": 1.6,
+      "theme": "Dispersão de Raios e Marcas no Solo (Electric Terrain)",
+      "scale": 0.85,
       "target": "self",
+      "color": "#FACC15",
       "isElectricTerrain": true
-},
+    },
     "activeCombatCompatible": true
   },
   "605": {
@@ -26758,14 +26794,18 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "core/burst_01.png",
-      "cols": 5,
-      "rows": 2,
+      "file": "vfx/custom/MediumStar_64x64.png",
+      "cols": 60,
+      "rows": 1,
       "startFrame": 0,
-      "endFrame": 4,
-      "fps": 24,
-      "key": "brilho_feerico",
-      "theme": "Brilho Feérico Encantado"
+      "endFrame": 59,
+      "fps": 30,
+      "key": "dazzling_gleam",
+      "theme": "Clarão Deslumbrante e Estrela Feérica (Dazzling Gleam)",
+      "scale": 1.1,
+      "color": "#FEF08A",
+      "secondaryColor": "#F472B6",
+      "isDazzlingGleam": true
     },
     "activeCombatCompatible": true
   },

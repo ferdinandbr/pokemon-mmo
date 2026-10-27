@@ -26,13 +26,21 @@ export const DIRECTION_NAME_TO_INDEX = {
 
 // Fallback hierarchy for animations when a specific action sheet does not exist
 const ANIMATION_FALLBACKS = {
-  Idle: ['Hover', 'Float', 'Walk', 'Hop'],
-  Walk: ['Hover', 'Float', 'Idle', 'Hop'],
-  Strike: ['Attack', 'Swing', 'Double', 'Jab', 'MultiStrike'],
-  Shoot: ['Charge', 'Attack', 'SpAttack'],
+  Idle: ['Hover', 'Float', 'Walk'],
+  Walk: ['Hover', 'Float', 'Idle'],
+  Node: ['Nod', 'Attack', 'QuickStrike', 'Swing', 'Double', 'Idle'],
+  Nod: ['Node', 'Attack', 'QuickStrike', 'Swing', 'Double', 'Idle'],
+  Attack: ['Swing', 'Double', 'Strike', 'QuickStrike', 'Jab', 'Idle'],
+  Strike: ['QuickStrike', 'Swing', 'Double', 'Attack', 'Jab', 'MultiStrike', 'Idle'],
+  QuickStrike: ['Strike', 'Attack', 'Swing', 'Double', 'Idle'],
+  TumbleBack: ['Tumble', 'LostBalance', 'Hurt', 'Pain', 'Idle'],
+  Pose: ['Idle', 'LookUp', 'Walk'], // Hop estritamente removido: vitória firme no solo!
+  Shoot: ['Charge', 'Attack', 'SpAttack', 'Idle'],
+  DeepBreath: ['Shoot', 'Charge', 'Attack', 'SpAttack', 'Idle'],
+  HitGround: ['Faint', 'Sleep', 'Hurt', 'Withdraw'],
+  Faint: ['HitGround', 'Sleep', 'Hurt', 'Withdraw'],
+  Charge: ['DeepBreath', 'Shoot', 'Attack', 'Idle'],
   Hop: ['Walk', 'Hover', 'Idle'],
-  Faint: ['Sleep', 'Hurt', 'Withdraw'],
-  Charge: ['Shoot', 'Attack'],
 };
 
 // Global caches for image sheets and animation metadata
@@ -67,6 +75,7 @@ export class PmdSprite {
     this.metadata = null;
     this.images = new Map();
 
+    this.preloadCoreSheets();
     this.loadMetadata(this.pokemonId);
   }
 
@@ -78,6 +87,9 @@ export class PmdSprite {
       this.metadata = METADATA_CACHE.get(cacheKey);
       this.preloadCoreSheets();
       this.loaded = true;
+      if (this.currentAnimation) {
+        this.currentAnimation = this.resolveActionName(this.currentAnimation);
+      }
       return;
     }
 
@@ -91,6 +103,9 @@ export class PmdSprite {
         if (res.ok) {
           this.metadata = await res.json();
           METADATA_CACHE.set(cacheKey, this.metadata);
+          if (this.currentAnimation) {
+            this.currentAnimation = this.resolveActionName(this.currentAnimation);
+          }
         }
       }
     } catch (e) {
@@ -103,25 +118,39 @@ export class PmdSprite {
 
   preloadCoreSheets() {
     if (typeof Image === 'undefined') return;
-    const coreActions = ['Idle', 'Walk', 'Attack', 'Hurt', 'Faint', 'Hop', 'Shoot', 'Strike'];
+    const coreActions = [
+      'Idle', 'Walk', 'Attack', 'Nod', 'Strike', 'QuickStrike',
+      'TumbleBack', 'Pose', 'Shoot', 'DeepBreath', 'HitGround', 'Charge',
+      'Hurt', 'Faint'
+    ];
     for (const action of coreActions) {
       this.getSheetImage(action);
     }
   }
 
-  resolveActionName(actionName) {
-    if (this.metadata?.anims && this.metadata.anims[actionName]) {
-      return actionName;
-    }
-
-    const fallbacks = ANIMATION_FALLBACKS[actionName];
-    if (fallbacks && this.metadata?.anims) {
-      for (const fb of fallbacks) {
-        if (this.metadata.anims[fb]) return fb;
+  getActionCandidates(actionName) {
+    const list = [actionName];
+    const fb = ANIMATION_FALLBACKS[actionName];
+    if (fb && Array.isArray(fb)) {
+      for (const item of fb) {
+        if (!list.includes(item)) list.push(item);
       }
     }
+    if (!list.includes('Attack')) list.push('Attack');
+    if (!list.includes('Idle')) list.push('Idle');
+    return list;
+  }
 
-    return actionName;
+  resolveActionName(actionName) {
+    const candidates = this.getActionCandidates(actionName);
+    if (this.metadata?.anims) {
+      for (const cand of candidates) {
+        if (this.metadata.anims[cand]) {
+          return cand;
+        }
+      }
+    }
+    return candidates[0] || actionName;
   }
 
   getSheetImage(actionName) {
@@ -137,16 +166,27 @@ export class PmdSprite {
       return null;
     }
 
+    const candidates = this.getActionCandidates(actionName);
+    let candidateIdx = candidates.indexOf(resolved);
+    if (candidateIdx < 0) candidateIdx = 0;
+
     const img = new Image();
-    img.src = `/assets/pokemon/pmd/${variant}/${this.pokemonId}/${resolved}-Anim.png`;
+    const tryLoad = (idx) => {
+      const act = candidates[idx] || 'Idle';
+      img.src = `/assets/pokemon/pmd/${variant}/${this.pokemonId}/${act}-Anim.png`;
+    };
+
     img.onerror = () => {
-      // Fallback to flat or normal variant if specific variant sheet is missing
-      if (this.isShiny) {
-        img.src = `/assets/pokemon/pmd/normal/${this.pokemonId}/${resolved}-Anim.png`;
-      } else {
-        img.src = `/assets/pokemon/pmd/${this.pokemonId}/${resolved}-Anim.png`;
+      // Cascading fallback on load error: se o sprite não existir na rede/disco, tenta o próximo candidato
+      candidateIdx++;
+      if (candidateIdx < candidates.length) {
+        tryLoad(candidateIdx);
+      } else if (img.src.indexOf('/normal/') === -1) {
+        img.src = `/assets/pokemon/pmd/normal/${this.pokemonId}/Idle-Anim.png`;
       }
     };
+
+    tryLoad(candidateIdx);
     SHEET_CACHE.set(key, img);
     return img;
   }
@@ -184,9 +224,22 @@ export class PmdSprite {
   }
 
   getAnimConfig(actionName = this.currentAnimation) {
-    const resolved = this.resolveActionName(actionName);
-    if (this.metadata?.anims && this.metadata.anims[resolved]) {
-      return this.metadata.anims[resolved];
+    const candidates = this.getActionCandidates(actionName);
+    if (this.metadata?.anims) {
+      for (const cand of candidates) {
+        if (this.metadata.anims[cand]) {
+          return this.metadata.anims[cand];
+        }
+      }
+      const firstValid = this.metadata.anims.Idle || this.metadata.anims.Walk || Object.values(this.metadata.anims)[0];
+      if (firstValid) {
+        return {
+          frameWidth: firstValid.frameWidth || 48,
+          frameHeight: firstValid.frameHeight || 48,
+          frameCount: firstValid.frameCount || 4,
+          durations: firstValid.durations || [8, 8, 8, 8],
+        };
+      }
     }
     // Default fallback config
     return {
@@ -215,6 +268,13 @@ export class PmdSprite {
     const frameCount = config.frameCount || 1;
     const durations = config.durations || [8];
 
+    // Defeat animations (HitGround / Faint / Sleep) freeze permanently on the final frame
+    const isDefeatAnim = this.currentAnimation === 'HitGround' || this.currentAnimation === 'Faint' || this.currentAnimation === 'Sleep';
+    if (isDefeatAnim && this.currentFrame >= frameCount - 1) {
+      this.currentFrame = frameCount - 1;
+      return;
+    }
+
     // Frame duration in seconds (30 FPS base tick rate)
     const currentDurTicks = durations[this.currentFrame] || 8;
     const frameDuration = (currentDurTicks / 30) / this.animSpeed;
@@ -228,7 +288,7 @@ export class PmdSprite {
         this.currentFrame = 0;
       } else {
         // One-shot animation completed
-        if (this.currentAnimation === 'Faint') {
+        if (isDefeatAnim) {
           // Freeze on last frame of defeat
           this.currentFrame = frameCount - 1;
         } else if (this.currentAnimation === 'Hurt' && this.isHurtLocked) {
