@@ -24,6 +24,23 @@ export const DIRECTION_NAME_TO_INDEX = {
   down_left: 7,
 };
 
+// Single-row PMD animations that lack 8-directional sheets: ignored completely and routed directly to standard fallbacks
+const SINGLE_ROW_ACTIONS = new Set([
+  'TumbleBack',
+  'DeepBreath',
+  'Tumble',
+  'LostBalance',
+  'Cringe',
+  'Pain',
+  'HitGround',
+  'Eat',
+  'Sit',
+  'LookUp',
+  'Sink',
+  'LeapForth',
+  'Pull',
+]);
+
 // Fallback hierarchy for animations when a specific action sheet does not exist
 const ANIMATION_FALLBACKS = {
   Idle: ['Hover', 'Float', 'Walk'],
@@ -33,13 +50,15 @@ const ANIMATION_FALLBACKS = {
   Attack: ['Swing', 'Double', 'Strike', 'QuickStrike', 'Jab', 'Idle'],
   Strike: ['QuickStrike', 'Swing', 'Double', 'Attack', 'Jab', 'MultiStrike', 'Idle'],
   QuickStrike: ['Strike', 'Attack', 'Swing', 'Double', 'Idle'],
-  TumbleBack: ['Tumble', 'LostBalance', 'Hurt', 'Pain', 'Idle'],
-  Pose: ['Idle', 'LookUp', 'Walk'], // Hop estritamente removido: vitória firme no solo!
+  Physical: ['Attack', 'Strike', 'QuickStrike', 'Swing', 'Double', 'Idle'],
+  TumbleBack: ['Hurt', 'Attack', 'Idle'],
+  Hurt: ['Idle'],
+  Pose: ['Idle', 'Walk'],
   Shoot: ['Charge', 'Attack', 'SpAttack', 'Idle'],
   DeepBreath: ['Shoot', 'Charge', 'Attack', 'SpAttack', 'Idle'],
-  HitGround: ['Faint', 'Sleep', 'Hurt', 'Withdraw'],
-  Faint: ['HitGround', 'Sleep', 'Hurt', 'Withdraw'],
-  Charge: ['DeepBreath', 'Shoot', 'Attack', 'Idle'],
+  HitGround: ['Faint', 'Hurt', 'Idle'],
+  Faint: ['Hurt', 'Idle'],
+  Charge: ['Shoot', 'Attack', 'Idle'],
   Hop: ['Walk', 'Hover', 'Idle'],
 };
 
@@ -119,9 +138,8 @@ export class PmdSprite {
   preloadCoreSheets() {
     if (typeof Image === 'undefined') return;
     const coreActions = [
-      'Idle', 'Walk', 'Attack', 'Nod', 'Strike', 'QuickStrike',
-      'TumbleBack', 'Pose', 'Shoot', 'DeepBreath', 'HitGround', 'Charge',
-      'Hurt', 'Faint'
+      'Idle', 'Walk', 'Attack', 'Hurt', 'Shoot', 'Charge',
+      'Nod', 'Strike', 'QuickStrike', 'Pose', 'Faint'
     ];
     for (const action of coreActions) {
       this.getSheetImage(action);
@@ -129,11 +147,16 @@ export class PmdSprite {
   }
 
   getActionCandidates(actionName) {
-    const list = [actionName];
+    const list = [];
+    if (!SINGLE_ROW_ACTIONS.has(actionName)) {
+      list.push(actionName);
+    }
     const fb = ANIMATION_FALLBACKS[actionName];
     if (fb && Array.isArray(fb)) {
       for (const item of fb) {
-        if (!list.includes(item)) list.push(item);
+        if (!SINGLE_ROW_ACTIONS.has(item) && !list.includes(item)) {
+          list.push(item);
+        }
       }
     }
     if (!list.includes('Attack')) list.push('Attack');
@@ -182,6 +205,9 @@ export class PmdSprite {
       if (candidateIdx < candidates.length) {
         tryLoad(candidateIdx);
       } else if (img.src.indexOf('/normal/') === -1) {
+        img.src = `/assets/pokemon/pmd/normal/${this.pokemonId}/Idle-Anim.png`;
+      } else if (!img.src.endsWith('/Idle-Anim.png')) {
+        img.onerror = null;
         img.src = `/assets/pokemon/pmd/normal/${this.pokemonId}/Idle-Anim.png`;
       }
     };
@@ -303,13 +329,20 @@ export class PmdSprite {
   }
 
   render(ctx, x, y, scale = 2.4, hurtFlash = false, guardShield = false) {
-    const img = this.getSheetImage(this.currentAnimation);
+    let img = this.getSheetImage(this.currentAnimation);
+    let activeAnim = this.currentAnimation;
     if (!img || !img.complete || img.naturalWidth === 0) {
-      // Sheet still loading, render fallback indicator
-      return;
+      // Sheet still loading, smoothly fallback to Idle so the Pokemon never vanishes into thin air
+      const idleImg = this.getSheetImage('Idle');
+      if (idleImg && idleImg.complete && idleImg.naturalWidth > 0) {
+        img = idleImg;
+        activeAnim = 'Idle';
+      } else {
+        return;
+      }
     }
 
-    const config = this.getAnimConfig(this.currentAnimation);
+    const config = this.getAnimConfig(activeAnim);
     const fw = config.frameWidth || 48;
     const fh = config.frameHeight || 48;
     const frameCount = config.frameCount || 1;
@@ -332,9 +365,45 @@ export class PmdSprite {
     ctx.save();
     ctx.imageSmoothingEnabled = false;
 
+    // Clean Defensive Outline (Indicação visual nítida e clean ao redor da silhueta do Pokémon)
     if (guardShield) {
-      ctx.shadowColor = '#00e5ff';
-      ctx.shadowBlur = 8;
+      if (!this._outlineCanvas) {
+        this._outlineCanvas = document.createElement('canvas');
+        this._outlineCtx = this._outlineCanvas.getContext('2d');
+      }
+      const oc = this._outlineCanvas;
+      const octx = this._outlineCtx;
+      if (oc.width !== fw || oc.height !== fh) {
+        oc.width = fw;
+        oc.height = fh;
+      }
+      octx.clearRect(0, 0, fw, fh);
+      octx.imageSmoothingEnabled = false;
+      // 1. Draw source frame into buffer
+      octx.drawImage(img, sx, sy, fw, fh, 0, 0, fw, fh);
+      // 2. Tint entire opaque silhouette to solid outline color (Cyan/Electric Blue or custom)
+      octx.globalCompositeOperation = 'source-in';
+      const outlineColor = typeof guardShield === 'string' ? guardShield : '#00E5FF';
+      octx.fillStyle = outlineColor;
+      octx.fillRect(0, 0, fw, fh);
+      octx.globalCompositeOperation = 'source-over';
+
+      // 3. Draw 8-directional outline around sprite
+      const outlinePx = Math.max(1.5, Math.round(scale * 0.70));
+      ctx.save();
+      ctx.imageSmoothingEnabled = false;
+      ctx.globalAlpha = 0.92;
+      ctx.shadowColor = outlineColor;
+      ctx.shadowBlur = 6;
+      ctx.drawImage(oc, 0, 0, fw, fh, dx - outlinePx, dy, dw, dh);
+      ctx.drawImage(oc, 0, 0, fw, fh, dx + outlinePx, dy, dw, dh);
+      ctx.drawImage(oc, 0, 0, fw, fh, dx, dy - outlinePx, dw, dh);
+      ctx.drawImage(oc, 0, 0, fw, fh, dx, dy + outlinePx, dw, dh);
+      ctx.drawImage(oc, 0, 0, fw, fh, dx - outlinePx, dy - outlinePx, dw, dh);
+      ctx.drawImage(oc, 0, 0, fw, fh, dx + outlinePx, dy - outlinePx, dw, dh);
+      ctx.drawImage(oc, 0, 0, fw, fh, dx - outlinePx, dy + outlinePx, dw, dh);
+      ctx.drawImage(oc, 0, 0, fw, fh, dx + outlinePx, dy + outlinePx, dw, dh);
+      ctx.restore();
     }
 
     ctx.drawImage(img, sx, sy, fw, fh, dx, dy, dw, dh);

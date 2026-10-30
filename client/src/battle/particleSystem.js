@@ -35,6 +35,8 @@ import {
   renderNightDazeCombat,
   renderSpacialRendCombat,
   renderBurningAuraCombat,
+  renderBlastBurnCombat,
+  renderVCreateDashAura,
   renderElectricChargeCombat,
   renderElectricBoltImpactCombat,
   renderElectrocutedCombat,
@@ -50,6 +52,7 @@ import {
   renderFairyLockImpact,
   renderGeomancyBuff,
   renderDazzleFlare,
+  renderBugMoveProcedural,
   PIXEL_COLOR_PALETTES,
 } from './pixelArtVfx.js';
 
@@ -87,6 +90,7 @@ const ANIMATION_FILES = [
   'vfx/pixel_fire/colored/purple/group_4_5.png',
   'vfx/pixel_fire/colored/red/group_4_5.png',
   'vfx/pixel_fire/colored/blue/group_4_5.png',
+  'vfx/custom/burning_flame.png',
   'vfx/custom/spore_puff.png',
   'vfx/custom/spider_web.png',
   'vfx/custom/spikes_hazard.png',
@@ -184,6 +188,12 @@ export function getMoveAnimImg(file) {
     } else {
       img.src = `/assets/battle/animations/${cleanFile}`;
     }
+    img.onerror = () => {
+      if (!img._retried) {
+        img._retried = true;
+        img.src = `/${cleanFile}`;
+      }
+    };
     MOVE_ANIM_CACHE.set(cleanFile, img);
   }
   return MOVE_ANIM_CACHE.get(cleanFile);
@@ -235,6 +245,8 @@ export class ParticleSystem {
     this.electrocutedOverlays = [];
     this.parabolicRings = [];
     this.electricWaves = [];
+    this.blastBurns = [];
+    this.proceduralBugMoves = [];
     this.electrowebs = [];
     this.electricTerrains = [];
     this.electricBursts = [];
@@ -284,6 +296,8 @@ export class ParticleSystem {
     this.electrocutedOverlays = [];
     this.parabolicRings = [];
     this.electricWaves = [];
+    this.blastBurns = [];
+    this.proceduralBugMoves = [];
     this.electrowebs = [];
     this.electricTerrains = [];
     this.electricBursts = [];
@@ -934,6 +948,40 @@ export class ParticleSystem {
     });
   }
 
+  spawnBlastBurn(startX, startY, targetX, targetY, visual = null, target = null, source = null, skill = null, onHit = null) {
+    this.blastBurns.push({
+      startX,
+      startY,
+      targetX,
+      targetY,
+      duration: 0.95,
+      time: 0,
+      visual,
+      target,
+      source,
+      skill,
+      onHit,
+      hasHit: false,
+    });
+  }
+
+  spawnProceduralBugMove(startX, startY, targetX, targetY, move, duration = 0.70, scale = 1.0, target = null, source = null, onHit = null) {
+    this.proceduralBugMoves.push({
+      startX,
+      startY,
+      targetX,
+      targetY,
+      move,
+      duration,
+      scale,
+      target,
+      source,
+      onHit,
+      time: 0,
+      hasHit: false,
+    });
+  }
+
   spawnElectroweb(target, duration = 1.20, visual = null) {
     this.electrowebs.push({
       target,
@@ -1150,6 +1198,7 @@ export class ParticleSystem {
       duration,
       scale: calScale,
       time: 0,
+      reversed: Boolean(visual.reversed),
       fallSpeedY: visual.isHail ? 85 : 0,
       startY: visual.isHail ? (y + oy - 75) : (y + oy),
     });
@@ -1564,6 +1613,62 @@ export class ParticleSystem {
       }
     }
 
+    // 28.5. Update Blast Burns (Progressive Fire Pillars)
+    for (let i = this.blastBurns.length - 1; i >= 0; i--) {
+      const bb = this.blastBurns[i];
+      bb.time += dt;
+      const prog = bb.time / bb.duration;
+
+      // Colossal impact at ~70% progress when ground pillar reaches apex
+      if (!bb.hasHit && prog >= 0.70) {
+        bb.hasHit = true;
+        if (bb.onHit) {
+          bb.onHit(bb.target, bb.skill);
+        } else if (bb.source && bb.target && typeof bb.source.resolveSkillHit === 'function') {
+          bb.source.resolveSkillHit(bb.target, bb.skill);
+        }
+        if (this.arena && typeof this.arena.triggerScreenShake === 'function') {
+          this.arena.triggerScreenShake(14);
+        }
+        if (typeof this.addDecal === 'function') {
+          this.addDecal('scorch', bb.targetX, bb.targetY, 44, 10.0);
+        }
+        if (typeof soundManager !== 'undefined' && soundManager.play) {
+          soundManager.play('/assets/audio/se/anim/Fire3.ogg', 1.0);
+        }
+        this.spawnShockwave(bb.targetX, bb.targetY, 75, '#FF5722', 0.45);
+        this.spawnPixelBurst(bb.targetX, bb.targetY - 20, '#FACC15', 30, 180, 0.45, 3.5);
+      }
+
+      if (bb.time >= bb.duration) {
+        this.blastBurns.splice(i, 1);
+      }
+    }
+
+    // 28.6. Update Procedural Bug Moves (100% Canvas 2D Procedural VFX)
+    for (let i = this.proceduralBugMoves.length - 1; i >= 0; i--) {
+      const bm = this.proceduralBugMoves[i];
+      bm.time += dt;
+      const prog = bm.time / bm.duration;
+
+      // Hit resolution at apex/impact frame (approx 65% progress)
+      if (!bm.hasHit && prog >= 0.65) {
+        bm.hasHit = true;
+        if (bm.onHit) {
+          bm.onHit(bm.target, bm.move);
+        } else if (bm.source && bm.target && typeof bm.source.resolveSkillHit === 'function') {
+          bm.source.resolveSkillHit(bm.target, bm.move);
+        }
+        if (this.arena && typeof this.arena.triggerScreenShake === 'function') {
+          this.arena.triggerScreenShake(bm.move?.power >= 90 ? 12 : 8);
+        }
+      }
+
+      if (bm.time >= bm.duration) {
+        this.proceduralBugMoves.splice(i, 1);
+      }
+    }
+
     // 29. Update Electric Waves
     for (let i = this.electricWaves.length - 1; i >= 0; i--) {
       const ew = this.electricWaves[i];
@@ -1865,7 +1970,7 @@ export class ParticleSystem {
       const s = this.slashes[i];
       const prog = Math.min(1.0, s.time / s.duration);
       const img = s.img || (s.visual?.file ? getMoveAnimImg(s.visual.file) : null);
-      this.drawScaled(ctx, s, s.x, s.y, () => renderCombatSlash(ctx, s.x, s.y, prog, s.color, img, s.visual));
+      this.drawScaled(ctx, s, s.x, s.y, () => renderCombatSlash(ctx, s.x, s.y, prog, s.color, img, s.visual, s.isCross));
     }
 
     for (let i = 0; i < this.bites.length; i++) {
@@ -1969,7 +2074,7 @@ export class ParticleSystem {
       if (img && img.complete && img.naturalWidth > 0) {
         const frameProgress = Math.min(0.999, ma.time / ma.duration);
         const currentFrameRel = Math.floor(frameProgress * ma.frameCount);
-        const actualFrame = ma.startFrame + currentFrameRel;
+        const actualFrame = ma.reversed ? (ma.endFrame - currentFrameRel) : (ma.startFrame + currentFrameRel);
 
         const fw = img.naturalWidth / ma.cols;
         const fh = img.naturalHeight / ma.rows;
@@ -2067,10 +2172,10 @@ export class ParticleSystem {
     for (let i = 0; i < this.burningAuras.length; i++) {
       const ba = this.burningAuras[i];
       const prog = Math.min(1.0, ba.time / ba.duration);
-      const isRedFire = ba.visual?.file?.includes('pixel_fire') || ba.visual?.isDragonDance || ba.color === '#FF5722' || ba.color === '#EF4444' || ba.color === '#F08030';
-      const defaultImg = isRedFire ? 'vfx/pixel_fire/colored/red/group_4_5.png' : 'vfx/fire/dragon_breath_stream.png';
+      const isPixelFire = (ba.visual?.file && ba.visual.file.includes('pixel_fire')) || ba.visual?.isDragonDance;
+      const defaultImg = isPixelFire ? 'vfx/pixel_fire/colored/red/group_4_5.png' : 'vfx/custom/burning_flame.png';
       const img = ba.visual?.file ? getMoveAnimImg(ba.visual.file) : getMoveAnimImg(defaultImg);
-      this.drawScaled(ctx, ba, ba.targetX, ba.targetY, () => renderBurningAuraCombat(ctx, ba.targetX, ba.targetY, prog, img, ba.visual, ba.color, ba.filter));
+      this.drawScaled(ctx, ba, ba.targetX, ba.targetY, () => renderBurningAuraCombat(ctx, ba.targetX, ba.targetY, prog, img, ba.visual, ba.color, ba.visual?.filter || ba.filter));
     }
 
 
@@ -2086,6 +2191,25 @@ export class ParticleSystem {
       const pr = this.parabolicRings[i];
       const img = getMoveAnimImg('vfx/custom/electric_shockwave_rings.png');
       this.drawScaled(ctx, pr, pr.targetX, pr.targetY, () => renderParabolicRingsCombat(ctx, pr.targetX, pr.targetY, Math.min(1.0, pr.time / pr.duration), img, pr.visual));
+    }
+
+    // 4.12.5. Blast Burns (Parabolic Fiery Ground Waves & Progressive Pillars)
+    for (let i = 0; i < this.blastBurns.length; i++) {
+      const bb = this.blastBurns[i];
+      const img = getMoveAnimImg(bb.visual?.file || 'vfx/custom/burning_flame.png');
+      const p = Math.min(1.0, bb.time / bb.duration);
+      this.drawScaled(ctx, bb, bb.targetX, bb.targetY, () => renderBlastBurnCombat(ctx, bb.startX, bb.startY, bb.targetX, bb.targetY, p, img, bb.visual));
+    }
+
+    // 4.12.6. Procedural Bug Moves (100% Canvas 2D Procedural VFX)
+    for (let i = 0; i < this.proceduralBugMoves.length; i++) {
+      const bm = this.proceduralBugMoves[i];
+      const p = Math.min(1.0, bm.time / bm.duration);
+      const curStartX = (bm.source && bm.source.x !== undefined) ? bm.source.x : bm.startX;
+      const curStartY = (bm.source && typeof bm.source.getAttackOrigin === 'function') ? bm.source.getAttackOrigin().y : bm.startY;
+      const curTargetX = (bm.target && bm.target.x !== undefined) ? bm.target.x : bm.targetX;
+      const curTargetY = (bm.target && typeof bm.target.getHitCenter === 'function') ? bm.target.getHitCenter().y : bm.targetY;
+      renderBugMoveProcedural(ctx, bm.move, p, curStartX, curStartY, curTargetX, curTargetY, bm.scale || 1.0);
     }
 
     // 4.13. Electric Waves

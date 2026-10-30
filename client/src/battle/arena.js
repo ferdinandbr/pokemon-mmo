@@ -219,6 +219,7 @@ export class BattleArena {
     this.mapCanvas = mapCanvas;
     this.overheadCanvas = overheadCanvas;
     this.mapLoaded = true;
+    if (typeof this.onMapReady === 'function') this.onMapReady();
   }
 
   initBackgrounds() {
@@ -296,6 +297,18 @@ export class BattleArena {
     this.drawHeight = Math.round(this.imgHeight * this.scale);
     this.drawX = Math.round((this.canvas.width - this.drawWidth) / 2);
     this.drawY = Math.round((this.canvas.height - this.drawHeight) / 2);
+  }
+
+
+  clampToBounds(x, y, margin = 20) {
+    const minX = (this.bounds?.minX ?? 215) + margin;
+    const maxX = (this.bounds?.maxX ?? 809) - margin;
+    const minY = (this.bounds?.minY ?? 125) + margin;
+    const maxY = (this.bounds?.maxY ?? 395) - margin;
+    return {
+      x: Math.max(minX, Math.min(maxX, x)),
+      y: Math.max(minY, Math.min(maxY, y)),
+    };
   }
 
   getSpawnPoints() {
@@ -485,18 +498,9 @@ export class BattleArena {
         this.imgWidth,
         this.imgHeight
       );
-    } else if (this.bgImage && this.bgImage.complete && this.bgImage.naturalWidth > 0) {
-      // Fallback static pixel art background
-      ctx.drawImage(
-        this.bgImage,
-        0,
-        0,
-        this.imgWidth,
-        this.imgHeight
-      );
     } else {
-      // Fallback clean turf
-      ctx.fillStyle = '#2d5a27';
+      // Clean dark canvas while tilemap loads to prevent rogue background flicker
+      ctx.fillStyle = '#060911';
       ctx.fillRect(0, 0, this.imgWidth, this.imgHeight);
     }
 

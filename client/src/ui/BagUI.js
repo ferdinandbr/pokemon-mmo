@@ -63,7 +63,8 @@ export default class BagUI {
       { key: 2, itemId: null, itemName: 'Potion' },
       { key: 3, itemId: null, itemName: 'Town Map' },
       { key: 4, itemId: null, itemName: null },
-      { key: 5, itemId: null, itemName: null }
+      { key: 5, itemId: null, itemName: null },
+      { key: 6, itemId: null, itemName: null }
     ];
 
     this.initDOM();
@@ -954,7 +955,7 @@ export default class BagUI {
   }
 
   unbindHotbarSlot(slotNumber) {
-    if (slotNumber < 1 || slotNumber > 5) return;
+    if (slotNumber < 1 || slotNumber > 6) return;
     const current = this.hotbarSlots[slotNumber - 1];
     const name = current?.itemName || 'Item';
 
@@ -976,7 +977,7 @@ export default class BagUI {
     const quickBar = document.querySelector('.hud-quick-bar');
     if (!quickBar) return;
 
-    for (let i = 1; i <= 5; i++) {
+    for (let i = 1; i <= 6; i++) {
       const config = this.hotbarSlots[i - 1];
       const slotEl = quickBar.querySelector(`.quick-slot[data-slot="${i}"]`);
       if (!slotEl) continue;

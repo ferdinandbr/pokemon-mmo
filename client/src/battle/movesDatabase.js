@@ -2331,19 +2331,18 @@ export const MOVES_BY_ID = {
       "rules": "Execução em etapas: representar preparação e liberação como estados separados, com possibilidade de interrupção se a regra permitir."
     },
     "visual": {
-      "file": "vfx/fire/dragon_breath_stream.png",
-      "cols": 8,
-      "rows": 8,
+      "file": "vfx/dimension/spacial_rend.png",
+      "cols": 4,
+      "rows": 4,
       "startFrame": 0,
-      "endFrame": 60,
-      "fps": 30,
+      "endFrame": 15,
+      "fps": 20,
       "key": "roar_of_time",
-      "theme": "Projétil de Distorção Temporal Roxo com Chamas Ardentes (Roar of Time)",
-      "scale": 1.25,
-      "color": "#A855F7",
-      "isRoarOfTime": true,
-      "isBurningAura": true,
-      "isDragonBreathStream": true
+      "theme": "Projétil de Distorção Temporal com Fenda Dimensional (Spacial Rend)",
+      "scale": 0.55,
+      "offsetY": -4,
+      "color": "#818CF8",
+      "isRoarOfTime": true
     },
     "activeCombatCompatible": true
   },
@@ -2504,7 +2503,7 @@ export const MOVES_BY_ID = {
     "accuracy": 95,
     "pp": 5,
     "priority": 0,
-    "vfxFamily": "slash",
+    "vfxFamily": "projectile",
     "description": "The user tears the target along with the space around it. Critical hits land more easily.",
     "executionType": "projectile",
     "combatBehavior": {
@@ -2533,7 +2532,7 @@ export const MOVES_BY_ID = {
       "fps": 24,
       "key": "spacial_rend",
       "theme": "Ruptura Dimensional e Fenda Subespacial (Spacial Rend)",
-      "scale": 1.35,
+      "scale": 0.55,
       "isSpacialRend": true
     },
     "activeCombatCompatible": true
@@ -3864,15 +3863,15 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
-      "key": "cortes_marciais",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "key": "impacto_fisico",
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5
     },
     "activeCombatCompatible": true
   },
@@ -3891,6 +3890,8 @@ export const MOVES_BY_ID = {
     "executionType": "dash",
     "combatBehavior": {
       "isContact": true,
+      "isHighRiskJump": true,
+      "crashDamagePercent": 0.5,
       "critStage": 0,
       "multiHit": null,
       "drainPercent": 0,
@@ -3907,15 +3908,15 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
-      "key": "cortes_marciais",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "key": "impacto_fisico",
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5
     },
     "activeCombatCompatible": true
   },
@@ -3962,15 +3963,15 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
-      "key": "cortes_marciais",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "key": "impacto_fisico",
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5
     },
     "activeCombatCompatible": true
   },
@@ -3999,21 +4000,27 @@ export const MOVES_BY_ID = {
       "secondaryChance": 0
     },
     "spec": {
-      "vfx": "Burst em camadas: núcleo branco/amarelo, anel externo colorido, fragmentos quadrados e fumaça em blocos. A forma deve ser irregular, não um gradiente circular liso.",
-      "animation": "Antecipação legível; expansão em 2--4 passos; frame de brilho máximo curto; dissipação em fumaça/brasas. Screen shake apenas no pico.",
-      "combat": "Definir raio e instante único de dano. Golpes de autodestruição devem resolver o nocaute do usuário pela regra de combate, não pela animação.",
-      "rules": "Efeito secundário: executar somente quando o cálculo de chance do move confirmar sucesso. Atributos: atualizar estágios/valores no sistema de combate; a animação deve refletir a mudança confirmada."
+      "vfx": "Projétil de esfera de energia rotativa marcial (energy_ball.png) com impacto físico estelar concentrado (attack_physical_01.png).",
+      "animation": "Foco mental antecipado; disparo direto da esfera de energia destrutiva; estilhaço estelar físico no impacto.",
+      "combat": "Disparo de projétil à distância com teste de colisão; dano especial Fighting no impacto com 10% chance de reduzir Sp. Def.",
+      "rules": "Efeito secundário: executar somente quando o cálculo de chance do move confirmar sucesso. Atributos: atualizar estágios/valores no sistema de combate."
     },
     "visual": {
-      "file": "vfx/magic/energy_ball.png",
-      "cols": 8,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 7,
+      "endFrame": 4,
       "fps": 24,
-      "key": "cortes_marciais",
-      "theme": "Esfera de Aura Marcial",
-      "scale": 0.85
+      "key": "impacto_fisico",
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5,
+      "projectileFile": "vfx/magic/energy_ball.png",
+      "projectileCols": 9,
+      "projectileRows": 1,
+      "projectileFps": 24,
+      "projectileScale": 0.52,
+      "isEnergyBall": true
     },
     "activeCombatCompatible": true
   },
@@ -4060,15 +4067,15 @@ export const MOVES_BY_ID = {
       "rules": "Atributos: atualizar estágios/valores no sistema de combate; a animação deve refletir a mudança confirmada."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
-      "key": "cortes_marciais",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "key": "impacto_fisico",
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5
     },
     "activeCombatCompatible": true
   },
@@ -4113,8 +4120,10 @@ export const MOVES_BY_ID = {
       "endFrame": 5,
       "fps": 24,
       "key": "cortes_marciais",
-      "theme": "Golpe Marcial Cortante",
-      "scale": 1.35
+      "theme": "Golpe Duplo Cruzado em X (Cross Chop)",
+      "scale": 1.45,
+      "isXScissor": true,
+      "isCrossChop": true
     },
     "activeCombatCompatible": true
   },
@@ -4149,15 +4158,15 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
-      "key": "cortes_marciais",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "key": "impacto_fisico",
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5
     },
     "activeCombatCompatible": true
   },
@@ -4199,15 +4208,15 @@ export const MOVES_BY_ID = {
       "rules": "Atributos: atualizar estágios/valores no sistema de combate; a animação deve refletir a mudança confirmada."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
       "key": "impacto_fisico",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5
     },
     "activeCombatCompatible": true
   },
@@ -4226,6 +4235,8 @@ export const MOVES_BY_ID = {
     "executionType": "dash",
     "combatBehavior": {
       "isContact": true,
+      "isHighRiskJump": true,
+      "crashDamagePercent": 0.5,
       "critStage": 0,
       "multiHit": null,
       "drainPercent": 0,
@@ -4242,15 +4253,15 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
-      "key": "cortes_marciais",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "key": "impacto_fisico",
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5
     },
     "activeCombatCompatible": true
   },
@@ -4279,21 +4290,27 @@ export const MOVES_BY_ID = {
       "secondaryChance": 0
     },
     "spec": {
-      "vfx": "Burst em camadas: núcleo branco/amarelo, anel externo colorido, fragmentos quadrados e fumaça em blocos. A forma deve ser irregular, não um gradiente circular liso.",
-      "animation": "Antecipação legível; expansão em 2--4 passos; frame de brilho máximo curto; dissipação em fumaça/brasas. Screen shake apenas no pico.",
-      "combat": "Definir raio e instante único de dano. Golpes de autodestruição devem resolver o nocaute do usuário pela regra de combate, não pela animação.",
-      "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
+      "vfx": "Projétil de aura concentrada esférica (energy_ball.png) com estilhaço de impacto físico estelar (attack_physical_01.png).",
+      "animation": "Liberação rápida de esfera de aura guiada; impacto estelar físico garantido sem teste de esquiva.",
+      "combat": "Disparo de projétil certeiro (nunca erra); dano especial Fighting com impacto no alvo.",
+      "rules": "Ignorar evasão/precisão na fórmula de acerto padrão conforme a mecânica de Aura Sphere."
     },
     "visual": {
-      "file": "vfx/magic/energy_ball.png",
-      "cols": 8,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 7,
+      "endFrame": 4,
       "fps": 24,
-      "key": "cortes_marciais",
-      "theme": "Esfera de Aura Marcial",
-      "scale": 0.85
+      "key": "impacto_fisico",
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5,
+      "projectileFile": "vfx/magic/energy_ball.png",
+      "projectileCols": 9,
+      "projectileRows": 1,
+      "projectileFps": 24,
+      "projectileScale": 0.44,
+      "isEnergyBall": true
     },
     "activeCombatCompatible": true
   },
@@ -4328,15 +4345,17 @@ export const MOVES_BY_ID = {
       "rules": "Atributos: atualizar estágios/valores no sistema de combate; a animação deve refletir a mudança confirmada."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
       "key": "impacto_fisico",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5,
+      "isRedHorn": true,
+      "hornColor": "#EF4444"
     },
     "activeCombatCompatible": true
   },
@@ -4379,7 +4398,9 @@ export const MOVES_BY_ID = {
       "fps": 24,
       "key": "impacto_fisico",
       "theme": "Impacto Físico (Estrela Branca)",
-      "scale": 0.5
+      "scale": 0.5,
+      "isRedHorn": true,
+      "hornColor": "#EF4444"
     },
     "activeCombatCompatible": true
   },
@@ -4400,6 +4421,7 @@ export const MOVES_BY_ID = {
       "isContact": true,
       "critStage": 0,
       "multiHit": null,
+      "isUppercut": true,
       "drainPercent": 0,
       "recoilPercent": 0,
       "healPercent": 0,
@@ -4414,15 +4436,16 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
-      "key": "cortes_marciais",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "key": "impacto_fisico",
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5,
+      "isUppercut": true
     },
     "activeCombatCompatible": true
   },
@@ -4464,7 +4487,7 @@ export const MOVES_BY_ID = {
       "endFrame": 6,
       "fps": 20,
       "scale": 1.25,
-      "offsetY": 18,
+      "offsetY": 0,
       "freezeOnLastFrame": true,
       "key": "dano_solo",
       "theme": "Fissura e Impacto no Solo (Earth Effect)"
@@ -4532,6 +4555,7 @@ export const MOVES_BY_ID = {
       "critStage": 0,
       "multiHit": null,
       "drainPercent": 0.5,
+      "isDrainPunch": true,
       "recoilPercent": 0,
       "healPercent": 0,
       "isBarrier": false,
@@ -4545,15 +4569,17 @@ export const MOVES_BY_ID = {
       "rules": "Cura: atualizar HP pela regra do move e comunicar o valor efetivamente restaurado."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
-      "key": "cortes_marciais",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "key": "impacto_fisico",
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5,
+      "reversed": true,
+      "isDrainPunch": true
     },
     "activeCombatCompatible": true
   },
@@ -4588,15 +4614,15 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
       "key": "impacto_fisico",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5
     },
     "activeCombatCompatible": true
   },
@@ -4615,6 +4641,8 @@ export const MOVES_BY_ID = {
     "executionType": "dash",
     "combatBehavior": {
       "isContact": true,
+      "isCircleThrow": true,
+      "throwForce": 820,
       "critStage": 0,
       "multiHit": null,
       "drainPercent": 0,
@@ -4631,15 +4659,15 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
       "key": "impacto_fisico",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5
     },
     "activeCombatCompatible": true
   },
@@ -4717,15 +4745,15 @@ export const MOVES_BY_ID = {
       "rules": "Atributos: atualizar estágios/valores no sistema de combate; a animação deve refletir a mudança confirmada."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
       "key": "impacto_fisico",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5
     },
     "activeCombatCompatible": true
   },
@@ -4760,15 +4788,15 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
-      "key": "cortes_marciais",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "key": "impacto_fisico",
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5
     },
     "activeCombatCompatible": true
   },
@@ -4803,15 +4831,15 @@ export const MOVES_BY_ID = {
       "rules": "Efeito secundário: executar somente quando o cálculo de chance do move confirmar sucesso."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
-      "key": "cortes_marciais",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "key": "impacto_fisico",
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5
     },
     "activeCombatCompatible": true
   },
@@ -4846,15 +4874,15 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
       "key": "impacto_fisico",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5
     },
     "activeCombatCompatible": true
   },
@@ -4916,6 +4944,8 @@ export const MOVES_BY_ID = {
     "executionType": "dash",
     "combatBehavior": {
       "isContact": true,
+      "isPriorityDash": true,
+      "dashSpeed": 1220,
       "critStage": 0,
       "multiHit": null,
       "drainPercent": 0,
@@ -4932,15 +4962,15 @@ export const MOVES_BY_ID = {
       "rules": "Prioridade: o VFX não altera ordem de execução; respeitar a prioridade definida na lógica."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
-      "key": "cortes_marciais",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "key": "impacto_fisico",
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5
     },
     "activeCombatCompatible": true
   },
@@ -4982,7 +5012,7 @@ export const MOVES_BY_ID = {
       "endFrame": 11,
       "fps": 20,
       "scale": 1.15,
-      "offsetY": 16,
+      "offsetY": 0,
       "freezeOnLastFrame": true,
       "key": "erupcao_rocha",
       "theme": "Erupção de Rochas Tectônicas (Earth Effect)"
@@ -5020,15 +5050,15 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
       "key": "impacto_fisico",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5
     },
     "activeCombatCompatible": true
   },
@@ -5062,16 +5092,7 @@ export const MOVES_BY_ID = {
       "combat": "Pode ser instantâneo, contínuo ou em pulso, conforme a descrição. Verificar colisão ao longo do feixe/volume durante sua janela ativa e encerrar ao fim da duração.",
       "rules": "Prioridade: o VFX não altera ordem de execução; respeitar a prioridade definida na lógica."
     },
-    "visual": {
-      "file": "core/water_01.png",
-      "cols": 5,
-      "rows": 3,
-      "startFrame": 6,
-      "endFrame": 10,
-      "fps": 24,
-      "key": "agua_tsunami",
-      "theme": "Onda Torrencial / Tsunami"
-    },
+    "visual": null,
     "activeCombatCompatible": true
   },
   "112": {
@@ -5108,15 +5129,17 @@ export const MOVES_BY_ID = {
       "rules": "Múltiplos acertos: cada hit deve ter evento de colisão/dano próprio, respeitando a quantidade definida pela regra."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
-      "key": "cortes_marciais",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "key": "impacto_fisico",
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5,
+      "isDoubleKick": true,
+      "multiHit": 2
     },
     "activeCombatCompatible": true
   },
@@ -5154,15 +5177,15 @@ export const MOVES_BY_ID = {
       "rules": "Múltiplos acertos: cada hit deve ter evento de colisão/dano próprio, respeitando a quantidade definida pela regra."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
       "key": "impacto_fisico",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5
     },
     "activeCombatCompatible": true
   },
@@ -5200,15 +5223,17 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
-      "key": "cortes_marciais",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "key": "impacto_fisico",
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5,
+      "isTripleKick": true,
+      "multiHit": 3
     },
     "activeCombatCompatible": true
   },
@@ -5224,7 +5249,7 @@ export const MOVES_BY_ID = {
     "priority": -5,
     "vfxFamily": "impact",
     "description": "A retaliation move that counters any physical attack, inflicting double the damage taken.",
-    "executionType": "dash",
+    "executionType": "buff",
     "combatBehavior": {
       "isContact": true,
       "critStage": 0,
@@ -5232,7 +5257,8 @@ export const MOVES_BY_ID = {
       "drainPercent": 0,
       "recoilPercent": 0,
       "healPercent": 0,
-      "isBarrier": false,
+      "isBarrier": true,
+      "isCounter": true,
       "secondaryStatus": null,
       "secondaryChance": 0
     },
@@ -5243,15 +5269,16 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
       "key": "impacto_fisico",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5,
+      "isCounter": true
     },
     "activeCombatCompatible": true
   },
@@ -5294,7 +5321,13 @@ export const MOVES_BY_ID = {
       "fps": 24,
       "key": "impacto_fisico",
       "theme": "Impacto Físico (Estrela Branca)",
-      "scale": 0.5
+      "scale": 0.5,
+      "projectileFile": "vfx/magic/energy_ball.png",
+      "projectileCols": 9,
+      "projectileRows": 1,
+      "projectileFps": 24,
+      "projectileScale": 0.44,
+      "isEnergyBall": true
     },
     "activeCombatCompatible": true
   },
@@ -5329,15 +5362,15 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
-      "key": "cortes_marciais",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "key": "impacto_fisico",
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5
     },
     "activeCombatCompatible": true
   },
@@ -5372,15 +5405,15 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
       "key": "impacto_fisico",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5
     },
     "activeCombatCompatible": true
   },
@@ -5390,7 +5423,7 @@ export const MOVES_BY_ID = {
     "name": "Seismic Toss",
     "type": "Fighting",
     "category": "Physical",
-    "power": 1,
+    "power": 75,
     "accuracy": 100,
     "pp": 20,
     "priority": 0,
@@ -5399,6 +5432,7 @@ export const MOVES_BY_ID = {
     "executionType": "dash",
     "combatBehavior": {
       "isContact": true,
+      "isSeismicToss": true,
       "critStage": 0,
       "multiHit": null,
       "drainPercent": 0,
@@ -5415,15 +5449,15 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
       "key": "impacto_fisico",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5
     },
     "activeCombatCompatible": true
   },
@@ -5609,22 +5643,27 @@ export const MOVES_BY_ID = {
         }
       ]
     },
-    "spec": {
-      "vfx": "Chamas em blocos com paleta branco/amarelo/laranja/vermelho e contorno escuro; brasas pequenas sobem; o centro do impacto é mais claro que a borda.",
-      "animation": "Chama irregular em 3--6 poses; projétil ou cone de fogo conforme o move; no impacto, burst de brasas e possível decalque scorch com duração limitada.",
-      "combat": "Distinguir bola de fogo, sopro em cone, coluna vertical e aura de investida. Decalque é cosmético; queimadura só ocorre quando a regra do move confirmar o efeito secundário.",
-      "rules": "Atributos: atualizar estágios/valores no sistema de combate; a animação deve refletir a mudança confirmada."
+        "spec": {
+      "vfx": "Chamas intensas em formato de V durante o avanço; no impacto, aura vertical ardente (burning) envolvendo o alvo com chamas e brasas em cores naturais de fogo.",
+      "animation": "Dash supersônico com asas flamejantes em V brotando da testa; explosão e queimação ardente ao colidir.",
+      "combat": "Investida com contato físico direto. Reduz Def, SpDef e Speed do usuário após a colisão.",
+      "rules": "Aplicar penalidades de atributos ao atacante e dano devastador ao alvo."
     },
     "visual": {
-      "file": "core/attack_physical_01.png",
-      "cols": 5,
-      "rows": 2,
+      "file": "vfx/custom/burning_flame.png",
+      "cols": 12,
+      "rows": 10,
       "startFrame": 0,
-      "endFrame": 4,
-      "fps": 24,
-      "key": "impacto_fisico",
-      "theme": "Impacto Físico (Estrela Branca)",
-      "scale": 0.5
+      "endFrame": 119,
+      "fps": 30,
+      "key": "v_create",
+      "theme": "Aura Flamejante em V e Impacto de Chamas Ardentes (V-Create)",
+      "scale": 1.25,
+      "offsetY": -16,
+      "isVCreate": true,
+      "isBurningAura": true,
+      "color": "#FF5722",
+      "filter": "saturate(1.4) brightness(1.2)"
     },
     "activeCombatCompatible": true
   },
@@ -5653,21 +5692,24 @@ export const MOVES_BY_ID = {
       "secondaryChance": 0
     },
     "spec": {
-      "vfx": "Burst em camadas: núcleo branco/amarelo, anel externo colorido, fragmentos quadrados e fumaça em blocos. A forma deve ser irregular, não um gradiente circular liso.",
-      "animation": "Antecipação legível; expansão em 2--4 passos; frame de brilho máximo curto; dissipação em fumaça/brasas. Screen shake apenas no pico.",
-      "combat": "Definir raio e instante único de dano. Golpes de autodestruição devem resolver o nocaute do usuário pela regra de combate, não pela animação.",
-      "rules": "Execução em etapas: representar preparação e liberação como estados separados, com possibilidade de interrupção se a regra permitir."
+      "vfx": "Efeito de impacto físico amarelado na origem do usuário, com pilares de fogo e anéis parabólicos no chão se propagando de pequeno a gigante até o alvo.",
+      "animation": "Carga inicial na base do usuário com core amarelado, seguida por sucessão de colunas de fogo em parábola pelo chão crescendo até o impacto final.",
+      "combat": "Ataque especial de fogo massivo em leque/parábola com colisão devastadora no alcance total.",
+      "rules": "Causa dano especial massivo de fogo e obriga o usuário a recarregar no turno seguinte."
     },
     "visual": {
-      "file": "vfx/fire/explosion_01_spritesheet.png",
-      "cols": 10,
-      "rows": 1,
+      "file": "vfx/custom/burning_flame.png",
+      "cols": 12,
+      "rows": 10,
       "startFrame": 0,
-      "endFrame": 9,
-      "fps": 24,
-      "key": "fogo_labareda",
-      "theme": "Grande Explosão de Fogo",
-      "scale": 1
+      "endFrame": 119,
+      "fps": 30,
+      "key": "blast_burn",
+      "theme": "Pilares de Fogo Parabólicos em Escala Progressiva (Blast Burn)",
+      "scale": 1.25,
+      "isBlastBurn": true,
+      "color": "#FF5722",
+      "filter": "saturate(1.4) brightness(1.2)"
     },
     "activeCombatCompatible": true
   },
@@ -24664,6 +24706,7 @@ export const MOVES_BY_ID = {
       "isContact": true,
       "critStage": 0,
       "multiHit": null,
+      "isFlyingPress": true,
       "drainPercent": 0,
       "recoilPercent": 0,
       "healPercent": 0,
@@ -24678,15 +24721,16 @@ export const MOVES_BY_ID = {
       "rules": "Resolver acerto, dano e eventuais efeitos secundários na lógica de combate; VFX apenas apresenta o resultado."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
-      "key": "vento_cortante",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "key": "impacto_fisico",
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5,
+      "isFlyingPress": true
     },
     "activeCombatCompatible": true
   },
@@ -27114,15 +27158,15 @@ export const MOVES_BY_ID = {
       "rules": "Atributos: atualizar estágios/valores no sistema de combate; a animação deve refletir a mudança confirmada."
     },
     "visual": {
-      "file": "vfx/impact/hit_effect_01.png",
-      "cols": 7,
-      "rows": 1,
+      "file": "core/attack_physical_01.png",
+      "cols": 5,
+      "rows": 2,
       "startFrame": 0,
-      "endFrame": 6,
+      "endFrame": 4,
       "fps": 24,
-      "key": "cortes_marciais",
-      "theme": "Impacto Marcial Físico",
-      "scale": 1.1
+      "key": "impacto_fisico",
+      "theme": "Impacto Físico (Estrela Branca)",
+      "scale": 0.5
     },
     "activeCombatCompatible": true
   },

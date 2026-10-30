@@ -47,8 +47,7 @@
 .battle-bg {
   position: absolute;
   inset: 0;
-  background: url('/assets/battle/arenas/bg_forest.png') no-repeat center center;
-  background-size: cover;
+  background: #060911;
   image-rendering: pixelated;
 }
 
@@ -2029,11 +2028,12 @@
   box-shadow: 0 0 22px rgba(0, 229, 255, 0.8);
 }
 
-/* ─── 8. TEAM CHOICE MODAL (Image 2 - PC Box Style) ─────────────────────── */
+/* ─── 8. TEAM CHOICE MODAL (Image 2 - PC Box Style - 1 Linha com 6 Slots) ─── */
 .battle-team-modal {
   width: 720px !important;
   max-width: calc(100% - 32px) !important;
-  height: 390px !important;
+  height: auto !important;
+  min-height: auto !important;
   max-height: calc(100% - 24px) !important;
 }
 
@@ -2097,12 +2097,11 @@
 }
 
 .battle-team-cells-grid {
-  flex: 1;
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 10px;
-  overflow-y: auto;
-  padding: 2px;
+  overflow: visible;
+  padding: 4px 2px;
   align-content: start;
 }
 
@@ -4149,4 +4148,1052 @@
   opacity: 0.85;
   color: #bae6fd;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   REFINED BATTLE HUD (MATCHING REFERENCE SKETCH & INVENTORY/PC-BOX STYLING)
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ─── 1. TOP-RIGHT ENEMY CARD (PORTRAIT ON RIGHT + HP/STAMINA/STATS ON LEFT) ─── */
+.swsh-databox.swsh-enemy-hud.modern-battle-card {
+  top: 18px !important;
+  right: 22px !important;
+  left: auto !important;
+  bottom: auto !important;
+  width: auto !important;
+  min-width: 330px !important;
+  max-width: 460px !important;
+  padding: 8px 14px !important;
+  background: linear-gradient(165deg, rgba(16, 22, 36, 0.94) 0%, rgba(9, 13, 22, 0.96) 100%) !important;
+  border: 1.5px solid rgba(239, 68, 68, 0.35) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 16px rgba(239, 68, 68, 0.15) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  transform: none !important;
+  transform-origin: top right !important;
+}
+
+.enemy-card-content {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 12px !important;
+  width: 100% !important;
+}
+
+.enemy-info-col {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  min-width: 220px !important;
+}
+
+.enemy-header-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  line-height: 1 !important;
+}
+
+.enemy-header-row .bcard-name {
+  font-size: 18px !important;
+  max-width: 140px !important;
+}
+
+.enemy-stat-stages-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  margin-top: 2px !important;
+}
+
+.enemy-stage-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+  background: rgba(15, 23, 42, 0.6) !important;
+  padding: 1px 4px !important;
+  border-radius: 4px !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.esi-lbl {
+  font-family: var(--font-pixel, monospace) !important;
+  font-size: 8px !important;
+  font-weight: 700 !important;
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.esi-badge, .bbd-stage-pill {
+  font-family: var(--font-pixel, monospace) !important;
+  font-size: 8.5px !important;
+  font-weight: 800 !important;
+  padding: 0 3px !important;
+  border-radius: 3px !important;
+  line-height: 1.2 !important;
+}
+
+.stage-plus {
+  background: rgba(34, 197, 94, 0.25) !important;
+  color: #4ade80 !important;
+  border: 1px solid rgba(34, 197, 94, 0.6) !important;
+}
+
+.stage-minus {
+  background: rgba(239, 68, 68, 0.25) !important;
+  color: #f87171 !important;
+  border: 1px solid rgba(239, 68, 68, 0.6) !important;
+}
+
+.stage-zero {
+  background: rgba(100, 116, 139, 0.2) !important;
+  color: #94a3b8 !important;
+  border: 1px solid rgba(100, 116, 139, 0.3) !important;
+}
+
+.enemy-portrait-col {
+  flex-shrink: 0 !important;
+  position: relative !important;
+}
+
+.enemy-portrait-frame {
+  position: relative !important;
+  width: 68px !important;
+  height: 68px !important;
+  background: radial-gradient(circle at 40% 40%, #1e293b 0%, #090d16 100%) !important;
+  border: 2.5px solid #ef4444 !important;
+  border-radius: 12px !important;
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.85),
+    0 0 10px rgba(239, 68, 68, 0.4),
+    inset 0 0 8px rgba(0, 0, 0, 0.9) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Circular Level Badge docked at bottom-right corner of portraits */
+.bcard-corner-level-badge {
+  position: absolute !important;
+  bottom: -6px !important;
+  right: -6px !important;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+  color: #ffffff !important;
+  border: 2px solid #0f172a !important;
+  border-radius: 50% !important;
+  min-width: 26px !important;
+  height: 26px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-family: var(--font-pixel, monospace) !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  padding: 0 3px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8) !important;
+  z-index: 10 !important;
+}
+
+.bcard-corner-level-badge .bcl-prefix {
+  font-size: 7.5px !important;
+  opacity: 0.85 !important;
+  margin-right: 1px !important;
+}
+
+/* ─── 2. UNIFIED BOTTOM DASHBOARD (4 BLOCKS HORIZONTAL ROW) ─── */
+.battle-bottom-dashboard {
+  position: absolute !important;
+  bottom: 12px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-end !important;
+  gap: 10px !important;
+  z-index: 35 !important;
+  pointer-events: auto !important;
+  user-select: none !important;
+}
+
+.battle-bottom-dashboard.hidden {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.bbd-card {
+  background: linear-gradient(165deg, rgba(16, 22, 36, 0.94) 0%, rgba(9, 13, 22, 0.96) 100%) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1.5px solid rgba(0, 229, 255, 0.35) !important;
+  border-radius: 12px !important;
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.8), 
+    0 0 14px rgba(0, 229, 255, 0.12) !important;
+  box-sizing: border-box !important;
+  padding: 8px 10px !important;
+}
+
+.bbd-card-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+  border-bottom: 1px solid rgba(0, 229, 255, 0.2) !important;
+  padding-bottom: 4px !important;
+  margin-bottom: 4px !important;
+}
+
+.battle-weather-pill {
+  display: none !important;
+}
+
+.bbd-card-title {
+  font-family: var(--font-pixel, monospace) !important;
+  font-size: 9.5px !important;
+  font-weight: 900 !important;
+  color: #00e5ff !important;
+  letter-spacing: 0.5px !important;
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.5) !important;
+  transition: all 0.2s ease !important;
+}
+
+.bbd-card-title.compressed {
+  font-size: 8px !important;
+  letter-spacing: -0.2px !important;
+}
+
+.bcard-types-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  flex-shrink: 0 !important;
+}
+
+.bcard-types-row.dual-types .type-chip {
+  font-size: 6.5px !important;
+  padding: 1px 3.5px !important;
+  letter-spacing: -0.2px !important;
+}
+
+/* BLOCK 1: PLAYER STATS CARD */
+.bbd-stats-card {
+  width: 165px !important;
+  min-width: 165px !important;
+  max-width: 165px !important;
+  height: 124px !important;
+  min-height: 124px !important;
+  max-height: 124px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  padding: 6px 8px !important;
+  box-sizing: border-box !important;
+}
+
+.bbd-stats-grid {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2.5px !important;
+}
+
+.bbd-stat-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  font-family: var(--font-pixel, monospace) !important;
+  font-size: 9px !important;
+  padding: 1px 0 !important;
+}
+
+.bbd-stat-lbl {
+  color: rgba(255, 255, 255, 0.6) !important;
+  font-weight: 700 !important;
+  width: 32px !important;
+}
+
+.bbd-stat-val {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  margin-left: auto !important;
+  margin-right: 6px !important;
+}
+
+/* BLOCK 2: PLAYER PORTRAIT CARD (Referência 3) */
+.battle-bottom-dashboard .bbd-portrait-card.swsh-databox {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  transform: none !important;
+  width: 132px !important;
+  min-width: 132px !important;
+  max-width: 132px !important;
+  height: 124px !important;
+  min-height: 124px !important;
+  max-height: 124px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 6px 8px !important;
+  box-sizing: border-box !important;
+}
+
+.bbd-portrait-top-name {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  width: 100% !important;
+  height: 16px !important;
+  line-height: 1 !important;
+}
+
+.bbd-portrait-top-name .bcard-name {
+  font-family: var(--font-pixel, monospace) !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  text-transform: uppercase !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 100px !important;
+  letter-spacing: 0.5px !important;
+}
+
+.bbd-portrait-frame {
+  position: relative !important;
+  width: 66px !important;
+  height: 62px !important;
+  background: radial-gradient(circle at 50% 50%, #1e293b 0%, #090d16 100%) !important;
+  border: 2px solid #00e5ff !important;
+  border-radius: 9px !important;
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.85),
+    0 0 10px rgba(0, 229, 255, 0.35),
+    inset 0 0 8px rgba(0, 0, 0, 0.9) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: visible !important;
+}
+
+.bbd-portrait-inner {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 7px !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #090d16 !important;
+}
+
+.bbd-portrait-frame .battle-pmd-portrait {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  image-rendering: pixelated !important;
+}
+
+.bbd-portrait-frame .battle-pmd-portrait.is-placeholder {
+  width: 34px !important;
+  height: 34px !important;
+  object-fit: contain !important;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.7)) !important;
+}
+
+.bbd-portrait-frame .bcard-corner-level-badge {
+  position: absolute !important;
+  right: -5px !important;
+  bottom: -4px !important;
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 50% !important;
+  background: radial-gradient(circle at 35% 35%, #fbbf24 0%, #d97706 100%) !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.9) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-family: var(--font-pixel, monospace) !important;
+  font-size: 7px !important;
+  font-weight: 900 !important;
+  color: #000000 !important;
+  line-height: 1 !important;
+  z-index: 10 !important;
+}
+
+.bbd-portrait-frame .bcard-corner-level-badge .bcl-prefix {
+  font-size: 5.5px !important;
+  opacity: 0.85 !important;
+  margin-right: 0.5px !important;
+}
+
+#battle-bottom-dashboard .bcard-party-balls,
+.battle-bottom-dashboard .bcard-party-balls,
+#player-party-dots {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 16px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+
+#battle-bottom-dashboard .bcard-ball-slot,
+.battle-bottom-dashboard .bcard-ball-slot,
+#player-party-dots .bcard-ball-slot {
+  width: 14px !important;
+  height: 14px !important;
+  min-width: 14px !important;
+  max-width: 14px !important;
+  min-height: 14px !important;
+  max-height: 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+#battle-bottom-dashboard .bcard-ball-icon,
+.battle-bottom-dashboard .bcard-ball-icon,
+#player-party-dots .bcard-ball-icon {
+  width: 12px !important;
+  height: 12px !important;
+  min-width: 12px !important;
+  max-width: 12px !important;
+  min-height: 12px !important;
+  max-height: 12px !important;
+  object-fit: contain !important;
+}
+
+#battle-bottom-dashboard .bcard-ball-slot.active,
+.battle-bottom-dashboard .bcard-ball-slot.active,
+#player-party-dots .bcard-ball-slot.active {
+  transform: scale(1.12) !important;
+}
+
+/* BLOCK 3: COMBAT CLUSTER */
+.battle-bottom-dashboard .bbd-combat-cluster.battle-action-cluster {
+  position: relative !important;
+  bottom: auto !important;
+  left: auto !important;
+  transform: none !important;
+  width: auto !important;
+  max-width: none !important;
+  height: 124px !important;
+  min-height: 124px !important;
+  max-height: 124px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  padding: 6px 8px !important;
+  box-sizing: border-box !important;
+  background: linear-gradient(165deg, rgba(16, 22, 36, 0.94) 0%, rgba(9, 13, 22, 0.96) 100%) !important;
+  border: 1.5px solid rgba(0, 229, 255, 0.35) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 14px rgba(0, 229, 255, 0.12) !important;
+}
+
+.battle-bottom-dashboard .bbd-combat-cluster .cluster-sub-nav {
+  position: absolute !important;
+  top: -24px !important;
+  left: 0 !important;
+  width: 100% !important;
+  justify-content: flex-start !important;
+  padding-right: 0 !important;
+}
+
+.bbd-actions-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+/* 4 SQUARE MOVE BUTTONS */
+.battle-moves-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.battle-skill-card {
+  width: 52px !important;
+  height: 52px !important;
+  min-width: 52px !important;
+  max-width: 52px !important;
+  min-height: 52px !important;
+  max-height: 52px !important;
+  border-radius: 8px !important;
+  background: #141724 !important;
+  border: 1.5px solid #1a2034 !important;
+  box-sizing: border-box !important;
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.6) !important;
+  transition: all 0.15s ease !important;
+  overflow: hidden !important;
+}
+
+.battle-skill-card:hover {
+  transform: translateY(-2px) !important;
+  border-color: #00e5ff !important;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.45), inset 0 0 6px rgba(0, 229, 255, 0.2) !important;
+}
+
+.battle-skill-card.empty-slot {
+  background: rgba(15, 23, 42, 0.45) !important;
+  border: 1.5px dashed rgba(0, 229, 255, 0.2) !important;
+  box-shadow: none !important;
+  cursor: default !important;
+}
+
+.battle-skill-card .bsc-icon {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  image-rendering: pixelated !important;
+  image-rendering: crisp-edges !important;
+  pointer-events: none !important;
+  border-radius: 6px !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 1 !important;
+  transition: transform 0.15s ease !important;
+}
+
+.battle-skill-card:hover .bsc-icon {
+  transform: scale(1.06) !important;
+}
+
+.battle-skill-card .bsc-hotkey {
+  position: absolute !important;
+  top: 2px !important;
+  left: 3px !important;
+  font-family: var(--font-pixel, monospace) !important;
+  font-size: 8px !important;
+  font-weight: 800 !important;
+  color: #00e5ff !important;
+  background: rgba(8, 12, 22, 0.88) !important;
+  border: 1px solid rgba(0, 229, 255, 0.45) !important;
+  border-radius: 3px !important;
+  padding: 1px 3px !important;
+  line-height: 1 !important;
+  pointer-events: none !important;
+  z-index: 3 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.8) !important;
+}
+
+.battle-skill-card .cluster-cd-overlay {
+  border-radius: 6px !important;
+  z-index: 4 !important;
+}
+
+/* FLOATING MOVE TOOLTIP ON HOVER */
+.bbd-moves-cluster {
+  position: relative !important;
+}
+
+.bbd-skill-tooltip {
+  position: absolute !important;
+  bottom: calc(100% + 12px) !important;
+  transform: translateX(-50%) !important;
+  background: rgba(10, 15, 26, 0.96) !important;
+  border: 1.5px solid #00e5ff !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9), 0 0 14px rgba(0, 229, 255, 0.35) !important;
+  padding: 8px 11px !important;
+  min-width: 180px !important;
+  max-width: 250px !important;
+  pointer-events: none !important;
+  z-index: 9999 !important;
+  backdrop-filter: blur(8px) !important;
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  flex-direction: column !important;
+  gap: 5px !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+.bbd-skill-tooltip.visible {
+  display: flex !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  animation: bbdTooltipFadeIn 0.12s ease-out !important;
+}
+
+@keyframes bbdTooltipFadeIn {
+  from { opacity: 0; transform: translate(-50%, 4px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.bbd-skill-tooltip .bst-header {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+  padding-bottom: 4px !important;
+}
+
+.bbd-skill-tooltip .bst-hotkey {
+  font-family: var(--font-pixel, monospace) !important;
+  font-size: 8.5px !important;
+  color: #00e5ff !important;
+  font-weight: 800 !important;
+  background: rgba(0, 229, 255, 0.15) !important;
+  padding: 1px 4px !important;
+  border-radius: 3px !important;
+}
+
+.bbd-skill-tooltip .bst-name {
+  font-family: var(--font-pixel, monospace) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  flex: 1 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.bbd-skill-tooltip .bst-type {
+  font-size: 8px !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  padding: 2px 5px !important;
+  border-radius: 3px !important;
+  color: #ffffff !important;
+  letter-spacing: 0.5px !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8) !important;
+}
+
+.bbd-skill-tooltip .bst-stats-row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 4px 10px !important;
+  font-size: 9.5px !important;
+  color: #cbd5e1 !important;
+  line-height: 1.2 !important;
+}
+
+.bbd-skill-tooltip .bst-stats-row span b {
+  color: #00e5ff !important;
+}
+
+.bbd-skill-tooltip .bst-desc {
+  font-size: 9.5px !important;
+  line-height: 1.35 !important;
+  color: #94a3b8 !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+  padding-top: 4px !important;
+}
+
+.bbd-utility-col {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  justify-content: space-between !important;
+  width: 24px !important;
+  min-width: 24px !important;
+  max-width: 24px !important;
+  height: 52px !important;
+}
+
+.bbd-util-btn,
+.bbd-util-btn.bbd-util-square {
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  max-width: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  border-radius: 5px !important;
+  box-sizing: border-box !important;
+  background: #141724 !important;
+  border: 1.5px solid #1a2034 !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  position: relative !important;
+  overflow: hidden !important;
+  transition: all 0.15s ease !important;
+}
+
+.bbd-util-btn.btn-action-def {
+  border-color: rgba(0, 229, 255, 0.45) !important;
+  background: linear-gradient(135deg, rgba(12, 23, 42, 0.95) 0%, rgba(8, 16, 30, 0.95) 100%) !important;
+}
+
+.bbd-util-btn.btn-action-atk {
+  border-color: rgba(245, 158, 11, 0.45) !important;
+  background: linear-gradient(135deg, rgba(30, 18, 8, 0.95) 0%, rgba(20, 12, 5, 0.95) 100%) !important;
+}
+
+.bbd-util-btn:hover {
+  transform: translateY(-1px) !important;
+}
+
+.bbd-util-btn.btn-action-def:hover {
+  border-color: #00e5ff !important;
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.6) !important;
+}
+
+.bbd-util-btn.btn-action-atk:hover {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6) !important;
+}
+
+.bbd-util-btn .round-def-shield-icon,
+.bbd-util-btn .round-atk-swords-icon {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 14px !important;
+  height: 14px !important;
+  pointer-events: none !important;
+}
+
+.bbd-util-btn .round-def-shield-icon svg,
+.bbd-util-btn .round-atk-swords-icon svg {
+  width: 13px !important;
+  height: 13px !important;
+  display: block !important;
+}
+
+.bbd-util-btn .round-btn-hotkey {
+  position: absolute !important;
+  top: 1px !important;
+  left: 1.5px !important;
+  font-family: var(--font-pixel, monospace) !important;
+  font-size: 6px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  pointer-events: none !important;
+  z-index: 5 !important;
+}
+
+.bbd-util-btn .round-btn-hotkey-def {
+  color: #00e5ff !important;
+}
+
+.bbd-util-btn .round-btn-hotkey-atk {
+  color: #f59e0b !important;
+  font-size: 5.5px !important;
+}
+
+.bbd-util-btn.active-guard {
+  border-color: #00e5ff !important;
+  background: rgba(0, 229, 255, 0.22) !important;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.7) !important;
+}
+
+.bbd-util-btn.combo-ready-2 {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6) !important;
+}
+
+.bbd-util-btn.combo-ready-3 {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.8) !important;
+}
+
+.bbd-util-btn .round-cd-overlay {
+  border-radius: 4px !important;
+  inset: 0 !important;
+}
+
+.round-def-meter-bar {
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 2px !important;
+  background: rgba(0, 0, 0, 0.6) !important;
+  border-radius: 0 0 3px 3px !important;
+  overflow: hidden !important;
+  z-index: 4 !important;
+}
+
+.round-def-meter-fill {
+  height: 100% !important;
+  background: #00e5ff !important;
+  border-radius: 1px !important;
+  transition: width 0.15s ease, background 0.15s ease !important;
+}
+
+.bbd-bars-container {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  width: 100% !important;
+  margin-top: auto !important;
+}
+
+.bbd-bar-row {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  width: 100% !important;
+}
+
+.bbd-bar-meta {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  line-height: 1 !important;
+  padding: 0 1px !important;
+}
+
+.bbd-bar-lbl {
+  font-family: var(--font-pixel, monospace) !important;
+  font-size: 8.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.5px !important;
+}
+
+.bbd-bar-lbl.lbl-hp {
+  color: #10b981 !important;
+  text-shadow: 0 0 6px rgba(16, 185, 129, 0.4) !important;
+}
+
+.bbd-bar-lbl.lbl-sta {
+  color: #f59e0b !important;
+  text-shadow: 0 0 6px rgba(245, 158, 11, 0.4) !important;
+}
+
+.bbd-bar-val {
+  font-family: var(--font-pixel, monospace) !important;
+  font-size: 8.5px !important;
+  font-weight: 700 !important;
+  color: #f1f5f9 !important;
+  letter-spacing: 0.2px !important;
+}
+
+.bbd-bars-container .bcard-hp-track {
+  width: 100% !important;
+  height: 12px !important;
+  min-height: 12px !important;
+  max-height: 12px !important;
+  background: rgba(8, 12, 20, 0.95) !important;
+  border: 1.5px solid rgba(0, 0, 0, 0.75) !important;
+  border-radius: 4px !important;
+  overflow: hidden !important;
+  position: relative !important;
+  margin: 0 !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.85) !important;
+}
+
+.bbd-bars-container .bcard-hp-fill {
+  height: 100% !important;
+  border-radius: 2px !important;
+  transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.25s ease !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.45) !important;
+  box-sizing: border-box !important;
+}
+
+.bbd-bars-container .bcard-hp-fill.healthy {
+  background: linear-gradient(180deg, #34d399 0%, #10b981 50%, #059669 100%) !important;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6) !important;
+}
+
+.bbd-bars-container .bcard-hp-fill.moderate {
+  background: linear-gradient(180deg, #fcd34d 0%, #f59e0b 50%, #d97706 100%) !important;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6) !important;
+}
+
+.bbd-bars-container .bcard-hp-fill.danger {
+  background: linear-gradient(180deg, #f87171 0%, #ef4444 50%, #b91c1c 100%) !important;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.7) !important;
+}
+
+.bbd-bars-container .bcard-stamina-track {
+  width: 100% !important;
+  height: 8px !important;
+  min-height: 8px !important;
+  max-height: 8px !important;
+  background: rgba(8, 12, 20, 0.95) !important;
+  border: 1.5px solid rgba(0, 0, 0, 0.75) !important;
+  border-radius: 3px !important;
+  overflow: hidden !important;
+  position: relative !important;
+  margin: 0 !important;
+  box-shadow: inset 0 1.5px 3px rgba(0, 0, 0, 0.85) !important;
+}
+
+.bbd-bars-container .bcard-stamina-fill {
+  height: 100% !important;
+  border-radius: 2px !important;
+  background: linear-gradient(180deg, #fde047 0%, #f59e0b 50%, #b45309 100%) !important;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.6) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.45) !important;
+  box-sizing: border-box !important;
+  transition: width 0.1s linear !important;
+}
+
+/* BLOCK 4: QUICK ITEMS CARD (2 ROWS X 3 COLS - NO OVERFLOW) */
+#battle-bottom-dashboard .bbd-quick-items-card,
+.battle-bottom-dashboard .bbd-quick-items-card,
+#battle-quick-items-hud {
+  width: 168px !important;
+  min-width: 168px !important;
+  max-width: 168px !important;
+  height: 124px !important;
+  min-height: 124px !important;
+  max-height: 124px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  gap: 6px !important;
+  padding: 6px 8px !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+}
+
+.battle-bottom-dashboard .battle-quick-items-hud {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  transform: none !important;
+  background: linear-gradient(165deg, rgba(16, 22, 36, 0.94) 0%, rgba(9, 13, 22, 0.96) 100%) !important;
+  border: 1.5px solid rgba(0, 229, 255, 0.35) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 14px rgba(0, 229, 255, 0.12) !important;
+  z-index: 35 !important;
+}
+
+#battle-bottom-dashboard .bbd-quick-grid,
+.battle-bottom-dashboard .bbd-quick-grid,
+#bquick-item-tray {
+  display: grid !important;
+  grid-template-columns: repeat(3, 38px) !important;
+  grid-template-rows: repeat(2, 38px) !important;
+  gap: 6px !important;
+  justify-content: center !important;
+  align-content: center !important;
+  box-sizing: border-box !important;
+  margin: 0 auto !important;
+  width: 126px !important;
+  overflow: visible !important;
+}
+
+#battle-bottom-dashboard .quick-slot,
+.battle-bottom-dashboard .quick-slot,
+#bquick-item-tray .quick-slot,
+#bquick-item-tray .bquick-slot-item {
+  position: relative !important;
+  width: 38px !important;
+  height: 38px !important;
+  min-width: 38px !important;
+  max-width: 38px !important;
+  min-height: 38px !important;
+  max-height: 38px !important;
+  box-sizing: border-box !important;
+  background: #141724 !important;
+  border: 1.5px solid #1a2034 !important;
+  border-radius: 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.6) !important;
+  transition: all 0.15s ease !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+}
+
+.bbd-quick-grid .quick-slot:hover {
+  border-color: #00e5ff !important;
+  background: rgba(0, 229, 255, 0.14) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.45), inset 0 0 6px rgba(0, 229, 255, 0.2) !important;
+}
+
+.bbd-quick-grid .quick-slot.empty {
+  background: rgba(15, 23, 42, 0.45) !important;
+  border: 1.5px dashed rgba(0, 229, 255, 0.2) !important;
+  box-shadow: none !important;
+  cursor: default !important;
+}
+
+.bbd-quick-grid .quick-slot.empty:hover {
+  border-color: rgba(0, 229, 255, 0.5) !important;
+  background: rgba(0, 229, 255, 0.08) !important;
+}
+
+.bbd-quick-grid .quick-slot-key {
+  position: absolute !important;
+  top: 1.5px !important;
+  left: 2px !important;
+  font-family: var(--font-pixel, monospace) !important;
+  font-size: 7.5px !important;
+  font-weight: 800 !important;
+  color: #00e5ff !important;
+  background: rgba(0, 229, 255, 0.14) !important;
+  border: 1px solid rgba(0, 229, 255, 0.3) !important;
+  border-radius: 2.5px !important;
+  padding: 0 2px !important;
+  line-height: 1 !important;
+}
+
+.bbd-quick-grid .quick-slot-icon {
+  width: 22px !important;
+  height: 22px !important;
+  object-fit: contain !important;
+  image-rendering: pixelated !important;
+}
+
+.bbd-quick-grid .quick-slot-qty {
+  position: absolute !important;
+  bottom: 1.5px !important;
+  right: 2px !important;
+  font-family: var(--font-pixel, monospace) !important;
+  font-size: 8px !important;
+  font-weight: 900 !important;
+  color: #ffffff !important;
+  line-height: 1 !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95) !important;
+}
+
+/* Ocultar completamente a HUD de combate ao vencer ou perder (Aparecendo somente a tela de resultado/recompensas) */
+.battle-match-finished #battle-bottom-dashboard,
+.battle-match-finished #battle-command-bar,
+.battle-match-finished #battle-action-panel,
+.battle-match-finished #battle-enemy-databox,
+.battle-match-finished #battle-player-databox,
+.battle-match-finished #battle-team-action-panel,
+.battle-match-finished #battle-bag-action-panel,
+.battle-match-finished #battle-action-cluster,
+.battle-match-finished #bquick-item-tray,
+.battle-match-finished .bcard-action-ticker,
+.battle-match-finished .bbd-skill-tooltip,
+.battle-match-finished .swsh-action-hints,
+.battle-match-finished .combat-ticker-wrap {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+
 

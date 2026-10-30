@@ -1,5 +1,6 @@
-// Input Manager for 8-Direction Real-Time Combat Controls
-// Handles WASD, Arrow keys, Dodge (Shift/Space), Attacks & Skills
+// Input Manager for Real-Time Combat Controls (MOBA Click-to-Move + Action Hotkeys)
+// Handles Action keys, Dedicated Dodge (Shift / F), and optional Arrow key fallback.
+// WASD is completely decoupled from movement to liberate [W] for Move Slot 1 and [D] for Defense.
 
 export class InputManager {
   constructor() {
@@ -9,7 +10,7 @@ export class InputManager {
     this.onSkill = null;
     this.onStanceToggle = null;
 
-    // Double-tap directional tracking
+    // Arrow keys double-tap tracking
     this.keyTapTimes = new Map();
     this.pendingDodgeTimeout = null;
 
@@ -18,18 +19,26 @@ export class InputManager {
 
   bindEvents() {
     window.addEventListener('keydown', (e) => {
-      if (e.target.tagName === 'INPUT') return;
+      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
 
       this.keys.add(e.code);
       this.keys.add(e.key.toLowerCase());
 
-      // Double-Tap 8-Directional Dodge Detection (W, A, S, D & Arrows, including diagonal chords)
-      const isMovementKey = (
-        e.code === 'KeyW' || e.code === 'KeyA' || e.code === 'KeyS' || e.code === 'KeyD' ||
+      // Dedicated Dodge / Flash Key: Shift (ShiftLeft / ShiftRight) or 'F' (KeyF)
+      if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyF' || e.key === 'Shift') && !e.repeat) {
+        if (this.onDodge) {
+          const moveVec = this.getMovementVector();
+          this.onDodge(moveVec.dirX, moveVec.dirY);
+        }
+        return;
+      }
+
+      // Arrow keys double-tap fallback for dodge
+      const isArrowKey = (
         e.code === 'ArrowUp' || e.code === 'ArrowDown' || e.code === 'ArrowLeft' || e.code === 'ArrowRight'
       );
 
-      if (isMovementKey && !e.repeat) {
+      if (isArrowKey && !e.repeat) {
         const now = performance.now();
         const lastKeyTime = this.keyTapTimes.get(e.code) || 0;
         const keyDiff = now - lastKeyTime;
@@ -37,7 +46,6 @@ export class InputManager {
 
         const isDoubleTap = keyDiff >= 35 && keyDiff <= 350;
 
-        // If a pending dodge chord was waiting for its diagonal partner key to land
         if (this.pendingDodgeTimeout) {
           clearTimeout(this.pendingDodgeTimeout);
           this.pendingDodgeTimeout = null;
@@ -51,29 +59,10 @@ export class InputManager {
 
         if (isDoubleTap) {
           const moveVec = this.getMovementVector();
-
-          // Check if diagonal is ALREADY formed (both vertical and horizontal keys active)
-          const hasVertical = this.keys.has('KeyW') || this.keys.has('KeyS') || this.keys.has('ArrowUp') || this.keys.has('ArrowDown');
-          const hasHorizontal = this.keys.has('KeyA') || this.keys.has('KeyD') || this.keys.has('ArrowLeft') || this.keys.has('ArrowRight');
-
-          if (hasVertical && hasHorizontal && moveVec.isMoving) {
-            // Instant diagonal dodge!
-            if (this.onDodge) {
-              this.onDodge(moveVec.dirX, moveVec.dirY);
-            }
-            this.keyTapTimes.clear();
-            return;
+          if (this.onDodge && moveVec.isMoving) {
+            this.onDodge(moveVec.dirX, moveVec.dirY);
           }
-
-          // Single movement key landed: brief 32ms chord window to capture near-simultaneous diagonal key
-          this.pendingDodgeTimeout = setTimeout(() => {
-            this.pendingDodgeTimeout = null;
-            const finalVec = this.getMovementVector();
-            if (this.onDodge && finalVec.isMoving) {
-              this.onDodge(finalVec.dirX, finalVec.dirY);
-            }
-            this.keyTapTimes.clear();
-          }, 32);
+          this.keyTapTimes.clear();
         }
       }
     });
@@ -94,24 +83,23 @@ export class InputManager {
     });
   }
 
-  // Returns normalized movement direction in 8 directions (magnitude exactly 1.0 or 0.0)
+  // Returns normalized movement direction (magnitude exactly 1.0 or 0.0)
+  // WASD keys are EXCLUDED to prevent conflicting with combat action hotkeys [Q, W, E, R, D]
   getMovementVector() {
     let rawX = 0;
     let rawY = 0;
 
-    // Vertical axis
-    if (this.keys.has('KeyW') || this.keys.has('ArrowUp') || this.keys.has('w')) {
+    // Arrow keys fallback only
+    if (this.keys.has('ArrowUp')) {
       rawY -= 1;
     }
-    if (this.keys.has('KeyS') || this.keys.has('ArrowDown') || this.keys.has('s')) {
+    if (this.keys.has('ArrowDown')) {
       rawY += 1;
     }
-
-    // Horizontal axis
-    if (this.keys.has('KeyA') || this.keys.has('ArrowLeft') || this.keys.has('a')) {
+    if (this.keys.has('ArrowLeft')) {
       rawX -= 1;
     }
-    if (this.keys.has('KeyD') || this.keys.has('ArrowRight') || this.keys.has('d')) {
+    if (this.keys.has('ArrowRight')) {
       rawX += 1;
     }
 
@@ -119,7 +107,6 @@ export class InputManager {
       return { dirX: 0, dirY: 0, isMoving: false };
     }
 
-    // Strict diagonal normalization: avoids the 1.414x speed glitch
     const length = Math.hypot(rawX, rawY);
     return {
       dirX: rawX / length,
@@ -130,18 +117,10 @@ export class InputManager {
 
   hasActiveMovementInput() {
     return (
-      this.keys.has('KeyW') ||
-      this.keys.has('KeyA') ||
-      this.keys.has('KeyS') ||
-      this.keys.has('KeyD') ||
       this.keys.has('ArrowUp') ||
       this.keys.has('ArrowDown') ||
       this.keys.has('ArrowLeft') ||
-      this.keys.has('ArrowRight') ||
-      this.keys.has('w') ||
-      this.keys.has('a') ||
-      this.keys.has('s') ||
-      this.keys.has('d')
+      this.keys.has('ArrowRight')
     );
   }
 
@@ -151,5 +130,10 @@ export class InputManager {
       this.pendingDodgeTimeout = null;
     }
     this.keys.clear();
+    this.keyTapTimes.clear();
+    this.onDodge = null;
+    this.onPhysical = null;
+    this.onSkill = null;
+    this.onStanceToggle = null;
   }
 }

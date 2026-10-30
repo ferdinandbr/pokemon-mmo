@@ -1,3 +1,4 @@
+import { BattleWeather, BATTLE_WEATHER_META } from './battleWeather.js';
 import { BattleArena } from './arena.js';
 import { ParticleSystem } from './particleSystem.js';
 import { ProjectileSystem } from './projectileSystem.js';
@@ -41,6 +42,10 @@ export class BattleEngine {
     this.particleSystem.entitySource = () => [this.playerEntity, this.enemyEntity];
     this.projectileSystem = new ProjectileSystem(this.particleSystem, this.arena);
     this.clashSystem = new AttackClashSystem(this);
+    this.weatherSystem = new BattleWeather(this);
+    this.clickMarkers = [];
+    this.isMouseDownMoving = false;
+    this.setupMouseNavigation();
     this.inputManager = new InputManager();
     this.inputManager.onDodge = (dirX, dirY) => this.executePlayerDodge(dirX, dirY);
 
@@ -173,6 +178,12 @@ export class BattleEngine {
 
     if (this.arena?.updateTimePhase) {
       this.arena.updateTimePhase(options.timePhase);
+    }
+    if (this.weatherSystem) {
+      const weather = options.weather || (typeof window !== 'undefined' ? window.weather?.currentWeather : null) || 'clear';
+      const timePhase = options.timePhase || (typeof window !== 'undefined' ? window.dayNight?.currentPhase : null) || 'day';
+      this.weatherSystem.setWeather(weather);
+      this.weatherSystem.setTimePhase(timePhase);
     }
 
     this.battleEnded = false;
@@ -663,6 +674,12 @@ export class BattleEngine {
 
     if (this.battleEnded) return;
 
+    // Never trigger match conclusion during standby, countdown, or before combat is active!
+    if (this.isIntroStandby || this.isCountdownActive || this.combatState !== 'active') return;
+
+    // Must have active player entity
+    if (!this.playerEntity) return;
+
     // Sync active player entity HP to party
     if (this.playerEntity && this.playerParty && this.playerParty[this.activePlayerIndex]) {
       this.playerParty[this.activePlayerIndex].currentHp = this.playerEntity.currentHp;
@@ -716,8 +733,13 @@ export class BattleEngine {
 
       // Entire enemy party defeated: Victory!
       this.battleEnded = true;
-      if (this.playerEntity && !this.playerEntity.isFainted) {
-        this.playerEntity.celebrate();
+      if (this.playerEntity) {
+        this.playerEntity.clearMoveDestination();
+        this.playerEntity.vx = 0;
+        this.playerEntity.vy = 0;
+        if (!this.playerEntity.isFainted) {
+          this.playerEntity.celebrate();
+        }
       }
       soundManager.playVictory(this.isTrainer);
       this.onLogMessage(`🎉 Vitória! <strong>${this.playerEntity.data.name}</strong> dominou a arena!`, 'system');
@@ -774,6 +796,20 @@ export class BattleEngine {
 
   executePlayerDodge(dirX = 0, dirY = 0) {
     if (this.playerEntity && !this.battleEnded && !this.isCountdownActive) {
+      if (dirX === 0 && dirY === 0) {
+        if (Math.abs(this.playerEntity.vx) > 10 || Math.abs(this.playerEntity.vy) > 10) {
+          const mag = Math.hypot(this.playerEntity.vx, this.playerEntity.vy) || 1;
+          dirX = this.playerEntity.vx / mag;
+          dirY = this.playerEntity.vy / mag;
+        } else if (this.playerEntity.targetDest) {
+          const dx = this.playerEntity.targetDest.x - this.playerEntity.x;
+          const dy = this.playerEntity.targetDest.y - this.playerEntity.y;
+          const dist = Math.hypot(dx, dy) || 1;
+          dirX = dx / dist;
+          dirY = dy / dist;
+        }
+      }
+      this.playerEntity.clearMoveDestination();
       const res = this.playerEntity.performEvasiveDodge(dirX, dirY);
       if (res && this.isPvp && this.onPvpAction) {
         this.onPvpAction({
@@ -1216,13 +1252,20 @@ export class BattleEngine {
     }
 
     if (this.playerEntity && !this.playerEntity.isFainted) {
-      // 8-Direction WASD / Arrow Keys Movement with strict diagonal normalization
+      // Click-to-Move (League of Legends MOBA Style) with smooth fallback
       const moveInput = this.inputManager.getMovementVector();
-      if (moveInput.isMoving || !this.autoTurnEnabled) {
+      if (moveInput.isMoving) {
+        this.playerEntity.clearMoveDestination();
         this.playerEntity.moveManual(moveInput.dirX, moveInput.dirY, dt);
+      } else if (this.playerEntity.targetDest) {
+        this.playerEntity.updateClickToMove(dt);
       } else if (this.autoTurnEnabled) {
         this.playerEntity.updateTacticalAIMovement(dt);
+      } else {
+        this.playerEntity.moveManual(0, 0, dt);
       }
+
+      this.updateClickMarkers(dt);
 
       // Periodically relay movement and position in PvP mode (every 50ms)
       if (this.isPvp && this.onPvpAction) {
@@ -1230,13 +1273,21 @@ export class BattleEngine {
         if (this.pvpMovementRelayTimer <= 0) {
           this.pvpMovementRelayTimer = 0.05;
           const hasVel = Math.abs(this.playerEntity.vx) > 5 || Math.abs(this.playerEntity.vy) > 5;
-          if (moveInput.isMoving || hasVel) {
+          const isNavigating = Boolean(this.playerEntity.targetDest) || moveInput.isMoving;
+
+          if (isNavigating || hasVel) {
+            const velMag = Math.hypot(this.playerEntity.vx, this.playerEntity.vy) || 1;
+            const curDirX = hasVel ? this.playerEntity.vx / velMag : 0;
+            const curDirY = hasVel ? this.playerEntity.vy / velMag : 0;
+
             this.onPvpAction({
               type: 'move',
-              dirX: -moveInput.dirX, // Mirror X direction for opponent perspective
-              dirY: moveInput.dirY,
-              x: Math.round(1024 - this.playerEntity.x), // Mirror X across arena center (512)
+              dirX: -curDirX,
+              dirY: curDirY,
+              x: Math.round(1024 - this.playerEntity.x),
               y: Math.round(this.playerEntity.y),
+              destX: this.playerEntity.targetDest ? Math.round(1024 - this.playerEntity.targetDest.x) : null,
+              destY: this.playerEntity.targetDest ? Math.round(this.playerEntity.targetDest.y) : null,
               stamina: Math.round(this.playerEntity.stamina)
             });
             this._lastPvpSentMoving = true;
@@ -1328,6 +1379,7 @@ export class BattleEngine {
     this.resolveEntitySeparation();
 
     // Resolve Simultaneous Attack Clashes (Physical, Projectile, Beam)
+    if (this.weatherSystem) this.weatherSystem.update(dt);
     if (this.clashSystem) {
       this.clashSystem.update(dt);
     }
@@ -1635,6 +1687,9 @@ export class BattleEngine {
       // 4. Draw background (at 0, 0, 1024, 790 in logical space) & decals
       arena.renderBackground(ctx);
 
+      // Render Click-to-Move Waypoint Markers on ground (LOL style)
+      this.renderClickMarkers(ctx);
+
       // 5. Depth sort entities, trainer, rival trainer, and tactical obstacles based on Y position (Z-ordering)
       const renderables = [
         this.playerEntity,
@@ -1668,6 +1723,11 @@ export class BattleEngine {
       if (arena.renderForeground) {
         arena.renderForeground(ctx);
       }
+
+      // 6. Real-Time Atmospheric Weather & Day/Night Atmosphere Lighting
+      if (this.weatherSystem) {
+        this.weatherSystem.render(ctx);
+      }
     } catch (err) {
       console.error('[BattleEngine] Error during frame render:', err);
     } finally {
@@ -1679,6 +1739,222 @@ export class BattleEngine {
     this.setupMatchup(this.playerPokemonId, this.enemyPokemonId);
   }
 
+
+  // ─── Click-to-Move Mouse Navigation (League of Legends Style) ──────────────
+  getCanvasCoords(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    const screenX = (e.clientX - rect.left) * (this.canvas.width / rect.width);
+    const screenY = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+    const logicalX = (screenX - this.arena.drawX) / (this.arena.scale || 1);
+    const logicalY = (screenY - this.arena.drawY) / (this.arena.scale || 1);
+    return { x: logicalX, y: logicalY };
+  }
+
+  addClickMarker(x, y, type = 'move') {
+    if (!this.clickMarkers) this.clickMarkers = [];
+    if (this.clickMarkers.length >= 6) this.clickMarkers.shift();
+    this.clickMarkers.push({
+      x,
+      y,
+      type, // 'move' (LOL green/cyan) or 'attack' (LOL red target reticle)
+      time: 0,
+      duration: 0.45,
+    });
+  }
+
+  updateClickMarkers(dt) {
+    if (!this.clickMarkers || this.clickMarkers.length === 0) return;
+    for (let i = this.clickMarkers.length - 1; i >= 0; i--) {
+      const m = this.clickMarkers[i];
+      m.time += dt;
+      if (m.time >= m.duration) {
+        this.clickMarkers.splice(i, 1);
+      }
+    }
+  }
+
+  renderClickMarkers(ctx) {
+    if (!this.clickMarkers || this.clickMarkers.length === 0) return;
+    ctx.save();
+    for (let i = 0; i < this.clickMarkers.length; i++) {
+      const m = this.clickMarkers[i];
+      const prog = Math.min(1.0, m.time / m.duration);
+      const alpha = Math.sin((1 - prog) * Math.PI * 0.5);
+
+      if (m.type === 'move') {
+        // LOL Green / Emerald Waypoint Ring & Chevrons
+        const radius = 6 + prog * 16;
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+
+        // Outer expanding ripple
+        ctx.strokeStyle = '#22C55E';
+        ctx.lineWidth = Math.max(1, (1 - prog) * 2.5);
+        ctx.globalAlpha = alpha * 0.85;
+        ctx.beginPath();
+        ctx.ellipse(m.x, m.y + 4, radius, radius * 0.48, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Inner core pulse
+        const innerRadius = 3 + (1 - prog) * 6;
+        ctx.strokeStyle = '#4ADE80';
+        ctx.lineWidth = 2.0;
+        ctx.globalAlpha = alpha * 0.95;
+        ctx.beginPath();
+        ctx.ellipse(m.x, m.y + 4, innerRadius, innerRadius * 0.48, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 4 Inward Arrow Pips
+        const dR = radius * 1.15;
+        ctx.fillStyle = '#86EFAC';
+        ctx.globalAlpha = alpha * 0.90;
+        const angles = [0, Math.PI * 0.5, Math.PI, Math.PI * 1.5];
+        angles.forEach(ang => {
+          const cx = m.x + Math.cos(ang) * dR;
+          const cy = m.y + 4 + Math.sin(ang) * (dR * 0.48);
+          ctx.beginPath();
+          ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.restore();
+      } else {
+        // LOL Red Target / Attack Reticle on Enemy
+        const radius = 24 * (1 - prog * 0.2);
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = '#EF4444';
+        ctx.lineWidth = 2.4;
+        ctx.globalAlpha = alpha * 0.95;
+
+        // 4 targeting bracket segments
+        const segLen = 0.38;
+        for (let k = 0; k < 4; k++) {
+          const startAngle = k * (Math.PI / 2) + Math.PI / 4 - segLen / 2;
+          ctx.beginPath();
+          ctx.ellipse(m.x, m.y + 4, radius, radius * 0.48, 0, startAngle, startAngle + segLen);
+          ctx.stroke();
+        }
+
+        // Center red dot
+        ctx.fillStyle = '#F87171';
+        ctx.globalAlpha = alpha * 0.95;
+        ctx.beginPath();
+        ctx.arc(m.x, m.y + 4, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+    ctx.restore();
+  }
+
+  setupMouseNavigation() {
+    const handlePointerDown = (e) => {
+      if (this.battleEnded || this.isCountdownActive) return;
+
+      // Accept both Left Click (0) and Right Click (2)
+      if (e.button !== 0 && e.button !== 2) return;
+
+      // Suppress browser context menu on right click
+      if (e.button === 2) {
+        e.preventDefault();
+      }
+
+      // Ignore clicks on HUD buttons, cards, menus or modals
+      if (e.target && e.target !== this.canvas) {
+        if (e.target.closest('button, input, select, textarea, .swsh-databox, .battle-action-cluster, .battle-quick-items-hud, .swsh-command-bar, .battle-modal-panel, .battle-modal-content, .battle-team-modal, .battle-bag-modal, .battle-pbc, .pkmn-box-cell, .battle-bag-slot, .result-modal, .battle-rewards-tray, .team-grid-cell, .bag-grid-cell, .slot-action-btn, .swsh-move-btn, .party-switch-btn')) {
+          return;
+        }
+      }
+
+      // Auto-engage active combat on click if in standby
+      if (this.combatState !== 'active') {
+        this.setCombatActive(true);
+        if (this.hud && typeof this.hud.switchSubMenu === 'function' && this.hud.currentSubMenu === 'main') {
+          this.hud.switchSubMenu('fight');
+        }
+      }
+
+      if (!this.playerEntity || this.playerEntity.isFainted) return;
+
+      const { x, y } = this.getCanvasCoords(e);
+
+      // 1. Click on Enemy Pokémon -> Attack-Move command
+      if (this.enemyEntity && !this.enemyEntity.isFainted) {
+        const enemyHitRadius = Math.max(30, (this.enemyEntity.radius || 24) * 1.5);
+        const distToEnemy = Math.hypot(x - this.enemyEntity.x, y - (this.enemyEntity.y - 10));
+
+        if (distToEnemy <= enemyHitRadius) {
+          this.addClickMarker(this.enemyEntity.x, this.enemyEntity.y, 'attack');
+          if (soundManager.playShoot) soundManager.playShoot();
+
+          const distPlayerToEnemy = Math.hypot(this.enemyEntity.x - this.playerEntity.x, this.enemyEntity.y - this.playerEntity.y);
+          const attackRange = 75;
+
+          if (distPlayerToEnemy <= attackRange) {
+            this.playerEntity.clearMoveDestination();
+            this.executePlayerBasicAttack();
+          } else {
+            const ang = Math.atan2(this.playerEntity.y - this.enemyEntity.y, this.playerEntity.x - this.enemyEntity.x);
+            const approachX = this.enemyEntity.x + Math.cos(ang) * (attackRange - 12);
+            const approachY = this.enemyEntity.y + Math.sin(ang) * (attackRange - 12);
+            this.playerEntity.setMoveDestination(approachX, approachY);
+            this.playerEntity.pendingEnemyTarget = true;
+          }
+          return;
+        }
+      }
+
+      // 2. Click on ground -> Move destination (LOL style)
+      const clamped = this.arena.clampToBounds(x, y);
+      this.playerEntity.setMoveDestination(clamped.x, clamped.y);
+      this.playerEntity.pendingEnemyTarget = false;
+      this.addClickMarker(clamped.x, clamped.y, 'move');
+      if (soundManager.playSelect) soundManager.playSelect();
+      this.isMouseDownMoving = true;
+    };
+
+    const handlePointerMove = (e) => {
+      if (!this.isMouseDownMoving) return;
+      if (this.battleEnded || !this.playerEntity || this.playerEntity.isFainted) return;
+      const { x, y } = this.getCanvasCoords(e);
+      const clamped = this.arena.clampToBounds(x, y);
+      this.playerEntity.setMoveDestination(clamped.x, clamped.y);
+    };
+
+    const handlePointerUp = () => {
+      this.isMouseDownMoving = false;
+    };
+
+    const preventContextMenu = (e) => {
+      e.preventDefault();
+      return false;
+    };
+
+    this.canvas.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('mousemove', handlePointerMove);
+    window.addEventListener('mouseup', handlePointerUp);
+    this.canvas.addEventListener('contextmenu', preventContextMenu);
+    window.addEventListener('contextmenu', preventContextMenu);
+
+    const battleContainer = document.getElementById('battle-ui-container');
+    if (battleContainer) {
+      battleContainer.addEventListener('mousedown', handlePointerDown);
+      battleContainer.addEventListener('contextmenu', preventContextMenu);
+    }
+
+    this._mouseCleanup = () => {
+      this.canvas.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('mousemove', handlePointerMove);
+      window.removeEventListener('mouseup', handlePointerUp);
+      this.canvas.removeEventListener('contextmenu', preventContextMenu);
+      window.removeEventListener('contextmenu', preventContextMenu);
+      if (battleContainer) {
+        battleContainer.removeEventListener('mousedown', handlePointerDown);
+        battleContainer.removeEventListener('contextmenu', preventContextMenu);
+      }
+    };
+  }
+
   destroy() {
     this.stop();
     if (this.ctx && this.canvas) {
@@ -1688,6 +1964,7 @@ export class BattleEngine {
     if (this.inputManager) {
       this.inputManager.destroy();
     }
+    this._mouseCleanup?.();
     this.particleSystem.reset();
     this.projectileSystem.reset();
     this.playerEntity = null;

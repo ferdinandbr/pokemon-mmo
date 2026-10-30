@@ -7,6 +7,7 @@ import {
   renderPixelPoisonBubbles,
   renderDefensiveBarrier,
   renderDizzyStars,
+  renderVCreateDashAura,
   getTypeColor,
   getTypePalette,
 } from './pixelArtVfx.js';
@@ -234,13 +235,13 @@ export class PokemonEntity {
     this.physicalAttackTimer = 0;
     this.physicalCooldown = 0;
 
-    // Defense & i-frames (Authentic Defensive Moves: Withdraw, Fire Spin, Light Screen, Barrier)
     this.isGuarding = false;
-    this.guardShieldPower = 0.75; // 75% damage mitigation
+    this.guardShieldPower = 0.70; // 70% damage mitigation
     this.iframesTimer = 0; // 0.2s invulnerability post impact
     this.defensiveMove = data.defensiveMove || null;
     this.defenseCooldown = 0;
     this.defenseDurationTimer = 0;
+    this.perfectParryTimer = 0; // 0.18s Perfect Parry active window upon raising guard
 
     // Continuous Beam Channeling (Rooted during duration; cancelled on movement)
     this.isChannelingBeam = false;
@@ -335,6 +336,13 @@ export class PokemonEntity {
     this.dashStartY = 0;
     this.jumpOffset = 0; // Vertical offset for parabolic jumps (Steamroller, Bounce)
     this.twisterSpinTimer = 0;
+    this.uppercutTimer = 0;
+    this.uppercutTotal = 0.55;
+    this.uppercutPushX = 0;
+    this.uppercutPushY = 0;
+    this.isCounterActive = false;
+    this.counterTimer = 0;
+    this.isFlyingPress = false;
     this.twisterSpinTotal = 0;
     this.spinAngle = 0;
     this.isRetreatingToOrigin = false;
@@ -476,6 +484,7 @@ export class PokemonEntity {
   }
 
   executeDefenseAction(forceRemote = false) {
+    this.clearMoveDestination();
     if (this.isFainted || this.state === 'celebrating' || this.isDizzy) return false;
     if (!forceRemote && this.defenseCooldown > 0) return false;
 
@@ -490,8 +499,9 @@ export class PokemonEntity {
     this.defenseCooldown = this.defenseCooldownMax;
 
     this.state = 'defending';
-    this.defenseDurationTimer = 1.5; // Imobilização exata de 1.5s
+    this.defenseDurationTimer = 1.4; // Imobilização de 1.4s
     this.isGuarding = true;
+    this.perfectParryTimer = 0.18; // Janela de 180ms para Parry Perfeito com stagger no atacante!
     this.guardShieldPower = 0.70; // 70% de redução de dano recebido
     this.vx = 0;
     this.vy = 0;
@@ -550,12 +560,15 @@ export class PokemonEntity {
     this.onStateChange();
   }
 
-  // Absorb damage into Guard Meter
+  // Absorb damage into Guard Meter & Stamina
   absorbGuardHit(absorbedAmount) {
     this.guardBlockFlashTimer = 0.22;
-    const staminaLoss = Math.max(8, Math.round(absorbedAmount * 0.65));
-    this.guardMeter = Math.max(0, this.guardMeter - staminaLoss);
-    if (this.guardMeter <= 0) {
+    const guardLoss = Math.max(8, Math.round(absorbedAmount * 0.65));
+    const staminaLoss = Math.max(5, Math.round(absorbedAmount * 0.40));
+    this.guardMeter = Math.max(0, this.guardMeter - guardLoss);
+    this.stamina = Math.max(0, this.stamina - staminaLoss);
+    this.staminaRegenDelay = 1.0; // Pausa regeneração de stamina ao absorver impacto na guarda
+    if (this.guardMeter <= 0 || this.stamina <= 0) {
       this.triggerGuardBreak();
     }
     this.onStateChange();
@@ -582,9 +595,10 @@ export class PokemonEntity {
     if (this.isFainted) return;
     this.currentHp = Math.max(0, this.currentHp - amount);
     this.particleSystem.addFloatingText(this.x, this.y - 14, label, type, false);
-    this.onStateChange();
     if (this.currentHp <= 0) {
       this.faint();
+    } else {
+      this.onStateChange();
     }
   }
 
@@ -596,6 +610,17 @@ export class PokemonEntity {
     this.vx = 0;
     this.vy = 0;
     this.onLog(`🌪️ <strong>${this.data.name}</strong> foi arremessado no ar girando pelo ciclone!`, 'dragon');
+    this.onStateChange();
+  }
+
+  // Sky Uppercut Knockup: Lança o alvo verticalmente ao ar com recuo horizontal
+  applyUppercutKnockup(pushX = 0, pushY = 0, duration = 0.55) {
+    if (this.isFainted) return;
+    this.uppercutTimer = duration;
+    this.uppercutTotal = duration;
+    this.uppercutPushX = pushX;
+    this.uppercutPushY = pushY;
+    this.onLog(`🥊 🚀 <strong>${this.data.name}</strong> foi lançado aos ares pelo Sky Uppercut!`, 'fighting');
     this.onStateChange();
   }
 
@@ -640,8 +665,20 @@ export class PokemonEntity {
       this.dodgeCooldown = Math.max(0, this.dodgeCooldown - dt);
     }
 
-    // Dynamic Movement Stamina Regeneration over time
-    if (this.staminaRegenDelay > 0) {
+    // Perfect Parry Timer countdown
+    if (this.perfectParryTimer > 0) {
+      this.perfectParryTimer = Math.max(0, this.perfectParryTimer - dt);
+    }
+
+    // Dynamic Movement Stamina Management
+    if (this.isGuarding) {
+      // Guarda ativa drena stamina e pausa a regeneração natural (evita turtling infinito)
+      this.staminaRegenDelay = 0.6;
+      this.stamina = Math.max(0, this.stamina - 12 * dt);
+      if (this.stamina <= 0) {
+        this.triggerGuardBreak();
+      }
+    } else if (this.staminaRegenDelay > 0) {
       this.staminaRegenDelay = Math.max(0, this.staminaRegenDelay - dt);
     } else if (this.stamina < this.maxStamina && !this.isFainted) {
       this.stamina = Math.min(this.maxStamina, this.stamina + this.staminaRegenRate * dt);
@@ -649,6 +686,14 @@ export class PokemonEntity {
 
     if (this.recoilTimer > 0) {
       this.recoilTimer = Math.max(0, this.recoilTimer - dt);
+      const recoilFriction = Math.pow(0.82, dt * 60);
+      this.vx *= recoilFriction;
+      this.vy *= recoilFriction;
+      if (this.recoilTimer <= 0) {
+        this.recoilTimer = 0;
+        this.vx = 0;
+        this.vy = 0;
+      }
     }
 
     if (this.beamLockTimer > 0) {
@@ -717,11 +762,15 @@ export class PokemonEntity {
 
     if (this.knockbackTimer > 0) {
       this.knockbackTimer = Math.max(0, this.knockbackTimer - dt);
-      this.vx *= 0.91;
-      this.vy *= 0.91;
-      if (this.knockbackTimer <= 0) {
+      const friction = Math.pow(0.88, dt * 60);
+      this.vx *= friction;
+      this.vy *= friction;
+      if (Math.hypot(this.vx, this.vy) < 15 || this.knockbackTimer <= 0) {
+        this.knockbackTimer = 0;
         this.isKnockedBack = false;
         this.knockbackAttacker = null;
+        this.vx = 0;
+        this.vy = 0;
       }
     }
 
@@ -732,13 +781,41 @@ export class PokemonEntity {
       if (this.dizzyTimer <= 0) {
         this.isDizzy = false;
         this.dizzyTimer = 0;
+        this.hitStunImmunityTimer = 0.65; // Wake-up Super Armor pós-tontura: 0.65s para reagir e escapar sem stunlock
         this.sprite.setAnimation('Idle', true);
-        this.onLog(`✨ <strong>${this.data.name}</strong> recuperou a consciência da tontura!`, 'system');
+        this.particleSystem.addFloatingText(this.x, this.y - 18, 'RECUPEROU! (SUPER ARMOR)', 'crit', true);
+        this.onLog(`✨ <strong>${this.data.name}</strong> recuperou a consciência da tontura! (Super Armor concedida)`, 'system');
         this.onStateChange();
       }
     }
 
     // Twister Knockup & Spin: Joga o Pokémon no ar girando com o ciclone
+    // Counter Posture timer
+    if (this.counterTimer > 0) {
+      this.counterTimer = Math.max(0, this.counterTimer - dt);
+      if (this.counterTimer <= 0) {
+        this.isCounterActive = false;
+        this.isGuarding = false;
+        this.perfectParryTimer = 0;
+      }
+    }
+
+    // Sky Uppercut Knockup physics
+    if (this.uppercutTimer > 0) {
+      this.uppercutTimer = Math.max(0, this.uppercutTimer - dt);
+      const prog = 1.0 - (this.uppercutTimer / (this.uppercutTotal || 0.55));
+      this.jumpOffset = -Math.sin(prog * Math.PI) * 55;
+      this.x += this.uppercutPushX * dt;
+      this.y += this.uppercutPushY * dt;
+      if (this.uppercutTimer <= 0) {
+        this.jumpOffset = 0;
+        this.uppercutTimer = 0;
+        if (this.particleSystem) {
+          this.particleSystem.spawnDust(this.x, this.y + 10, 4);
+        }
+      }
+    }
+
     if (this.twisterSpinTimer > 0) {
       this.twisterSpinTimer = Math.max(0, this.twisterSpinTimer - dt);
       const prog = 1.0 - (this.twisterSpinTimer / (this.twisterSpinTotal || 0.85));
@@ -895,9 +972,9 @@ export class PokemonEntity {
 
           if (!target.isGuarding) {
             target.sprite.faceTowards(this.x, this.y, target.x, target.y);
-            const resolvedTumble = target.sprite.resolveActionName('TumbleBack');
-            if (target.sprite.currentAnimation !== resolvedTumble && !target.isFainted) {
-              target.sprite.setAnimation('TumbleBack', false);
+            const resolvedHurt = target.sprite.resolveActionName('Hurt');
+            if (target.sprite.currentAnimation !== resolvedHurt && !target.isFainted) {
+              target.sprite.setAnimation('Hurt', false);
             }
           }
 
@@ -1102,6 +1179,71 @@ export class PokemonEntity {
     }
   }
 
+  // Click-to-Move Destination Management (League of Legends Style)
+  setMoveDestination(targetX, targetY) {
+    if (this.isFainted || this.isDizzy || this.hitStunTimer > 0 || this.beamLockTimer > 0) return;
+    if (this.statusEffect && this.statusEffect.type === 'freeze') return;
+    if (this.isChannelingBeam) {
+      this.cancelBeamChanneling('movement');
+    }
+
+    const margin = this.radius || 18;
+    const clamped = (this.arena && typeof this.arena.clampToBounds === 'function')
+      ? this.arena.clampToBounds(targetX, targetY, margin)
+      : { x: targetX, y: targetY };
+
+    this.targetDest = { x: clamped.x, y: clamped.y };
+    this.isMovingToDest = true;
+  }
+
+  clearMoveDestination() {
+    this.targetDest = null;
+    this.isMovingToDest = false;
+    this.pendingEnemyTarget = false;
+  }
+
+  // Update real-time navigation towards click destination (League of Legends Style)
+  updateClickToMove(dt) {
+    if (!this.targetDest) return false;
+    if (this.isFainted || this.isDizzy || this.hitStunTimer > 0 || this.beamLockTimer > 0 || this.state === 'hurt' || this.state === 'dashing_strike' || this.state === 'defending' || this.isGuarding) {
+      this.clearMoveDestination();
+      return false;
+    }
+
+    // 1. If chasing an enemy target to attack
+    if (this.pendingEnemyTarget && this.target && !this.target.isFainted) {
+      const distToEnemy = Math.hypot(this.target.x - this.x, this.target.y - this.y);
+      const attackRange = 75;
+      if (distToEnemy <= attackRange) {
+        this.clearMoveDestination();
+        this.moveManual(0, 0, dt);
+        this.sprite.faceTowards(this.target.x, this.target.y, this.x, this.y);
+        if (this.engine && typeof this.engine.executePlayerBasicAttack === 'function') {
+          this.engine.executePlayerBasicAttack();
+        }
+        return false;
+      }
+    }
+
+    // 2. Vector towards target destination
+    const dx = this.targetDest.x - this.x;
+    const dy = this.targetDest.y - this.y;
+    const dist = Math.hypot(dx, dy);
+
+    // Arrived at destination (within 8px)
+    if (dist <= 8) {
+      this.clearMoveDestination();
+      this.moveManual(0, 0, dt);
+      return false;
+    }
+
+    const dirX = dx / dist;
+    const dirY = dy / dist;
+
+    this.moveManual(dirX, dirY, dt);
+    return true;
+  }
+
   // Manual 8-Direction Movement (Player WASD / Arrow Keys)
   moveManual(dirX, dirY, dt) {
     if (this.isFainted || this.state === 'celebrating') return;
@@ -1216,8 +1358,8 @@ export class PokemonEntity {
     this.vx = 0;
     this.vy = 0;
 
-    // Use specific authentic defensive animation (e.g. 'Withdraw' for Blastoise, 'Charge' for others)
-    this.sprite.setAnimation(defMove.anim || 'Charge', true);
+    // Defensive animation: Clean Charge stance with outline
+    this.sprite.setAnimation('Charge', true);
 
     soundManager.play(defMove.sound || '/assets/audio/se/anim/Wind1.ogg');
     this.onLog(
@@ -1359,23 +1501,36 @@ export class PokemonEntity {
   // Active Evasive Dodge (8-Directional double-tap dash with speed hatching blur & phasing through opponent)
   performEvasiveDodge(dirX = 0, dirY = 0, forceRemote = false) {
     if (!forceRemote) {
-      if (this.isFainted || this.state === 'celebrating' || this.isDizzy || this.beamLockTimer > 0 || this.hitStunTimer > 0 || this.state === 'hurt') return false;
+      if (this.isFainted || this.state === 'celebrating' || this.isDizzy || this.beamLockTimer > 0) return false;
+
+      // Combo Breaker: se estiver em hitstun (apanhando de combo normal, mas não tonto de parede)
+      const isComboBreakerAttempt = this.hitStunTimer > 0 || this.state === 'hurt';
+      const requiredStamina = isComboBreakerAttempt ? 45 : this.dashStaminaCost;
 
       // Buffer to avoid glitching two dashes on the very same 80ms window
       if (this.dodgeTimer > 0.08) return false;
 
-      // Movement Stamina Check: Dash is available as long as Pokémon has enough stamina!
-      if (this.stamina < this.dashStaminaCost) {
+      // Movement Stamina Check: Dash normal ou Combo Breaker
+      if (this.stamina < requiredStamina) {
         if (this.isPlayer) {
-          this.particleSystem.addFloatingText(this.x, this.y - 18, 'SEM STAMINA!', 'dodge', false);
+          this.particleSystem.addFloatingText(this.x, this.y - 18, isComboBreakerAttempt ? 'SEM STAMINA P/ BREAKER!' : 'SEM STAMINA!', 'dodge', false);
           soundManager.play('/assets/audio/se/anim/Cancel.ogg', 0.5);
         }
         return false;
       }
 
       // Deduct stamina and initiate regeneration delay
-      this.stamina = Math.max(0, this.stamina - this.dashStaminaCost);
-      this.staminaRegenDelay = 1.0; // 1.0s delay before natural recovery begins
+      this.stamina = Math.max(0, this.stamina - requiredStamina);
+      this.staminaRegenDelay = 1.0;
+
+      if (isComboBreakerAttempt) {
+        this.hitStunTimer = 0;
+        this.state = 'moving';
+        this.particleSystem.addFloatingText(this.x, this.y - 18, 'COMBO BREAKER!', 'crit', true);
+        this.particleSystem.spawnPixelBurst(this.x, this.y - 10, '#38BDF8', 22, 140, 0.40, 3.5);
+        soundManager.play('/assets/audio/se/anim/Crash.ogg', 0.85);
+        this.onLog?.(`💥 <strong>${this.data.name}</strong> executou um <strong>Combo Breaker</strong> e escapou do combo!`, 'system');
+      }
     } else {
       // Validated network action from remote PvP opponent
       if (this.isFainted || this.state === 'celebrating') return false;
@@ -1387,19 +1542,20 @@ export class PokemonEntity {
       this.cancelBeamChanneling('movement');
     }
 
+    this.clearMoveDestination();
     let dodgeX = dirX;
     let dodgeY = dirY;
 
-    // If no direction passed, dash through/past the opponent or current facing direction
+    // If no direction passed, evasive back-hop away from opponent or opposite to facing direction
     if (dodgeX === 0 && dodgeY === 0) {
       if (this.target && !this.target.isFainted) {
-        const dx = this.target.x - this.x;
-        const dy = this.target.y - this.y;
+        const dx = this.x - this.target.x; // AWAY from opponent!
+        const dy = this.y - this.target.y;
         const dist = Math.hypot(dx, dy) || 1;
         dodgeX = dx / dist;
         dodgeY = dy / dist;
       } else {
-        dodgeX = this.sprite.currentDirection === 2 ? 1 : -1;
+        dodgeX = this.sprite.currentDirection === 2 ? -1 : 1;
         dodgeY = 0;
       }
     }
@@ -1645,16 +1801,30 @@ export class PokemonEntity {
     const isSteamroller = sk && (sk.internalName === 'STEAMROLLER' || (sk.name && sk.name.toLowerCase().includes('steamroller')));
     const isUturn = sk && (sk.internalName === 'UTURN' || (sk.name && sk.name.toLowerCase().includes('u-turn')));
 
-    // Parabolic vertical jump arc for Steamroller: climbs up to 55px and slams down
+    // Parabolic vertical jump arc for Steamroller / High Jump Kick / Jump Kick: climbs up and slams down
+    const isHighRiskJump = sk && (sk.internalName === 'HIGHJUMPKICK' || sk.internalName === 'JUMPKICK' || sk.combatBehavior?.isHighRiskJump || (sk.name && (sk.name.toLowerCase().includes('high jump kick') || sk.name.toLowerCase().includes('jump kick'))));
+
     if (isSteamroller) {
       const totalT = this.totalDashTimer || 0.42;
       const progress = Math.max(0, Math.min(1, 1 - (this.stateTimer / totalT)));
       this.jumpOffset = -Math.sin(progress * Math.PI) * 55;
+    } else if (isHighRiskJump) {
+      const totalT = this.totalDashTimer || 0.40;
+      const progress = Math.max(0, Math.min(1, 1 - (this.stateTimer / totalT)));
+      this.jumpOffset = -Math.sin(progress * Math.PI) * 65;
     } else {
       this.jumpOffset = 0;
     }
 
     // Speed particles trail
+    if (isHighRiskJump) {
+      this.particleSystem.spawnPixelBurst(this.x, this.y + this.jumpOffset + 12, '#EF4444', 2, 45, 0.18, 2.0);
+    }
+    const isMachPunch = sk && (sk.internalName === 'MACHPUNCH' || (sk.name && sk.name.toLowerCase().includes('mach punch')) || sk.id === 108 || sk.combatBehavior?.isPriorityDash);
+    if (isMachPunch) {
+      this.particleSystem.spawnPixelBurst(this.x, this.y - 10, '#F59E0B', 3, 60, 0.15, 2.5);
+      this.particleSystem.spawnPixelBurst(this.x, this.y - 10, '#FFFFFF', 1, 30, 0.12, 1.5);
+    }
         const isBoltStrike = sk && (sk.internalName === 'BOLTSTRIKE' || (sk.name && sk.name.toLowerCase().includes('bolt strike')) || sk.id === 64 || sk.visual?.isBoltStrike);
     const isVoltTackle = sk && (sk.internalName === 'VOLTTACKLE' || (sk.name && sk.name.toLowerCase().includes('volt tackle')) || sk.id === 66 || sk.visual?.isVoltTackle);
     const isFusionBolt = sk && (sk.internalName === 'FUSIONBOLT' || (sk.name && sk.name.toLowerCase().includes('fusion bolt')) || sk.id === 68 || sk.visual?.isFusionBolt);
@@ -1670,7 +1840,15 @@ export class PokemonEntity {
       this.particleSystem.spawnPixelBurst(this.x, this.y, '#FFFFFF', 1, 30, 0.15, 1.5);
     }
     const isMegahornDash = sk && (sk.internalName === 'MEGAHORN' || (sk.name && sk.name.toLowerCase().includes('megahorn')));
-    if (isMegahornDash) {
+    const isVCreateDash = sk && (sk.internalName === 'VCREATE' || sk.visual?.isVCreate || (sk.name && sk.name.toLowerCase().includes('v-create')));
+    if (isVCreateDash) {
+      if (Math.random() < 0.65) {
+        this.particleSystem.spawnPixelBurst(this.x, this.y - 12, '#FF5722', 2, 55, 0.20, 2.5);
+      }
+      if (Math.random() < 0.45) {
+        this.particleSystem.spawnPixelBurst(this.x, this.y - 12, '#FACC15', 2, 40, 0.16, 2.0);
+      }
+    } else if (isMegahornDash) {
       this.particleSystem.spawnDust(this.x, this.y + 10, 1);
       this.particleSystem.spawnPixelBurst(this.x, this.y, '#8be316', 2, 40, 0.20, 2);
       this.particleSystem.spawnPixelBurst(this.x, this.y, '#ffffff', 1, 25, 0.16, 1.5);
@@ -1697,6 +1875,7 @@ export class PokemonEntity {
         this.currentDashingSkill = null;
 
         const isTwineedle = sk && (sk.internalName === 'TWINEEDLE' || (sk.name && sk.name.toLowerCase().includes('twineedle')));
+        const isVCreateHit = sk && (sk.internalName === 'VCREATE' || sk.visual?.isVCreate || (sk.name && sk.name.toLowerCase().includes('v-create')));
         const isDualChop = sk && (sk.internalName === 'DUALCHOP' || (sk.name && sk.name.toLowerCase().includes('dual chop')) || sk.id === 60 || sk.visual?.isDualChop);
         const isOutrage = sk && (sk.internalName === 'OUTRAGE' || (sk.name && sk.name.toLowerCase().includes('outrage')) || sk.id === 53 || sk.visual?.isOutrage);
         const isDragonAscent = sk && (sk.internalName === 'DRAGONASCENT' || (sk.name && sk.name.toLowerCase().includes('dragon ascent')) || sk.id === 620 || sk.visual?.isDragonAscent);
@@ -1706,8 +1885,59 @@ export class PokemonEntity {
         const isPursuit = sk && (sk.internalName === 'PURSUIT' || (sk.name && sk.name.toLowerCase().includes('pursuit')));
         const isFeintAttackHit = sk && (sk.internalName === 'FEINTATTACK' || (sk.name && sk.name.toLowerCase().includes('feint attack')));
 
+        const isSeismicToss = sk && (sk.internalName === 'SEISMICTOSS' || (sk.name && sk.name.toLowerCase().includes('seismic toss')) || sk.id === 119 || sk.combatBehavior?.isSeismicToss);
+        const isCircleThrow = sk && (sk.internalName === 'CIRCLETHROW' || (sk.name && sk.name.toLowerCase().includes('circle throw')) || sk.id === 101 || sk.combatBehavior?.isCircleThrow);
+        const isHighRiskJumpHit = sk && (sk.internalName === 'HIGHJUMPKICK' || sk.internalName === 'JUMPKICK' || sk.combatBehavior?.isHighRiskJump || (sk.name && (sk.name.toLowerCase().includes('high jump kick') || sk.name.toLowerCase().includes('jump kick'))));
+        const isMachPunchHit = sk && (sk.internalName === 'MACHPUNCH' || (sk.name && sk.name.toLowerCase().includes('mach punch')) || sk.id === 108 || sk.combatBehavior?.isPriorityDash);
+        const isCrossChop = sk && (sk.internalName === 'CROSSCHOP' || (sk.name && sk.name.toLowerCase().includes('cross chop')) || sk.id === 89 || sk.visual?.isCrossChop);
+
+        // Se o oponente estiver em esquiva (dodge roll) contra High Jump Kick, o atacante sofre crash whiff
+        if (isHighRiskJumpHit && this.target.dodgeTimer > 0) {
+          this.particleSystem.addFloatingText(this.target.x, this.target.y - 14, 'ESQUIVOU!', 'dodge', false);
+          this.onLog(`💨 <strong>${this.target.data.name}</strong> esquivou do <strong>${sk.name}</strong> no ar!`, 'dodge');
+          this.triggerJumpKickCrash(sk);
+          return;
+        }
+
         if (sk) {
-          if (isDragonAscent) {
+          if (isSeismicToss) {
+            this.executeSeismicTossGrapple(this.target, sk, dashDirX, dashDirY);
+            return;
+          } else if (isCircleThrow) {
+            this.executeCircleThrow(this.target, sk, dashDirX, dashDirY);
+            return;
+          } else if (isHighRiskJumpHit) {
+            this.resolveSkillHit(this.target, sk);
+            this.particleSystem.spawnShockwave(this.target.x, this.target.y, 65, '#EF4444', 0.35);
+            this.particleSystem.spawnPixelBurst(this.target.x, this.target.y - 14, '#DC2626', 26, 180, 0.40, 3.5);
+            if (this.arena && this.arena.triggerScreenShake) this.arena.triggerScreenShake(14);
+            if (this.arena && this.arena.addDecal) this.arena.addDecal(this.target.x, this.target.y, 'crack', 28, 8.0);
+            soundManager.play('/assets/audio/se/anim/Crash.ogg', 0.90);
+            this.onLog(`💥 🥋 <strong>${this.data.name}</strong> acertou o chute aéreo devastador <strong>${sk.name}</strong>!`, 'fighting');
+            this.jumpOffset = 0;
+            this.state = 'moving';
+            this.recoilTimer = 0.20;
+            this.vx = -dashDirX * 180;
+            this.vy = -dashDirY * 180;
+            this.sprite.faceTowards(this.target.x, this.target.y, this.x, this.y);
+            this.onStateChange();
+            return;
+          } else if (isMachPunchHit) {
+            this.resolveSkillHit(this.target, sk);
+            this.particleSystem.spawnPunch(this.target.x, this.target.y, '#F59E0B', 0.30);
+            this.particleSystem.spawnShockwave(this.target.x, this.target.y, 50, '#F59E0B', 0.25);
+            this.particleSystem.spawnPixelBurst(this.target.x, this.target.y - 10, '#FFFFFF', 10, 100, 0.20, 2.0);
+            this.particleSystem.addFloatingText(this.target.x, this.target.y - 28, 'PRIORITY STRIKE!', 'speed', true);
+            soundManager.playPhysicalStrike();
+            this.jumpOffset = 0;
+            this.state = 'moving';
+            this.recoilTimer = 0.12;
+            this.vx = -dashDirX * 120;
+            this.vy = -dashDirY * 120;
+            this.sprite.faceTowards(this.target.x, this.target.y, this.x, this.y);
+            this.onStateChange();
+            return;
+          } else if (isDragonAscent) {
             // Dragon Ascent: Dash acertou! Sobe ao céu inalvejável e dispara o mergulho de sopro verde com burning!
             this.executeDragonAscentSky(this.target, sk);
             return;
@@ -1751,6 +1981,13 @@ export class PokemonEntity {
             this.particleSystem.spawnBite(this.target.x, this.target.y - 12, 0.35, sk.visual);
             this.particleSystem.spawnPixelBurst(this.target.x, this.target.y - 12, '#FACC15', 20, 160, 0.35, 3.0);
             this.particleSystem.spawnElectrocutedOverlay(this.target, 0.50);
+          } else if (isCrossChop) {
+            // Cross Chop: 2 cortes marciais cruzados em X com alta taxa crítica
+            this.resolveSkillHit(this.target, sk);
+            this.particleSystem.spawnSlash(this.target.x, this.target.y - 18, '#ef4444', true, 0.35, sk.visual);
+            this.particleSystem.spawnPixelBurst(this.target.x, this.target.y - 18, '#f87171', 24, 180, 0.40, 3.5);
+            this.particleSystem.spawnShockwave(this.target.x, this.target.y - 18, 52, '#ef4444', 0.30);
+            if (this.arena && this.arena.triggerScreenShake) this.arena.triggerScreenShake(9);
             soundManager.playPhysicalStrike();
           } else if (isDualChop) {
             // Dual Chop: 2 golpes consecutivos com dano dividido por 2
@@ -1767,6 +2004,23 @@ export class PokemonEntity {
               soundManager.playPhysicalStrike();
               if (this.arena && this.arena.triggerScreenShake) this.arena.triggerScreenShake(7);
             }, 130);
+          } else if (isVCreateHit) {
+            this.resolveSkillHit(this.target, sk);
+            this.particleSystem.spawnShockwave(this.target.x, this.target.y - 14, 70, '#FF5722', 0.40);
+            this.particleSystem.spawnPixelBurst(this.target.x, this.target.y - 18, '#FF5722', 32, 200, 0.45, 4.0);
+            this.particleSystem.spawnPixelBurst(this.target.x, this.target.y - 18, '#FACC15', 24, 160, 0.40, 3.2);
+            if (this.arena && this.arena.triggerScreenShake) this.arena.triggerScreenShake(14);
+            if (this.arena && this.arena.addDecal) this.arena.addDecal(this.target.x, this.target.y, 'scorch', 36, 10.0);
+            soundManager.play('/assets/audio/se/anim/Fire3.ogg', 0.95);
+            this.onLog(`🔥 ✌️ <strong>${this.data.name}</strong> colidiu devastadoramente com o <strong>${sk.name}</strong> ardente!`, 'fire');
+            this.jumpOffset = 0;
+            this.state = 'moving';
+            this.recoilTimer = 0.18;
+            this.vx = -dashDirX * 160;
+            this.vy = -dashDirY * 160;
+            this.sprite.faceTowards(this.target.x, this.target.y, this.x, this.y);
+            this.onStateChange();
+            return;
           } else if (isOutrage) {
             this.resolveSkillHit(this.target, sk);
             this.particleSystem.spawnShockwave(this.target.x, this.target.y - 18, 55, '#C084FC', 0.35);
@@ -1840,7 +2094,30 @@ export class PokemonEntity {
             this.resolveSkillHit(this.target, sk);
             this.particleSystem.addFloatingText(this.target.x, this.target.y - 28, 'FEINT ATTACK!', 'dark', false);
           } else {
-            this.resolveSkillHit(this.target, sk);
+            const isDoubleKick = sk && (sk.internalName === 'DOUBLEKICK' || sk.visual?.isDoubleKick);
+            const isTripleKick = sk && (sk.internalName === 'TRIPLEKICK' || sk.visual?.isTripleKick);
+            if (isDoubleKick) {
+              this.resolveSkillHit(this.target, sk, 2);
+              setTimeout(() => {
+                if (this.target && !this.target.isFainted) {
+                  this.resolveSkillHit(this.target, sk, 2);
+                }
+              }, 110);
+            } else if (isTripleKick) {
+              this.resolveSkillHit(this.target, sk, 3);
+              setTimeout(() => {
+                if (this.target && !this.target.isFainted) {
+                  this.resolveSkillHit(this.target, sk, 3);
+                }
+              }, 90);
+              setTimeout(() => {
+                if (this.target && !this.target.isFainted) {
+                  this.resolveSkillHit(this.target, sk, 3);
+                }
+              }, 180);
+            } else {
+              this.resolveSkillHit(this.target, sk);
+            }
           }
         } else {
           this.resolvePhysicalHit(this.target);
@@ -1849,6 +2126,15 @@ export class PokemonEntity {
         // Caso especial Steamroller: após esmagar, salta/retorna à posição inicial antes do pulo
         if (isSteamroller && (this.dashStartX !== 0 || this.dashStartY !== 0)) {
           this.startRetreatAnimation(this.dashStartX, this.dashStartY, 0.35, true);
+          return;
+        }
+
+        // Drain Punch: após o golpe, recua de volta à posição original de lançamento
+        const isDrainPunch = sk && (sk.internalName === 'DRAINPUNCH' || sk.visual?.isDrainPunch || sk.combatBehavior?.isDrainPunch);
+        if (isDrainPunch && (this.dashStartX !== 0 || this.dashStartY !== 0)) {
+          this.jumpOffset = 0;
+          this.isFlyingPress = false;
+          this.startRetreatAnimation(this.dashStartX, this.dashStartY, 0.35, false);
           return;
         }
 
@@ -1862,12 +2148,20 @@ export class PokemonEntity {
           return;
         }
 
-        // Attacker recoil padrão: recuo suave após impacto
+        // Attacker após acertar o dash no alvo:
         this.jumpOffset = 0;
         this.state = 'moving';
-        this.recoilTimer = 0.20;
-        this.vx = -dashDirX * 200;
-        this.vy = -dashDirY * 200;
+        if (this.target && this.target.isGuarding) {
+          // Apenas recua suavemente se o alvo estava bloqueando com escudo
+          this.recoilTimer = 0.10;
+          this.vx = -dashDirX * 100;
+          this.vy = -dashDirY * 100;
+        } else {
+          // Golpe limpo: atacante para com firmeza no ponto do impacto (sem empurrão inverso)
+          this.recoilTimer = 0;
+          this.vx = 0;
+          this.vy = 0;
+        }
         this.sprite.faceTowards(this.target.x, this.target.y, this.x, this.y);
         this.onStateChange();
         return;
@@ -1876,6 +2170,10 @@ export class PokemonEntity {
 
     // Se o timer esgotar sem acertar, o dash passou direto (desviado com sucesso!)
     if (this.stateTimer <= 0) {
+      if (sk && (sk.internalName === 'HIGHJUMPKICK' || sk.internalName === 'JUMPKICK' || sk.combatBehavior?.isHighRiskJump || (sk.name && (sk.name.toLowerCase().includes('high jump kick') || sk.name.toLowerCase().includes('jump kick'))))) {
+        this.triggerJumpKickCrash(sk);
+        return;
+      }
       if (!this.currentDashingSkill) {
         // Ataque básico passou direto (Whiff): penalidade de recuperação e perde o combo
         this.physicalCooldown = Math.max(this.physicalCooldown, 0.35);
@@ -1886,6 +2184,7 @@ export class PokemonEntity {
       this.feintPhase = 0;
       this.currentDashingSkill = null;
       this.jumpOffset = 0;
+      this.isFlyingPress = false;
       this.state = 'moving';
       this.vx *= 0.25;
       this.vy *= 0.25;
@@ -2042,6 +2341,182 @@ export class PokemonEntity {
     }, 30);
   }
 
+  // Seismic Toss: Gravitational Grapple Leap & Aerial Slam
+  executeSeismicTossGrapple(target, skill, dirX = 1, dirY = 0) {
+    if (!target || target.isFainted) return;
+    this.state = 'grappling';
+    target.state = 'hurt';
+    target.hitStunTimer = 0.65;
+    this.isUntargetable = true;
+    target.isUntargetable = true;
+    this.vx = 0;
+    this.vy = 0;
+    target.vx = 0;
+    target.vy = 0;
+
+    this.onLog(`🥋 💥 <strong>${this.data.name}</strong> agarrou <strong>${target.data.name}</strong> com <strong>Seismic Toss</strong> e decolou em rotação gravitacional!`, 'fighting');
+    soundManager.playPhysicalStrike();
+    this.particleSystem.spawnDust(this.x, this.y + 10, 6);
+    this.particleSystem.spawnShockwave(this.x, this.y, 45, '#F59E0B', 0.25);
+
+    let elapsed = 0;
+    const duration = 0.48; // 480ms de parábola aérea conjunta
+
+    const grappleInterval = setInterval(() => {
+      elapsed += 0.03;
+      if (this.isFainted || target.isFainted) {
+        clearInterval(grappleInterval);
+        this.isUntargetable = false;
+        target.isUntargetable = false;
+        this.jumpOffset = 0;
+        target.jumpOffset = 0;
+        this.state = 'moving';
+        return;
+      }
+
+      const progress = Math.min(1, elapsed / duration);
+      // Arco parabólico: sobe até 75px e desce bruscamente
+      const currentJump = -Math.sin(progress * Math.PI) * 75;
+      this.jumpOffset = currentJump;
+      target.jumpOffset = currentJump;
+
+      // Colagem visual do alvo junto ao atacante durante o agarrão
+      target.x = this.x + dirX * 16;
+      target.y = this.y + dirY * 16;
+
+      if (Math.random() < 0.4) {
+        this.particleSystem.spawnPixelBurst(this.x, this.y + currentJump + 14, '#F59E0B', 2, 40, 0.18, 2.0);
+      }
+
+      if (progress >= 1) {
+        clearInterval(grappleInterval);
+        this.isUntargetable = false;
+        target.isUntargetable = false;
+        this.jumpOffset = 0;
+        target.jumpOffset = 0;
+
+        // Esmagamento final no piso da arena
+        this.resolveSkillHit(target, skill);
+        this.particleSystem.spawnShockwave(target.x, target.y, 75, '#EF4444', 0.40);
+        this.particleSystem.spawnPixelBurst(target.x, target.y - 14, '#DC2626', 30, 200, 0.45, 4.0);
+        this.particleSystem.spawnDust(target.x, target.y + 8, 12);
+        if (this.arena && this.arena.triggerScreenShake) this.arena.triggerScreenShake(16);
+        if (this.arena && this.arena.addDecal) this.arena.addDecal(target.x, target.y, 'crater_round', 38, 9.0);
+        soundManager.play('/assets/audio/se/anim/Crash.ogg', 0.95);
+
+        // Finalização do atacante: planta firme no chão após o esmagamento
+        this.state = 'moving';
+        this.recoilTimer = 0;
+        this.vx = 0;
+        this.vy = 0;
+        this.actionCooldown = 0.35;
+        target.applyPush(dirX, dirY, 480, this);
+
+        this.onLog(`💥 🥋 <strong>${this.data.name}</strong> esmagou <strong>${target.data.name}</strong> violentamente contra o solo da arena!`, 'fighting');
+        this.onStateChange();
+      }
+    }, 30);
+  }
+
+  // Circle Throw: Centrifugal 360-spin & High-Velocity Linear Ejection
+  executeCircleThrow(target, skill, dirX = 1, dirY = 0) {
+    if (!target || target.isFainted) return;
+    this.state = 'grappling';
+    target.state = 'hurt';
+    target.hitStunTimer = 0.60;
+    this.vx = 0;
+    this.vy = 0;
+    target.vx = 0;
+    target.vy = 0;
+
+    this.onLog(`🥋 🌀 <strong>${this.data.name}</strong> agarrou <strong>${target.data.name}</strong> e iniciou o giro centrífugo do <strong>Circle Throw</strong>!`, 'fighting');
+    soundManager.playPhysicalStrike();
+    this.particleSystem.spawnDust(this.x, this.y + 10, 6);
+    this.particleSystem.spawnShockwave(this.x, this.y, 45, '#EAB308', 0.25);
+
+    let elapsed = 0;
+    const spinDuration = 0.24; // 240ms de giro centrífugo rápido
+    const baseAngle = Math.atan2(dirY, dirX);
+
+    const throwInterval = setInterval(() => {
+      elapsed += 0.03;
+      if (this.isFainted || target.isFainted) {
+        clearInterval(throwInterval);
+        this.state = 'moving';
+        return;
+      }
+
+      const progress = Math.min(1, elapsed / spinDuration);
+      // Rotação orbital do alvo ao redor do atacante (360 graus)
+      const currentAngle = baseAngle + progress * Math.PI * 2;
+      const orbitRadius = 28;
+      target.x = this.x + Math.cos(currentAngle) * orbitRadius;
+      target.y = this.y + Math.sin(currentAngle) * (orbitRadius * 0.75);
+
+      if (Math.random() < 0.5) {
+        this.particleSystem.spawnPixelBurst(target.x, target.y - 10, '#F59E0B', 2, 50, 0.15, 2.0);
+      }
+
+      if (progress >= 1) {
+        clearInterval(throwInterval);
+
+        // Aplica o dano no momento da soltura
+        this.resolveSkillHit(target, skill);
+
+        // Arremesso devastador em linha reta (Opção B: controle de espaço e alta velocidade)
+        const throwPushSpeed = (skill && skill.combatBehavior?.throwForce) || 820;
+        target.applyPush(dirX, dirY, throwPushSpeed, this);
+        target.hitStunTimer = 0.50;
+
+        // Feedback audiovisual da ejeção do alvo
+        this.particleSystem.spawnShockwave(this.x, this.y, 65, '#EAB308', 0.35);
+        this.particleSystem.spawnPixelBurst(target.x, target.y - 12, '#F59E0B', 24, 220, 0.40, 3.5);
+        if (this.arena && this.arena.triggerScreenShake) this.arena.triggerScreenShake(14);
+        soundManager.play('/assets/audio/se/anim/Crash.ogg', 0.90);
+
+        this.state = 'moving';
+        this.actionCooldown = 0.40;
+        this.recoilTimer = 0;
+        this.vx = 0;
+        this.vy = 0;
+
+        this.onLog(`💥 🌀 <strong>${this.data.name}</strong> arremessou <strong>${target.data.name}</strong> para longe como um projétil!`, 'fighting');
+        this.onStateChange();
+      }
+    }, 30);
+  }
+
+  // High Jump Kick / Jump Kick: Crash Stun & Floor Impact on Whiff / Dodge
+  triggerJumpKickCrash(skill) {
+    this.currentDashingSkill = null;
+    this.jumpOffset = 0;
+    this.state = 'hurt';
+    this.hitStunTimer = 0.50; // Atordoamento de 500ms
+    this.actionCooldown = 0.60;
+    this.vx = 0;
+    this.vy = 0;
+
+    // Efeitos audiovisuais da colisão contra o piso
+    this.particleSystem.spawnShockwave(this.x, this.y, 50, '#EF4444', 0.35);
+    this.particleSystem.spawnDust(this.x, this.y + 10, 10);
+    this.particleSystem.spawnPixelBurst(this.x, this.y, '#DC2626', 18, 140, 0.35, 3.0);
+    if (this.arena && this.arena.triggerScreenShake) this.arena.triggerScreenShake(12);
+    if (this.arena && this.arena.addDecal) this.arena.addDecal(this.x, this.y, 'crack', 24, 7.0);
+    soundManager.play('/assets/audio/se/anim/Crash.ogg', 0.90);
+
+    // Dano de auto-colisão: 50% do poder base calibrado
+    const pwr = (skill && skill.power) || 100;
+    const crashDamage = Math.max(14, Math.round(pwr * 0.40));
+    this.takeDirectDamage(crashDamage, `💥 -${crashDamage} CRASH!`, 'physical');
+    this.particleSystem.addFloatingText(this.x, this.y - 24, 'CRASH WHIFF!', 'crit', true);
+
+    this.onLog(
+      `💥 ⚠️ <strong>${this.data.name}</strong> errou o chute no ar e colidiu violentamente contra o solo (-${crashDamage} HP)!`,
+      'crit'
+    );
+    this.onStateChange();
+  }
+
   resolvePhysicalHit(target) {
     if (!target || target.isFainted) return;
     if (target.dodgeTimer > 0) {
@@ -2074,21 +2549,79 @@ export class PokemonEntity {
     }
 
     let isBlocked = false;
-    if (target.isGuarding) {
-      const mitigationPct = target.guardShieldPower || 0.70;
-      const absorbedDmg = Math.round(finalDmg * mitigationPct);
-      finalDmg = Math.max(1, finalDmg - absorbedDmg);
-      isBlocked = true;
+    let isPerfectParry = false;
 
-      if (typeof target.absorbGuardHit === 'function') {
-        target.absorbGuardHit(absorbedDmg);
+    if (target.isGuarding) {
+      // Counter: se estiver na postura de Counter, reflete o golpe com contra-ataque massivo (2x dano)
+      if (target.isCounterActive && (skill.combatBehavior?.isContact !== false || isContactMove)) {
+        isPerfectParry = true;
+        isBlocked = true;
+        const counterDmg = Math.max(20, finalDmg * 2);
+        finalDmg = 0; // mitigação total no receptor de counter
+        target.isCounterActive = false;
+        target.counterTimer = 0;
+        target.perfectParryTimer = 0;
+        target.isGuarding = false;
+
+        const tCenter = typeof target.getHitCenter === 'function' ? target.getHitCenter() : { x: target.x, y: target.y - 28 };
+        target.particleSystem.spawnShockwave(tCenter.x, tCenter.y, 85, '#EF4444', 0.45);
+        target.particleSystem.spawnPixelBurst(tCenter.x, tCenter.y, '#FFFFFF', 30, 200, 0.5, 4.5);
+        target.particleSystem.addFloatingText(target.x, target.y - 22, '💥 CONTRA-ATAQUE (2X)!', 'crit', true);
+        soundManager.play('/assets/audio/se/anim/Crash.ogg', 1.0);
+        target.onLog?.(`🥋 💥 <strong>${target.data.name}</strong> ativou <strong>Counter</strong> e devolveu o golpe em dobro (${counterDmg} dano)!`, 'fighting');
+
+        // Revide imediato contra o atacante
+        setTimeout(() => {
+          if (!this.isFainted) {
+            this.takeDamage(counterDmg, true, false, 'fighting');
+            if (this.particleSystem && typeof this.particleSystem.spawnMoveSpriteAnim === 'function') {
+              this.particleSystem.spawnMoveSpriteAnim(this.x, this.y - 12, {
+                file: 'core/attack_physical_01.png',
+                cols: 5,
+                rows: 2,
+                startFrame: 0,
+                endFrame: 4,
+                fps: 24,
+                scale: 0.65
+              });
+            }
+          }
+        }, 80);
+      } else if (target.perfectParryTimer > 0) {
+        // PARRY PERFEITO! (Acerto durante a janela inicial de 0.18s)
+        isPerfectParry = true;
+        isBlocked = true;
+        finalDmg = 0; // 100% mitigado!
+
+        // Reembolso de stamina para o defensor
+        target.stamina = Math.min(target.maxStamina, target.stamina + 25);
+        target.staminaRegenDelay = 0;
+
+        // Feedback audiovisual de Parry Perfeito
+        const hitCenter = typeof target.getHitCenter === 'function' ? target.getHitCenter() : { x: target.x, y: target.y - 32 };
+        target.particleSystem.spawnShockwave(hitCenter.x, hitCenter.y, 75, '#FEF08A', 0.40);
+        target.particleSystem.spawnPixelBurst(hitCenter.x, hitCenter.y, '#FFFFFF', 28, 180, 0.45, 4.0);
+        target.particleSystem.addFloatingText(target.x, target.y - 20, '⚡ PARRY PERFEITO!', 'electric', true);
+        soundManager.play('/assets/audio/se/anim/Crash.ogg', 0.95);
+        if (target.arena?.triggerScreenShake) target.arena.triggerScreenShake(8);
+        target.onLog?.(`⚡ <strong>${target.data.name}</strong> executou um <strong>Parry Perfeito</strong> no timing exato!`, 'electric');
+      } else {
+        // Guarda passiva sustentada: mitigação de 70% com dreno de Guard Meter e Stamina
+        const mitigationPct = target.guardShieldPower || 0.70;
+        const absorbedDmg = Math.round(finalDmg * mitigationPct);
+        finalDmg = Math.max(1, finalDmg - absorbedDmg);
+        isBlocked = true;
+
+        if (typeof target.absorbGuardHit === 'function') {
+          target.absorbGuardHit(absorbedDmg);
+        }
       }
     }
 
     target.takeDamage(finalDmg, isCrit, isBlocked, 'physical');
 
-    // Freeze-Frame Hit-Stun (Hitstop táctil em ambos os Pokémon):
-    const freezeDuration = currentHit === 3 ? (isCrit ? 0.18 : 0.14) : (isCrit ? 0.12 : (currentHit === 2 ? 0.095 : 0.075));
+    // Freeze-Frame Hit-Stun (Hitstop táctil evidente em ambos os Pokémon):
+    const freezeDuration = isPerfectParry ? 0.22 : (currentHit === 3 ? (isCrit ? 0.22 : 0.18) : (isCrit ? 0.16 : (currentHit === 2 ? 0.12 : 0.09)));
     this.hitFreezeTimer = freezeDuration;
     target.hitFreezeTimer = freezeDuration;
 
@@ -2098,37 +2631,47 @@ export class PokemonEntity {
     const nx = kx / kDist;
     const ny = ky / kDist;
 
-    // Se o alvo estava em guarda: Parry / Stagger no atacante e quebra de combo!
-    if (isBlocked) {
+    if (isPerfectParry) {
+      // Parry Perfeito desestabiliza totalmente o atacante com Stagger!
       this.recoilTimer = 0.30;
       this.vx = -nx * 260;
       this.vy = -ny * 260;
-      this.physicalCooldown = 0.65;
-      this.actionCooldown = 0.50;
-      this.comboStep = 0; // Guarda quebra o combo imediatamente!
+      this.physicalCooldown = 0.70;
+      this.actionCooldown = 0.60;
+      this.comboStep = 0; // Quebra o combo!
       this.comboWindowTimer = 0;
-      this.particleSystem.addFloatingText(this.x, this.y - 18, 'REPELIDO!', 'blocked', true);
+      this.particleSystem.addFloatingText(this.x, this.y - 18, 'DESESTABILIZADO!', 'crit', true);
+    } else if (isBlocked) {
+      // Guarda passiva: leve recuo no atacante ao colidir com o escudo
+      this.recoilTimer = 0.10;
+      this.vx = -nx * 90;
+      this.vy = -ny * 90;
+      this.particleSystem.addFloatingText(this.x, this.y - 18, 'BLOQUEADO!', 'blocked', false);
       soundManager.playHit(false, true);
-      this.onLog(`🛡️ <strong>${target.data.name}</strong> bloqueou o ataque básico e repeliu <strong>${this.data.name}</strong>!`, 'defensive');
     } else {
-      // Empurrão calibrado por etapa: nos hits 1 e 2 o alvo não voa longe para permitir o combo; no Finisher voa com força!
+      // Hit conectado limpo: O ATACANTE NÃO É EMPURRADO! Mantém firmeza e pressão no alvo
+      this.recoilTimer = 0;
+      this.vx = 0;
+      this.vy = 0;
+
+      // Hitstun no defensor:
+      if (currentHit === 1) {
+        target.hitStunTimer = 0.28;
+      } else if (currentHit === 2) {
+        target.hitStunTimer = 0.20;
+      } else {
+        target.hitStunTimer = 0.40; // Finisher
+      }
+
+      // Empurrão calibrado e dinâmico exclusivamente no DEFENSOR (target):
       let pushSpeed;
       if (currentHit === 3) {
-        pushSpeed = target.isGuarding ? 360 : 720;
-        this.recoilTimer = 0.20;
-        this.vx = -nx * 130;
-        this.vy = -ny * 130;
-        target.hitStunImmunityTimer = 0.60; // Anti-stunlock: defensor ganha 0.60s de Super Armor pós-Finisher
+        pushSpeed = target.isGuarding ? 360 : (isCrit ? 820 : 700);
+        target.hitStunImmunityTimer = 0.60; // Anti-stunlock pós-Finisher
       } else if (currentHit === 2) {
-        pushSpeed = target.isGuarding ? 180 : 340;
-        this.recoilTimer = 0.10;
-        this.vx = -nx * 65;
-        this.vy = -ny * 65;
+        pushSpeed = target.isGuarding ? 160 : 320;
       } else {
-        pushSpeed = target.isGuarding ? 140 : 260;
-        this.recoilTimer = 0.10;
-        this.vx = -nx * 55;
-        this.vy = -ny * 55;
+        pushSpeed = target.isGuarding ? 120 : 220;
       }
       target.applyPush(nx, ny, pushSpeed, this);
     }
@@ -2219,7 +2762,7 @@ export class PokemonEntity {
     if (!this.isGuarding && attacker && !attacker.isFainted) {
       this.sprite.faceTowards(attacker.x, attacker.y, this.x, this.y);
     }
-    this.sprite.setAnimation('TumbleBack', false);
+    this.sprite.setAnimation('Hurt', false);
 
     if (this.particleSystem && this.particleSystem.spawnDust) {
       this.particleSystem.spawnDust(this.x, this.y + 12, 5);
@@ -2237,20 +2780,20 @@ export class PokemonEntity {
     this.vx = nx * speed;
     this.vy = ny * speed;
     this.isKnockedBack = true;
-    this.knockbackTimer = 0.32; // Solid slide duration for satisfying impact
+    this.knockbackTimer = Math.min(0.48, Math.max(0.24, speed / 1300)); // Duração dinâmica proporcional à força do empurrão
     this.knockbackAttacker = attacker;
     this.recoilTimer = 0;
     // Maintain eye contact with attacker while being pushed unless guard/shield is active
     if (!this.isGuarding && attacker && !attacker.isFainted) {
       this.sprite.faceTowards(attacker.x, attacker.y, this.x, this.y);
     }
-    this.sprite.setAnimation('TumbleBack', false);
+    this.sprite.setAnimation('Hurt', false);
     if (this.particleSystem && this.particleSystem.spawnDust) {
-      this.particleSystem.spawnDust(this.x, this.y + 12, 5);
+      this.particleSystem.spawnDust(this.x, this.y + 12, speed > 400 ? 7 : 4);
     }
-    if (this.arena && this.arena.addDecal && speed >= 200) {
+    if (this.arena && this.arena.addDecal && speed >= 260) {
       const slideAngle = Math.atan2(ny, nx);
-      this.arena.addDecal(this.x, this.y + 6, 'skid_trench', 24, 6.0, slideAngle);
+      this.arena.addDecal(this.x, this.y + 6, 'skid_trench', speed > 450 ? 32 : 24, 6.0, slideAngle);
     }
   }
 
@@ -2260,14 +2803,14 @@ export class PokemonEntity {
 
     const hpRatio = this.currentHp / this.maxHp;
     if (this.isKnockedBack && hpRatio <= 0.30 && !this.isDizzy) {
-      this.applyDizziness(1.5);
+      this.applyDizziness(0.85); // Reduzido de 1.5s para 0.85s (evita snowball mortal)
     } else if (impactSpeed > 160) {
       this.particleSystem.spawnDust(this.x, this.y, 4);
     }
   }
 
-  // Dizziness (Tontura) state: 1.5s total immobilization with orbiting golden pixel stars
-  applyDizziness(duration = 1.5) {
+  // Dizziness (Tontura) state: 0.85s total immobilization with orbiting golden pixel stars
+  applyDizziness(duration = 0.85) {
     if (this.isFainted || this.isDizzy) return;
     this.isDizzy = true;
     this.dizzyTimer = duration;
@@ -2291,9 +2834,9 @@ export class PokemonEntity {
     }
     this.particleSystem.spawnPixelBurst(this.x, this.y, '#FFD700', 24, 180, 0.5, 4);
     this.particleSystem.spawnShockwave(this.x, this.y, 50, '#FFD700', 0.35);
-    this.particleSystem.addFloatingText(this.x, this.y - 20, 'TONTURA! (1.5s)', 'electric', true);
+    this.particleSystem.addFloatingText(this.x, this.y - 20, 'TONTURA! (0.8s)', 'electric', true);
 
-    this.onLog(`💫 <strong>${this.data.name}</strong> colidiu contra o limite da arena e ficou <strong>TONTO</strong> por 1.5s!`, 'system');
+    this.onLog(`💫 <strong>${this.data.name}</strong> colidiu contra o limite da arena e ficou <strong>TONTO</strong> por 0.8s!`, 'system');
     this.onStateChange();
   }
 
@@ -2310,7 +2853,7 @@ export class PokemonEntity {
     // Direct contact declaration from Move Spec
     if (skill.combatBehavior && skill.combatBehavior.isContact) return true;
 
-    if (rawMode === 'dash' || rawMode === 'melee_dash' || rawMode === 'strike') return true;
+    if (rawMode === 'dash' || rawMode === 'melee_dash' || rawMode === 'strike' || rawMode === 'grapple' || rawMode === 'high_risk_jump' || rawMode === 'priority_dash') return true;
 
     const name = (skill.name || skill.internalName || '').toLowerCase();
     const meleeKeywords = [
@@ -2320,7 +2863,8 @@ export class PokemonEntity {
       'fury', 'fúria', 'bind', 'constrição', 'x-scissor', 'jab', 'claw', 'garra',
       'fang', 'presa', 'peck', 'bicada', 'drill', 'broca', 'takedown',
       'take down', 'double-edge', 'body slam', 'wrap', 'clamp', 'superpower', 'close combat',
-      'outrage', 'thrash', 'aqua tail', 'iron tail', 'poison jab', 'drain punch', 'mach punch'
+      'outrage', 'thrash', 'aqua tail', 'iron tail', 'poison jab', 'drain punch', 'mach punch',
+      'seismic toss', 'circle throw', 'high jump kick', 'jump kick'
     ];
     if (meleeKeywords.some(k => name.includes(k))) return true;
 
@@ -2358,7 +2902,32 @@ export class PokemonEntity {
     const dx = target.x - this.x;
     const dy = target.y - this.y;
     const dist = Math.hypot(dx, dy) || 1;
-    const spd = Math.max(900, skill.dashSpeed || 920);
+    let spd = Math.max(900, skill.dashSpeed || 920);
+
+    const isMachPunch = skill.internalName === 'MACHPUNCH' || (skill.name && skill.name.toLowerCase().includes('mach punch')) || skill.id === 108 || skill.combatBehavior?.isPriorityDash;
+    if (isMachPunch) {
+      spd = 1220; // Avanço ultrarrápido com máxima prioridade (Gap-Closer)
+      this.stateTimer = 0.22;
+      this.totalDashTimer = 0.22;
+      this.actionCooldown = 0.35;
+    }
+
+    const isHighRiskJump = skill.internalName === 'HIGHJUMPKICK' || skill.internalName === 'JUMPKICK' || skill.combatBehavior?.isHighRiskJump || (skill.name && (skill.name.toLowerCase().includes('high jump kick') || skill.name.toLowerCase().includes('jump kick')));
+    if (isHighRiskJump) {
+      spd = 960;
+      this.stateTimer = 0.40;
+      this.totalDashTimer = 0.40;
+      this.actionCooldown = 0.55;
+    }
+
+    const isFlyingPressSkill = skill.internalName === 'FLYINGPRESS' || skill.visual?.isFlyingPress || skill.combatBehavior?.isFlyingPress;
+    if (isFlyingPressSkill) {
+      spd = 1040;
+      this.stateTimer = 0.45;
+      this.totalDashTimer = 0.45;
+      this.actionCooldown = 0.60;
+      this.isFlyingPress = true;
+    }
 
     const isFeintAttack = skill.internalName === 'FEINTATTACK' || (skill.name && skill.name.toLowerCase().includes('feint attack'));
     if (isFeintAttack) {
@@ -2398,7 +2967,7 @@ export class PokemonEntity {
     this.vy = this.dashDirY * this.dashSpeed;
 
     this.sprite.faceTowards(target.x, target.y, this.x, this.y);
-    this.sprite.setAnimation('Attack', false);
+    this.sprite.setAnimation(isHighRiskJump ? 'Strike' : 'Attack', false);
 
     soundManager.playPhysicalStrike();
     this.particleSystem.spawnDust(this.x, this.y + 10, 6);
@@ -2407,7 +2976,14 @@ export class PokemonEntity {
       this.particleSystem.burst(this.x, this.y, skill.color, 6, 120, 0.35, 3);
     }
 
-    this.onLog(`⚡ ${this.data.name} avançou com <strong>${skill.name}</strong> em investida!`, skill.type?.toLowerCase() || 'physical');
+    if (isMachPunch) {
+      this.particleSystem.spawnPixelBurst(this.x, this.y, '#F59E0B', 12, 140, 0.25, 2.5);
+      this.onLog(`⚡ 💨 <strong>${this.data.name}</strong> avançou com prioridade supersônica usando <strong>${skill.name}</strong>!`, 'fighting');
+    } else if (isHighRiskJump) {
+      this.onLog(`🥋 🦘 <strong>${this.data.name}</strong> saltou alto desferindo o chute aéreo arriscado <strong>${skill.name}</strong>!`, 'fighting');
+    } else {
+      this.onLog(`⚡ ${this.data.name} avançou com <strong>${skill.name}</strong> em investida!`, skill.type?.toLowerCase() || 'physical');
+    }
   }
 
   // EXECUTE SKILL / MOVE (Strict cooldown & PP check)
@@ -2416,6 +2992,7 @@ export class PokemonEntity {
   }
 
   executeSkill(skillIndex, forceRemote = false, remoteSkillData = null) {
+    this.clearMoveDestination();
     this.setTemporaryEmotion('Angry', 1300);
 
     if (!this.target && this.engine) {
@@ -2463,6 +3040,20 @@ export class PokemonEntity {
         this.onLog(`⚠️ <strong>${this.data.name}</strong> está sem PP para <strong>${skill.name}</strong>!`, 'system');
         return false;
       }
+
+      // Skill Stamina check: Habilidades exigem fôlego proporcional ao poder
+      const skillPwr = skill.power || 0;
+      const skillStaminaCost = skillPwr <= 0 ? 14 : (skillPwr <= 65 ? 20 : (skillPwr <= 95 ? 26 : 34));
+      if (this.stamina < skillStaminaCost) {
+        if (this.isPlayer) {
+          this.particleSystem.addFloatingText(this.x, this.y - 18, 'SEM STAMINA P/ HABILIDADE!', 'dodge', false);
+          soundManager.play('/assets/audio/se/anim/Cancel.ogg', 0.5);
+        }
+        return false;
+      }
+      this.stamina = Math.max(0, this.stamina - skillStaminaCost);
+      this.staminaRegenDelay = 0.85;
+
       if (skill.pp !== undefined && skill.pp > 0) {
         skill.pp--;
       }
@@ -2509,7 +3100,7 @@ export class PokemonEntity {
     if (isCharge) {
       animName = 'Charge';
     } else if (isBeamOrVolumetric) {
-      animName = 'DeepBreath';
+      animName = 'Shoot';
     } else {
       animName = 'Shoot';
     }
@@ -2569,6 +3160,36 @@ export class PokemonEntity {
       mode = 'projectile';
     } else if (!mode) {
       mode = 'projectile';
+    }
+
+    const isSpecialBugProceduralBeam = skill.internalName === 'BUGBUZZ' || skill.internalName === 'SILVERWIND';
+    const isStandardBeam = mode === 'beam' || mode === 'stream';
+    if (skill.type === 'Bug' && (!isStandardBeam || isSpecialBugProceduralBeam)) {
+      const origin = typeof this.getAttackOrigin === 'function' ? this.getAttackOrigin() : { x: this.x, y: this.y - 20 };
+      const isBuff = mode === 'buff' || skill.category === 'Status';
+      const duration = isBuff ? 0.85 : 0.65;
+
+      this.sprite.faceTowards(target.x, target.y, this.x, this.y);
+      this.particleSystem.spawnProceduralBugMove(
+        isBuff ? this.x : origin.x,
+        isBuff ? this.y : origin.y,
+        isBuff ? this.x : targetPos.x,
+        isBuff ? this.y : targetPos.y,
+        skill,
+        duration,
+        1.0,
+        target,
+        this,
+        (t) => {
+          if (isBuff) {
+            this.applyBuffEffects(skill);
+          } else {
+            this.resolveSkillHit(t, skill);
+          }
+        }
+      );
+      this.onLog(`💥 <strong>${this.data.name}</strong> executou <strong>${skill.name}</strong>!`, 'bug');
+      return;
     }
 
     
@@ -2955,6 +3576,34 @@ export class PokemonEntity {
       return;
     }
 
+    const isBlastBurn = skill.visual?.isBlastBurn || skill.internalName === 'BLASTBURN' || (skill.name && skill.name.toLowerCase().includes('blast burn'));
+    if (isBlastBurn) {
+      this.sprite.faceTowards(target.x, target.y, this.x, this.y);
+      this.sprite.setAnimation('Shoot', true);
+
+      // 1. Caster Ignition VFX: attack_physical_01.png amarelado (fire) no player
+      this.particleSystem.spawnMoveSpriteAnim(this.x, this.y - 12, {
+        file: 'core/attack_physical_01.png',
+        cols: 5,
+        rows: 2,
+        startFrame: 0,
+        endFrame: 4,
+        fps: 22,
+        scale: 0.70,
+        filter: 'sepia(1) saturate(14) hue-rotate(5deg) brightness(1.25)',
+        blendMode: 'lighter'
+      });
+      this.particleSystem.spawnShockwave(this.x, this.y, 55, '#FF5722', 0.35);
+      this.particleSystem.spawnPixelBurst(this.x, this.y - 12, '#FACC15', 22, 160, 0.35, 3.0);
+      soundManager.play('/assets/audio/se/anim/Fire2.ogg', 0.90);
+
+      // 2. Spawn progressive ground fire pillars traveling in parabola/cone
+      this.particleSystem.spawnBlastBurn(this.x, this.y, targetPos.x, targetPos.y, skill.visual, target, this, skill);
+
+      this.onLog(`🔥 🌋 <strong>${this.data.name}</strong> liberou pilares parabólicos de fogo com <strong>${skill.name}</strong>!`, 'fire');
+      return;
+    }
+
     const isThunderWave = skill.visual?.isThunderWave || skill.internalName === 'THUNDERWAVE' || (skill.name && skill.name.toLowerCase().includes('thunder wave'));
     if (isThunderWave) {
       this.sprite.faceTowards(target.x, target.y, this.x, this.y);
@@ -3076,7 +3725,7 @@ export class PokemonEntity {
 
     if (isDracoMeteor) {
       this.sprite.faceTowards(target.x, target.y, this.x, this.y);
-      this.sprite.setAnimation('DeepBreath', true);
+      this.sprite.setAnimation('Shoot', true);
       this.particleSystem.spawnDracoMeteor(
         targetPos.x, targetPos.y, skill.visual, target, this, skill,
         (t, s) => {
@@ -3091,7 +3740,7 @@ export class PokemonEntity {
 
     if (isSpacialRend) {
       this.sprite.faceTowards(target.x, target.y, this.x, this.y);
-      this.sprite.setAnimation('Physical', true);
+      this.sprite.setAnimation('Attack', true);
       this.particleSystem.spawnSpacialRend(
         targetPos.x, targetPos.y, skill.visual, target, this, skill,
         (t, s) => {
@@ -3106,7 +3755,7 @@ export class PokemonEntity {
 
     if (isNightDaze) {
       this.sprite.faceTowards(target.x, target.y, this.x, this.y);
-      this.sprite.setAnimation('DeepBreath', true);
+      this.sprite.setAnimation('Shoot', true);
       this.particleSystem.spawnNightDaze(
         targetPos.x, targetPos.y, skill.visual, target, this, skill,
         (t, s) => {
@@ -3121,7 +3770,7 @@ export class PokemonEntity {
 
     if (isWhirlwindOnly) {
       this.sprite.faceTowards(target.x, target.y, this.x, this.y);
-      this.sprite.setAnimation('DeepBreath', true);
+      this.sprite.setAnimation('Shoot', true);
       this.particleSystem.spawnWhirlwind(
         targetPos.x, targetPos.y, skill.visual, target, this, skill,
         (t, s) => {
@@ -3160,7 +3809,7 @@ export class PokemonEntity {
       this.vx = 0;
       this.vy = 0;
       this.sprite.faceTowards(target.x, target.y, this.x, this.y);
-      this.sprite.setAnimation('DeepBreath', true);
+      this.sprite.setAnimation('Shoot', true);
 
       const origin = this.getBeamOrigin(targetPos.x, targetPos.y);
 
@@ -3253,6 +3902,17 @@ export class PokemonEntity {
       const statusVfxTarget = targetsFoe ? targetPos : selfCenter;
       const attachedEntity = targetsFoe ? target : this;
 
+      if (skill.internalName === 'COUNTER' || cb.isCounter || skill.visual?.isCounter) {
+        this.isCounterActive = true;
+        this.counterTimer = 1.10;
+        this.isGuarding = true;
+        this.perfectParryTimer = 1.10;
+        this.particleSystem.spawnShockwave(this.x, this.y, 60, '#EF4444', 0.45);
+        this.particleSystem.addFloatingText(this.x, this.y - 28, 'POSTURA DE CONTRA-ATAQUE!', 'fighting', true);
+        this.onLog(`🥋 🛡️ <strong>${this.data.name}</strong> assumiu postura de <strong>Counter</strong>, pronto para rebater golpes físicos!`, 'fighting');
+        return;
+      }
+
       const noExtraVfx = skill.visual?.noExtraVfx === true || 
         skill.internalName === 'MAGNETRISE' || 
         skill.internalName === 'THUNDERWAVE';
@@ -3343,6 +4003,7 @@ export class PokemonEntity {
       if (isDefendOrder) {
         this.isGuarding = true;
         this.state = 'defending';
+        this.sprite.setAnimation('Charge', true);
         this.defenseDurationTimer = 2.0;
         this.guardShieldPower = 0.85;
         this.defensiveMove = {
@@ -3360,6 +4021,7 @@ export class PokemonEntity {
       if (cb.isBarrier && !isDefendOrder) {
         this.isGuarding = true;
         this.state = 'defending';
+        this.sprite.setAnimation('Charge', true);
         this.defenseDurationTimer = 1.8;
         this.guardShieldPower = 0.90; // 90% mitigation on Protect/Detect
         soundManager.playShieldActivate();
@@ -3697,6 +4359,7 @@ export class PokemonEntity {
           const isStickyWeb = skill.internalName === 'STICKYWEB' || (skill.name && skill.name.toLowerCase().includes('sticky web'));
           const isStringShot = skill.internalName === 'STRINGSHOT' || (skill.name && skill.name.toLowerCase().includes('string shot'));
           const isAnyWeb = isSpiderWeb || isStickyWeb;
+          const isEnergyBall = Boolean(skill.visual?.isEnergyBall || skill.internalName === 'FOCUSBLAST' || skill.internalName === 'AURASPHERE' || skill.internalName === 'FINALGAMBIT');
 
           this.projectileSystem.spawn({
             sourceEntity: this,
@@ -3713,6 +4376,7 @@ export class PokemonEntity {
             isHorn: isMegahorn,
             isWeb: isAnyWeb,
             isStringShot: isStringShot,
+            isEnergyBall: isEnergyBall,
             onHit: (t) => {
               if (isStringShot) {
                 // String Shot: ao atingir, gera um casulo de fios de seda ao redor do alvo
@@ -3794,14 +4458,33 @@ export class PokemonEntity {
       this.hasClashWonReduced = false;
     }
     let isBlocked = false;
-    if (target.isGuarding) {
-      const mitigationPct = target.guardShieldPower || 0.70;
-      const absorbedDmg = Math.round(finalDmg * mitigationPct);
-      finalDmg = Math.max(1, finalDmg - absorbedDmg);
-      isBlocked = true;
+    let isPerfectParry = false;
 
-      if (typeof target.absorbGuardHit === 'function') {
-        target.absorbGuardHit(absorbedDmg);
+    if (target.isGuarding) {
+      if (target.perfectParryTimer > 0) {
+        // PARRY PERFEITO contra skill / projétil!
+        isPerfectParry = true;
+        isBlocked = true;
+        finalDmg = 0;
+        target.stamina = Math.min(target.maxStamina, target.stamina + 25);
+        target.staminaRegenDelay = 0;
+
+        const hitCenter = typeof target.getHitCenter === 'function' ? target.getHitCenter() : { x: target.x, y: target.y - 32 };
+        target.particleSystem.spawnShockwave(hitCenter.x, hitCenter.y, 75, '#FEF08A', 0.40);
+        target.particleSystem.spawnPixelBurst(hitCenter.x, hitCenter.y, '#FFFFFF', 28, 180, 0.45, 4.0);
+        target.particleSystem.addFloatingText(target.x, target.y - 20, '⚡ PARRY PERFEITO!', 'electric', true);
+        soundManager.play('/assets/audio/se/anim/Crash.ogg', 0.95);
+        if (target.arena?.triggerScreenShake) target.arena.triggerScreenShake(8);
+        target.onLog?.(`⚡ <strong>${target.data.name}</strong> executou um <strong>Parry Perfeito</strong> contra <strong>${skill.name}</strong>!`, 'electric');
+      } else {
+        const mitigationPct = target.guardShieldPower || 0.70;
+        const absorbedDmg = Math.round(finalDmg * mitigationPct);
+        finalDmg = Math.max(1, finalDmg - absorbedDmg);
+        isBlocked = true;
+
+        if (typeof target.absorbGuardHit === 'function') {
+          target.absorbGuardHit(absorbedDmg);
+        }
       }
     }
 
@@ -3826,7 +4509,7 @@ export class PokemonEntity {
     const sType = (skill.type || '').toUpperCase();
     const typeColor = getTypeColor(skill.type);
 
-        if (skill.visual?.applyElectrocuted || sInternal === 'ZAPCANNON' || sInternal === 'ELECTROBALL' || sInternal === 'THUNDERSHOCK' || sInternal === 'THUNDERBOLT') {
+    if (skill.visual?.applyElectrocuted || sInternal === 'ZAPCANNON' || sInternal === 'ELECTROBALL' || sInternal === 'THUNDERSHOCK') {
       this.particleSystem.spawnElectrocutedOverlay(target, 0.60);
     }
     const isThunderFang = sName === 'Thunder Fang' || sInternal === 'THUNDERFANG';
@@ -3841,12 +4524,18 @@ export class PokemonEntity {
       target.applyTwisterKnockup(0.85);
     }
 
-    // Burning aura (catalog-identical vertical flame column) - single spawn point, Dragon moves only
-    if (skill.visual?.isBurningAura && !skill.visual?.target?.includes('self') && skill.type === 'Dragon') {
-      const auraColor = skill.visual.color || '#A855F7';
-      const auraFilter = auraColor === '#22C55E'
+    // Burning aura (vertical burning flame) - single spawn point
+    if (skill.visual?.isBurningAura && !skill.visual?.target?.includes('self')) {
+      const auraColor = skill.visual.color || (skill.type === 'Fire' ? '#FF5722' : (skill.type === 'Dragon' ? '#818CF8' : (skill.type === 'Ghost' ? '#C084FC' : '#A855F7')));
+      const auraFilter = skill.visual.filter || (auraColor === '#22C55E'
         ? 'hue-rotate(290deg) saturate(2.0) brightness(1.15)'
-        : 'hue-rotate(90deg) saturate(1.8) brightness(1.2)';
+        : (skill.type === 'Fire'
+          ? 'saturate(1.4) brightness(1.2)'
+          : (skill.type === 'Dragon'
+            ? 'hue-rotate(220deg) saturate(1.8) brightness(1.2)'
+            : (skill.type === 'Ghost'
+              ? 'hue-rotate(255deg) saturate(1.8) brightness(1.25)'
+              : 'hue-rotate(240deg) saturate(2.0) brightness(1.2)'))));
       this.particleSystem.spawnBurningAura(target.x, target.y, 0.95, skill.visual, target, auraColor, auraFilter);
     }
 
@@ -3945,29 +4634,35 @@ export class PokemonEntity {
       this.particleSystem.spawnPixelBurst(hitCenter.x, hitCenter.y - 8, '#67E8F9', 18, 130, 0.40, 3.0);
       this.particleSystem.spawnShockwave(hitCenter.x, hitCenter.y, 45, '#FDA4AF', 0.35);
       if (this.arena?.triggerScreenShake) this.arena.triggerScreenShake(7);
+    } else if (sInternal === 'BUGBUZZ' || sInternal === 'SILVERWIND') {
+      // Procedural Bug Buzz & Silver Wind VFX
+      this.particleSystem.spawnProceduralBugMove(origin.x, origin.y, hitCenter.x, hitCenter.y, skill, 0.50, 1.1, target, this);
+      this.particleSystem.spawnShockwave(hitCenter.x, hitCenter.y, 55, '#A3E635', 0.32);
+      this.particleSystem.spawnPixelBurst(hitCenter.x, hitCenter.y, '#D9F99D', 18, 150, 0.35, 3.2);
+      if (this.arena?.triggerScreenShake) this.arena.triggerScreenShake(9);
+    } else if (skill.executionType === 'beam' || skill.typeCategory === 'beam') {
+      // Beam visual impacts are handled exclusively in renderCombatBeam (continuous beam + 8-point geometric starburst flare)
+      // Do not spawn physical punches, extra lightning strikes, or extraneous impact sprites on the target.
+      if (this.arena && this.arena.triggerScreenShake) this.arena.triggerScreenShake(8);
+      if (this.arena && this.arena.addDecal) {
+        const decalType = sType === 'FIRE' ? 'scorch' : sType === 'WATER' ? 'wet' : sType === 'ELECTRIC' ? 'zap_burn' : sType === 'GROUND' || sType === 'ROCK' ? 'crack' : 'shadow';
+        this.arena.addDecal(target.x, target.y, decalType, 26, 8.0);
+      }
     } else if (!isZapCannon && !isElectroBall && !isWildCharge && (sFam === 'electric' || sName.includes('Thunder') || sName.includes('Bolt') || sName.includes('Shock') || sType === 'ELECTRIC')) {
       this.particleSystem.spawnLightning(hitCenter.x, hitCenter.y, 0.40, skill.visual, null, false);
       if (this.arena && this.arena.addDecal) this.arena.addDecal(target.x, target.y, 'zap_burn', 30, 9.0);
-    } else if (skill.internalName === 'MEGAHORN' || (skill.name && skill.name.toLowerCase().includes('megahorn'))) {
-      if (typeof this.particleSystem.spawnMoveSpriteAnim === 'function') {
-        this.particleSystem.spawnMoveSpriteAnim(hitCenter.x, hitCenter.y, skill.visual || {
-          file: 'vfx/dimension/spacial_rend.png',
-          cols: 4,
-          rows: 4,
-          startFrame: 0,
-          endFrame: 15,
-          fps: 24,
-          scale: 0.55,
-          key: 'megahorn_impacto',
-          theme: 'Impacto Perfurante MegaHorn (Spacial Rend Diminuído)'
-        }, 0, target);
+    } else if (skill.type === 'Bug') {
+      // 100% Procedural Bug Attack Hit VFX (No Sprites)
+      this.particleSystem.spawnProceduralBugMove(origin.x, origin.y, hitCenter.x, hitCenter.y, skill, 0.50, 1.1, target, this);
+      this.particleSystem.spawnShockwave(hitCenter.x, hitCenter.y, skill.power >= 80 ? 55 : 42, '#A3E635', 0.32);
+      this.particleSystem.spawnPixelBurst(hitCenter.x, hitCenter.y, '#D9F99D', 18, 150, 0.35, 3.2);
+      if (this.arena && this.arena.triggerScreenShake) this.arena.triggerScreenShake(skill.power >= 90 ? 12 : 7);
+      if (this.arena && this.arena.addDecal && (skill.executionType === 'dash' || skill.power >= 80)) {
+        this.arena.addDecal(target.x, target.y, 'crack', 26, 8.0);
       }
-      this.particleSystem.spawnPixelBurst(hitCenter.x, hitCenter.y, '#8be316', 22, 160, 0.40, 3);
-      this.particleSystem.spawnShockwave(hitCenter.x, hitCenter.y, 45, '#d5fa7a', 0.30);
-      if (this.arena && this.arena.triggerScreenShake) this.arena.triggerScreenShake(10);
-      if (this.arena && this.arena.addDecal) this.arena.addDecal(target.x, target.y, 'crack', 28, 8.0);
-    } else if (sFam === 'slash' || sName.includes('Claw') || sName.includes('Slash') || sName.includes('Blade') || sName.includes('Scissor') || sName.includes('Cutter')) {
-      this.particleSystem.spawnSlash(hitCenter.x, hitCenter.y, typeColor, false, 0.32, skill.visual);
+    } else if (sFam === 'slash' || sName.includes('Claw') || sName.includes('Slash') || sName.includes('Blade') || sName.includes('Scissor') || sName.includes('Cutter') || sName.includes('Chop')) {
+      const isCrossChopSkill = skill.internalName === 'CROSSCHOP' || sName.includes('Cross Chop') || skill.visual?.isCrossChop;
+      this.particleSystem.spawnSlash(hitCenter.x, hitCenter.y, typeColor, isCrossChopSkill, 0.32, skill.visual);
     } else if (sFam === 'bite' || sName.includes('Bite') || sName.includes('Crunch') || sName.includes('Fang')) {
       this.particleSystem.spawnBite(hitCenter.x, hitCenter.y, 0.35, skill.visual);
     } else if (sFam === 'ground' || sType === 'GROUND' || sType === 'ROCK' || sName.includes('Earth') || sName.includes('Stone') || sName.includes('Rock')) {
@@ -4016,7 +4711,7 @@ export class PokemonEntity {
       }
     }
 
-    // Knockback / Push mechanics
+    // Knockback / Push mechanics & Hitstop Freeze
     const kx = target.x - this.x;
     const ky = target.y - this.y;
     const kDist = Math.hypot(kx, ky) || 1;
@@ -4025,32 +4720,50 @@ export class PokemonEntity {
 
     const isMeleeHit = this.isMeleeSkill(skill);
 
-    if (isMeleeHit) {
+    // Freeze-Frame Hit-Stun evidente para skills em ambos os combatentes
+    const skillFreezeDuration = isPerfectParry ? 0.22 : (isCrit ? 0.20 : (isSuperEffective ? 0.18 : (isMeleeHit ? 0.15 : 0.12)));
+    target.hitFreezeTimer = Math.max(target.hitFreezeTimer || 0, skillFreezeDuration);
+    if (!isStatusMove) {
+      this.hitFreezeTimer = Math.max(this.hitFreezeTimer || 0, skillFreezeDuration * 0.80);
+    }
 
-      const pushSpeed = target.isGuarding ? 260 : 540;
+    if (isMeleeHit) {
+      if (isPerfectParry) {
+        this.recoilTimer = 0.30;
+        this.vx = -nx * 260;
+        this.vy = -ny * 260;
+      } else if (isBlocked) {
+        this.recoilTimer = 0.10;
+        this.vx = -nx * 80;
+        this.vy = -ny * 80;
+      } else {
+        // Hit corpo a corpo conectado com sucesso: O ATACANTE NÃO É EMPURRADO!
+        this.recoilTimer = 0;
+        this.vx = 0;
+        this.vy = 0;
+      }
+
+      const pushSpeed = target.isGuarding ? 260 : (isCrit ? 720 : 560);
       target.applyPush(nx, ny, pushSpeed, this);
-      this.recoilTimer = 0.12;
-      this.vx = -nx * 85;
-      this.vy = -ny * 85;
       this.sprite.faceTowards(target.x, target.y, this.x, this.y);
       if (this.arena && this.arena.triggerScreenShake) {
         this.arena.triggerScreenShake(isCrit ? 10 : 5);
       }
       if (this.arena && this.arena.addDecal) {
-        this.arena.addDecal(target.x, target.y, 'crack', 20);
+        this.arena.addDecal(target.x, target.y, 'crack', 24);
       }
     } else if (skill.typeCategory === 'beam' || skill.typeCategory === 'stream' || skill.executionType === 'beam' || (skill.combatBehavior && skill.combatBehavior.executionType === 'beam') || this.isChannelingBeam) {
-      const pushSpeed = target.isGuarding ? 220 : 480;
+      const pushSpeed = target.isGuarding ? 220 : 520;
       const remainingBeamTime = Math.max(0.48, (this.channelingTimer || 0.65));
       target.applyBeamLock(remainingBeamTime, nx, ny, pushSpeed, this, skill.type.toLowerCase());
     } else if (skill.typeCategory === 'area_blast') {
-      const pushSpeed = target.isGuarding ? 280 : 580;
+      const pushSpeed = target.isGuarding ? 280 : (isCrit ? 720 : 600);
       target.applyPush(nx, ny, pushSpeed, this);
     } else if (skill.typeCategory === 'sky_strike') {
-      const pushSpeed = target.isGuarding ? 220 : 480;
+      const pushSpeed = target.isGuarding ? 240 : (isCrit ? 650 : 520);
       target.applyPush(nx, ny, pushSpeed, this);
     } else {
-      const pushSpeed = target.isGuarding ? 200 : 420;
+      const pushSpeed = target.isGuarding ? 200 : (isCrit ? 560 : 440);
       target.applyPush(nx, ny, pushSpeed, this);
     }
 
@@ -4124,13 +4837,14 @@ export class PokemonEntity {
     }
   }
 
-  // Modify Stat Stage (-6 to +6)
+  // Modify Stat Stage (-3 to +3 capped in real-time combat)
   modifyStatStage(statKey, stages) {
     if (this.isFainted || !this.statStages || stages === 0) return;
+    const MAX_STAGE = 3; // Teto tático de +-3 estágios no combate em tempo real
     const current = this.statStages[statKey] || 0;
-    const next = Math.max(-6, Math.min(6, current + stages));
+    const next = Math.max(-MAX_STAGE, Math.min(MAX_STAGE, current + stages));
     if (current === next) {
-      const msg = stages > 0 ? 'já não pode subir mais!' : 'já não pode descer mais!';
+      const msg = stages > 0 ? 'já não pode subir mais! (Teto Máx +3)' : 'já não pode descer mais! (Teto Mín -3)';
       this.onLog(`🛡️ Os atributos de <strong>${this.data.name}</strong> ${msg}`, 'system');
       return;
     }
@@ -4233,7 +4947,8 @@ export class PokemonEntity {
     this.currentHp = Math.max(0, Math.min(this.maxHp, this.currentHp - amount));
     if (!isBlocked) this.setTemporaryEmotion('Pain', 900);
     this.hurtFlashTimer = 0.22; // White silhouette flash duration
-    this.hitFreezeTimer = Math.max(this.hitFreezeTimer || 0, isCrit ? 0.14 : 0.09); // Freeze frame hit-stop duradouro
+    const freezeDuration = isCrit ? 0.20 : (isSuper ? 0.18 : 0.13);
+    this.hitFreezeTimer = Math.max(this.hitFreezeTimer || 0, freezeDuration); // Freeze frame hit-stop evidente e duradouro
 
     if (!isBlocked) {
       if (this.hitStunImmunityTimer > 0) {
@@ -4242,15 +4957,13 @@ export class PokemonEntity {
       } else {
         this.hitStunTimer = Math.max(this.hitStunTimer || 0, isCrit ? 0.38 : 0.28); // Trava responsiva de hitstun ao tomar dano
         this.state = 'hurt';
-        this.vx *= 0.35;
-        this.vy *= 0.35;
+        if (!this.isKnockedBack) {
+          this.vx *= 0.35;
+          this.vy *= 0.35;
+        }
       }
     }
-    if (this.isKnockedBack) {
-      this.sprite.setAnimation('TumbleBack', false);
-    } else {
-      this.sprite.setAnimation('Hurt', false);
-    }
+    this.sprite.setAnimation('Hurt', false);
 
     if (isBlocked) {
       this.particleSystem.addFloatingText(this.x, this.y - 12, `-${amount} BLOQUEADO!`, 'blocked', false);
@@ -4276,10 +4989,10 @@ export class PokemonEntity {
       });
     }
 
-    this.onStateChange();
-
     if (this.currentHp <= 0) {
       this.faint();
+    } else {
+      this.onStateChange();
     }
   }
 
@@ -4382,17 +5095,19 @@ export class PokemonEntity {
     this.renderFloor(ctx);
 
     // 3. Overworld Sprite (Flying pokemon gently hover above the ground, while grounded ones stay firmly planted)
-    const isHurt = this.hurtFlashTimer > 0;
+    const isHurt = this.hurtFlashTimer > 0 || (this.hitFreezeTimer > 0 && (this.state === 'hurt' || this.isKnockedBack));
     // Leve tremida e balanço ritmado para Quiver Dance
     const danceJitterX = this.quiverDanceTimer > 0 ? Math.sin(this.auraPulse * 35) * 3.5 : 0;
     const danceJitterY = this.quiverDanceTimer > 0 ? Math.cos(this.auraPulse * 28) * 1.5 : 0;
     
-    // Impact Freeze-Frame hit-stop jitter (fighting game tactile impact)
+    // Impact Freeze-Frame hit-stop jitter (tactile fighting-game impact vibration)
     let freezeJitterX = 0;
     let freezeJitterY = 0;
     if (this.hitFreezeTimer > 0) {
-      freezeJitterX = (Math.random() - 0.5) * 5.0;
-      freezeJitterY = (Math.random() - 0.5) * 3.5;
+      const freezeProgress = Math.min(1.0, this.hitFreezeTimer / 0.18);
+      const intensity = 4.0 + 4.5 * freezeProgress;
+      freezeJitterX = (Math.random() - 0.5) * intensity * 2;
+      freezeJitterY = (Math.random() - 0.5) * intensity * 1.5;
     }
     const effectiveScale = this.scale * (this.scaleMultiplier || 1.0);
 
@@ -4407,22 +5122,38 @@ export class PokemonEntity {
       ctx.restore();
     }
 
+    const isGuardingNow = Boolean(this.isGuarding || this.state === 'defending');
+    const guardOutlineColor = this.guardBlockFlashTimer > 0 ? '#FFFFFF' : '#00E5FF';
+    const guardParam = isGuardingNow ? guardOutlineColor : false;
+
+    const isVCreateDashActive = this.state === 'dashing_strike' && this.currentDashingSkill &&
+      (this.currentDashingSkill.internalName === 'VCREATE' || this.currentDashingSkill.visual?.isVCreate || (this.currentDashingSkill.name && this.currentDashingSkill.name.toLowerCase().includes('v-create')));
+    if (isVCreateDashActive) {
+      renderVCreateDashAura(ctx, this, 'back');
+    }
+
     if (this.spinAngle) {
       ctx.save();
       const centerY = this.y + hoverY + danceJitterY + freezeJitterY - (effectiveScale * 20);
       const centerX = this.x + danceJitterX + freezeJitterX;
       ctx.translate(centerX, centerY);
       ctx.rotate(this.spinAngle);
-      this.sprite.render(ctx, 0, effectiveScale * 20, effectiveScale, isHurt, this.isGuarding);
+      this.sprite.render(ctx, 0, effectiveScale * 20, effectiveScale, isHurt, guardParam);
       ctx.restore();
     } else {
-      this.sprite.render(ctx, this.x + danceJitterX + freezeJitterX, this.y + hoverY + danceJitterY + freezeJitterY, effectiveScale, isHurt, this.isGuarding);
+      this.sprite.render(ctx, this.x + danceJitterX + freezeJitterX, this.y + hoverY + danceJitterY + freezeJitterY, effectiveScale, isHurt, guardParam);
+    }
+
+    if (isVCreateDashActive) {
+      renderVCreateDashAura(ctx, this, 'front');
     }
 
     // Megahorn Dash Drill Attachment (Anime & Game Reference)
     const isMegahornDashActive = this.state === 'dashing_strike' && this.currentDashingSkill &&
       (this.currentDashingSkill.internalName === 'MEGAHORN' || (this.currentDashingSkill.name && this.currentDashingSkill.name.toLowerCase().includes('megahorn')));
-    if (isMegahornDashActive) {
+    const isSwordDashActive = this.state === 'dashing_strike' && this.currentDashingSkill &&
+      (this.currentDashingSkill.internalName === 'SACREDSWORD' || this.currentDashingSkill.internalName === 'SECRETSWORD' || this.currentDashingSkill.visual?.isRedHorn);
+    if (isMegahornDashActive || isSwordDashActive) {
       const drillImg = getMoveAnimImg('vfx/custom/megahorn_drill.png');
       if (drillImg && drillImg.complete && drillImg.naturalWidth > 0) {
         const cols = 6;
@@ -4449,6 +5180,9 @@ export class PokemonEntity {
         ctx.save();
         ctx.imageSmoothingEnabled = false;
         ctx.globalCompositeOperation = 'source-over';
+        if (isSwordDashActive) {
+          ctx.filter = 'sepia(1) saturate(14) hue-rotate(320deg) brightness(1.25)';
+        }
         ctx.translate(Math.round(headPos.x), Math.round(headPos.y));
         ctx.rotate(dashAngle);
         ctx.drawImage(drillImg, sx, sy, fw, fh, -8, -dh / 2, dw, dh);
@@ -4456,100 +5190,8 @@ export class PokemonEntity {
       }
     }
 
-    // 4. Combat Defense Barrier: 8-Directional Hexagonal Energy Shield with Startup & Disappear
-    if (this.state === 'defending') {
-      const shieldImg = getMoveAnimImg('vfx/custom/shield_bubble.png');
-      if (shieldImg && shieldImg.complete && shieldImg.naturalWidth > 0) {
-        const cols = 5;
-        const rows = 4;
-        const totalDuration = 1.5;
-        const remaining = Math.max(0, this.defenseDurationTimer || 0);
-        const elapsed = Math.max(0, totalDuration - remaining);
-
-        // 3-Phase Animation Lifecycle:
-        // Startup (0.35s): Frames 0 to 9 (Hexagons expand and form curved barrier dome)
-        // Sustain (0.35s to 1.22s): Frames 10 to 15 (Active barrier with energy sweep loop)
-        // Disappear/Fadeout (last 0.28s): Frames 16 to 19 (Dissolves into wireframe hexes and vanishes)
-        const startupDuration = 0.35;
-        const outroDuration = 0.28;
-        let currentFrame;
-
-        if (elapsed < startupDuration) {
-          const p = elapsed / startupDuration;
-          currentFrame = Math.min(9, Math.floor(p * 10));
-        } else if (remaining <= outroDuration) {
-          const p = 1.0 - (remaining / outroDuration);
-          currentFrame = 16 + Math.min(3, Math.floor(p * 4));
-        } else {
-          const sustainElapsed = elapsed - startupDuration;
-          currentFrame = 10 + (Math.floor(sustainElapsed * 9) % 6);
-        }
-
-        const fw = shieldImg.naturalWidth / cols;
-        const fh = shieldImg.naturalHeight / rows;
-        const col = currentFrame % cols;
-        const row = Math.floor(currentFrame / cols);
-        const sx = col * fw;
-        const sy = row * fh;
-
-        // Facing direction (8 directions supported)
-        let facingAngle;
-        if (this.target && !this.target.isFainted) {
-          facingAngle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
-        } else {
-          const dir = this.sprite?.currentDirection ?? 0;
-          facingAngle = PMD_DIR_ANGLES[dir] ?? (Math.PI / 2);
-        }
-
-        // Position slightly in front of the character along facing direction
-        const frontDist = Math.max(18, this.radius * 0.90 + 12);
-        const shieldX = this.x + Math.cos(facingAngle) * frontDist;
-        const shieldY = (this.y - 10) + Math.sin(facingAngle) * frontDist;
-
-        // In raw sprite, the convex arc faces left (Math.PI). Rotate so it faces facingAngle.
-        const shieldRotation = facingAngle - Math.PI;
-
-        const shieldScale = Math.max(0.42, (this.radius / 18) * 0.48);
-        const dw = fw * shieldScale;
-        const dh = fh * shieldScale;
-
-        ctx.save();
-        ctx.imageSmoothingEnabled = true;
-        ctx.translate(Math.round(shieldX), Math.round(shieldY));
-        ctx.rotate(shieldRotation);
-        ctx.globalCompositeOperation = 'lighter';
-
-        if (this.guardBlockFlashTimer > 0) {
-          ctx.globalAlpha = 1.0;
-          ctx.filter = 'brightness(1.5) contrast(1.2)';
-        } else {
-          ctx.globalAlpha = 0.95;
-        }
-
-        ctx.drawImage(
-          shieldImg,
-          sx, sy, fw, fh,
-          Math.round(-dw / 2),
-          Math.round(-dh / 2),
-          Math.round(dw),
-          Math.round(dh)
-        );
-        ctx.restore();
-      } else {
-        // Fallback procedural barrier if sprite is loading
-        const shieldType = this.defensiveMove?.shieldType || 'psychic_barrier';
-        renderDefensiveBarrier(
-          ctx,
-          this.x,
-          this.y - 12,
-          shieldType,
-          this.radius * 1.25,
-          this.auraPulse,
-          0.55
-        );
-      }
-    } else if (this.isGuarding) {
-      // Passive defensive stance: subtle, soft ground ring and deflection shimmer
+    // 4. Combat Defense: Clean outline handled directly on sprite, with subtle defensive ground shimmer
+    if (this.isGuarding || this.state === 'defending') {
       this.renderPassiveGuardAura(ctx);
     }
 

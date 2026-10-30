@@ -25,6 +25,15 @@ export function getProjectileVisuals(p) {
   const skillName = (p.skillData?.name || '').toLowerCase();
   const type = p.type || p.skillData?.type || '';
 
+  if (internalName === 'FOCUSBLAST' || internalName === 'AURASPHERE' || internalName === 'FINALGAMBIT' || p.isEnergyBall || p.skillData?.visual?.isEnergyBall) {
+    return {
+      isEnergyBall: true,
+      decal: 'crack',
+      decalRadius: internalName === 'FOCUSBLAST' ? 30 : 24,
+      scale: p.skillData?.visual?.projectileScale || (internalName === 'FOCUSBLAST' ? 0.52 : 0.44),
+      isFocusBlast: internalName === 'FOCUSBLAST'
+    };
+  }
   if (internalName === 'DRAGONRAGE' || skillId === 62 || skillName.includes('dragon rage') || p.skillData?.visual?.isDragonRage || internalName === 'ROAROFTIME' || skillId === 51 || skillName.includes('roar of time') || p.skillData?.visual?.isRoarOfTime) {
     return { frames: FOCUS_BLAST_FRAMES, palette: PIXEL_COLOR_PALETTES.ghost, decal: 'scorch', decalRadius: 32, isDragonRage: true, isRoarOfTime: Boolean(internalName === 'ROAROFTIME' || skillId === 51 || skillName.includes('roar of time') || p.skillData?.visual?.isRoarOfTime) };
   }
@@ -380,7 +389,7 @@ export class ProjectileSystem {
 
         // 2. The Animated Sprite Itself in Flight (Tinted Purple)
         if (rageImg && rageImg.complete && rageImg.naturalWidth > 0) {
-          const cols = 8;
+          const cols = 9;
           const rows = 8;
           const fw = rageImg.naturalWidth / cols;
           const fh = rageImg.naturalHeight / rows;
@@ -396,7 +405,7 @@ export class ProjectileSystem {
           ctx.imageSmoothingEnabled = false;
           ctx.filter = 'hue-rotate(90deg) saturate(1.8) brightness(1.2)'; // Vibrant Purple Flame
           ctx.translate(p.x, p.y);
-          ctx.rotate(angle);
+          ctx.rotate(angle + Math.PI);
           ctx.drawImage(rageImg, sx, sy, fw, fh, -dw * 0.45, -dh / 2, dw, dh);
           ctx.restore();
         } else {
@@ -505,6 +514,56 @@ export class ProjectileSystem {
         } else {
           ctx.save();
           ctx.fillStyle = '#a855f7';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+        continue;
+      }
+
+      // Dedicated Focus Blast & Aura Sphere Energy Ball Projectile
+      if (vis.isEnergyBall) {
+        const ballImg = getMoveAnimImg('vfx/magic/energy_ball.png');
+        const angle = Math.atan2(p.vy, p.vx);
+
+        if (ballImg && ballImg.complete && ballImg.naturalWidth > 0) {
+          const cols = 9;
+          const fw = ballImg.naturalWidth / cols;
+          const fh = ballImg.naturalHeight;
+          const frame = Math.floor(p.life * 24) % cols;
+          const sx = frame * fw;
+          const scale = vis.scale || p.skillData?.visual?.projectileScale || 0.48;
+          const dw = fw * scale;
+          const dh = fh * scale;
+
+          ctx.save();
+          ctx.imageSmoothingEnabled = false;
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.translate(Math.round(p.x), Math.round(p.y));
+          // In energy_ball.png, the nose natively points LEFT (180°), so add Math.PI to face flight angle
+          ctx.rotate(angle + Math.PI);
+          ctx.drawImage(ballImg, sx, 0, fw, fh, -dw / 2, -dh / 2, dw, dh);
+          ctx.restore();
+
+          // Martial Ki / Aura trailing energy motes
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          const isFocusBlast = Boolean(vis.isFocusBlast || p.skillData?.internalName === 'FOCUSBLAST');
+          const auraColor1 = isFocusBlast ? '#FBBF24' : '#38BDF8';
+          const auraColor2 = isFocusBlast ? '#F97316' : '#818CF8';
+          for (let i = 0; i < 3; i++) {
+            const lagDist = (i + 1) * 7.5;
+            const tx = p.x - Math.cos(angle) * lagDist + (Math.sin(p.life * 14 + i) * 3);
+            const ty = p.y - Math.sin(angle) * lagDist + (Math.cos(p.life * 14 + i) * 3);
+            ctx.fillStyle = i % 2 === 0 ? auraColor1 : auraColor2;
+            ctx.globalAlpha = 0.65 - i * 0.18;
+            ctx.fillRect(Math.round(tx - 1.5), Math.round(ty - 1.5), 3, 3);
+          }
+          ctx.restore();
+        } else {
+          ctx.save();
+          ctx.fillStyle = '#38bdf8';
           ctx.beginPath();
           ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
           ctx.fill();

@@ -95,14 +95,22 @@ export function getTypeMultiplier(attackerType, defType1, defType2 = null) {
   const d1 = defType1.charAt(0).toUpperCase() + defType1.slice(1).toLowerCase();
   const d2 = defType2 ? defType2.charAt(0).toUpperCase() + defType2.slice(1).toLowerCase() : null;
 
-  let mult = 1.0;
+  let rawMult = 1.0;
   if (TYPE_CHART[a] && TYPE_CHART[a][d1] !== undefined) {
-    mult *= TYPE_CHART[a][d1];
+    rawMult *= TYPE_CHART[a][d1];
   }
   if (d2 && TYPE_CHART[a] && TYPE_CHART[a][d2] !== undefined) {
-    mult *= TYPE_CHART[a][d2];
+    rawMult *= TYPE_CHART[a][d2];
   }
-  return mult;
+
+  // Real-Time Action Combat Pacing Compression:
+  // Evita mortes instantâneas em 2s por fraqueza 4x, comprimindo 2x -> 1.45x, 4x -> 1.70x, 0.5x -> 0.75x, 0.25x -> 0.65x
+  if (rawMult > 1.0) {
+    return Math.round((1.0 + (rawMult - 1.0) * 0.45) * 100) / 100;
+  } else if (rawMult > 0 && rawMult < 1.0) {
+    return Math.round((1.0 - (1.0 - rawMult) * 0.50) * 100) / 100;
+  }
+  return rawMult;
 }
 
 export const NATURE_MODIFIERS = {

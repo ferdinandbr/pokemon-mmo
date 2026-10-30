@@ -177,11 +177,18 @@ export default class BattleUI {
       gw.appendChild(this.container);
     }
 
-    // Reset container DOM to guarantee fresh canvas and hud
+    // Reset container DOM to guarantee fresh canvas, loading overlay and hud
     if (this.container) {
       this.container.innerHTML = `
         <div class="arena-container" id="arena-container">
           <canvas id="arena-canvas"></canvas>
+          <div class="arena-loading-overlay" id="arena-loading-overlay">
+            <div class="arena-loading-card">
+              <div class="arena-loading-pokeball"></div>
+              <div class="arena-loading-text">CARREGANDO ARENA...</div>
+              <div class="arena-loading-sub">Preparando terreno e atmosfera de batalha</div>
+            </div>
+          </div>
         </div>
         <div id="hud-container"></div>
       `;
@@ -277,11 +284,32 @@ export default class BattleUI {
 
     const arenaKey = battleData.arena || battleData.arenaKey || 'arena_grass';
 
+    const weather = battleData.weather ||
+                    this.worldScene?.weatherManager?.currentWeather ||
+                    (typeof window !== 'undefined' ? window.weather?.currentWeather : null) ||
+                    'clear';
+
     this.engine.setupMatchup(playerPartyData, enemyPartyData, {
       isWild: !battleData.isTrainer && !battleData.isPvp,
       timePhase,
+      weather,
       arenaKey,
     });
+
+    // Dismiss arena loading overlay smoothly once tilemap is built
+    const hideLoading = () => {
+      const loader = document.getElementById('arena-loading-overlay');
+      if (loader && !loader.classList.contains('fade-out')) {
+        loader.classList.add('fade-out');
+        setTimeout(() => loader.remove(), 320);
+      }
+    };
+    if (this.engine?.arena?.mapLoaded) {
+      setTimeout(hideLoading, 100);
+    } else if (this.engine?.arena) {
+      this.engine.arena.onMapReady = hideLoading;
+      setTimeout(hideLoading, 1200);
+    }
 
     // Initialize 2D Battle HUD (Authentic PokéMMO Gen 5 / FireRed UI)
     this.hud = new BattleHud({
@@ -347,6 +375,10 @@ export default class BattleUI {
         this.hud?.switchSubMenu('fight');
         this.hud?.addLog('⚔️ <strong>A BATALHA COMEÇOU!</strong>', 'system');
       });
+    } else if (!this.engine.playerEntity) {
+      // In PvE (Wild or Trainer): Start at the main command choices menu (FIGHT, BAG, POKEMON, RUN)
+      this.hud?.switchSubMenu('main');
+      this.engine?.setCombatActive(false);
     }
   }
 

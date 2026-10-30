@@ -6689,8 +6689,7 @@ body.is-dragging-item .bag-slot * {
 .battle-bg {
   position: absolute;
   inset: 0;
-  background: url('/assets/battle/arenas/bg_forest.png') no-repeat center center;
-  background-size: cover;
+  background: #060911;
   image-rendering: pixelated;
 }
 

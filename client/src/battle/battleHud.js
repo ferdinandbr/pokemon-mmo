@@ -4,6 +4,51 @@ import { TYPE_COLORS, getTypeIconSvg, GEN1_SPECIES } from './pokemonData.js';
 import { soundManager } from './soundManager.js';
 import { formatSpeciesId, getPokemonOverworldSprite } from '../utils/pokemonAssets.js';
 import { getItemIcon } from '../ui/BagUI.js';
+import { getMoveData } from './movesDatabase.js';
+
+// Helper to resolve icon path for any move based on type and execution style
+export function resolveMoveIconPath(move) {
+  if (!move) return null;
+  const meta = (typeof getMoveData === 'function') ? (getMoveData(move) || {}) : {};
+
+  const rawType = String(move.type || meta.type || 'normal').trim().toLowerCase();
+
+  const availableTypes = new Set([
+    'normal', 'fighting', 'grass', 'psychic', 'fire', 'water',
+    'bug', 'electric', 'dark', 'poison', 'flying', 'ground',
+    'ice', 'steel', 'rock'
+  ]);
+
+  let chosenType = rawType;
+  if (!availableTypes.has(chosenType)) {
+    // Temporary fallbacks for Part 6 (Dragon, Ghost, Fairy) until provided
+    if (chosenType === 'dragon') chosenType = 'fire';
+    else if (chosenType === 'ghost') chosenType = 'dark';
+    else if (chosenType === 'fairy') chosenType = 'psychic';
+    else chosenType = 'normal';
+  }
+
+  // Determine archetype: dash, projectile, beam, status
+  let archetype = 'dash';
+  const exec = String(move.executionType || meta.executionType || '').toLowerCase();
+  const vfx = String(move.vfxFamily || meta.vfxFamily || '').toLowerCase();
+  const cat = String(move.category || meta.category || '').toLowerCase();
+  const name = String(move.name || meta.name || '').toLowerCase();
+
+  if (exec === 'beam' || vfx === 'beam' || name.includes('beam') || name.includes('raio') || name.includes('blast') || name.includes('hyper') || name.includes('solar')) {
+    archetype = 'beam';
+  } else if (exec === 'projectile' || vfx === 'projectile' || vfx === 'explosion' || name.includes('ball') || name.includes('shot') || name.includes('bomb') || name.includes('pulse')) {
+    archetype = 'projectile';
+  } else if (exec === 'status' || exec === 'buff' || cat === 'status' || vfx === 'buff' || vfx === 'status' || vfx === 'heal') {
+    archetype = 'status';
+  } else if (exec === 'dash' || vfx === 'dash' || vfx === 'slash' || vfx === 'bite' || vfx === 'impact' || cat === 'physical') {
+    archetype = 'dash';
+  } else if (cat === 'special') {
+    archetype = 'projectile';
+  }
+
+  return `/assets/battle/icons/moves/${chosenType}_${archetype}.png`;
+}
 
 // PMD Collab Portrait URL builder with support for Normal and Shiny palettes
 export function getPmdPortraitUrl(speciesId, emotion = 'Normal', isShiny = false) {
@@ -176,136 +221,74 @@ export class BattleHud {
       <div class="swsh-battle-hud-layout" id="swsh-battle-hud-layout">
         <!-- TOP RIGHT: Opponent Databox matching Reference Image -->
         <div class="swsh-databox swsh-enemy-hud modern-battle-card databox-slide-in" id="battle-enemy-databox">
-          <!-- Left: PMD Portrait Card -->
-          <div class="battle-portrait-card enemy-portrait-card">
-            <div class="portrait-frame">
-              <img id="enemy-avatar-img" class="battle-pmd-portrait is-placeholder" src="/assets/battle/ui/ball_round.png" alt="" />
-            </div>
-          </div>
-
-          <!-- Right: Info column -->
-          <div class="battle-card-info enemy-info">
-            <!-- Row 1: Name + Level + Gender + Status -->
-            <div class="bcard-name-row">
-              <span class="bcard-name" id="enemy-name">Pokémon</span>
-              <div class="bcard-meta">
-                <span class="bcard-level" id="enemy-level">Lv.<span id="enemy-level-num">--</span></span>
+          <div class="enemy-card-content">
+            <!-- Left: Info Column (HP, Stamina, Stats Stages, Name/Types) -->
+            <div class="enemy-info-col">
+              <!-- Row 1: Name + Gender + Status + Types -->
+              <div class="enemy-header-row">
+                <span class="bcard-name" id="enemy-name">Pokémon</span>
                 <span class="gender-symbol male" id="enemy-gender">♂</span>
                 <span class="databox-status-badge hidden" id="enemy-status-badge"></span>
+                <div class="bcard-types-row" id="enemy-types-container"></div>
+              </div>
+
+              <!-- Row 2: Thick HP Bar with inside text -->
+              <div class="bcard-hp-track" id="enemy-hp-track">
+                <div class="bcard-hp-fill healthy" id="enemy-hp-fill" style="width: 100%;"></div>
+                <span class="bcard-hp-text" id="enemy-hp-text">--</span>
+              </div>
+
+              <!-- Row 3: Enemy Movement Stamina Bar -->
+              <div class="bcard-stamina-track" id="enemy-stamina-track" title="Stamina de Esquiva do Oponente">
+                <div class="bcard-stamina-fill" id="enemy-stamina-fill" style="width: 100%;"></div>
+                <div class="bcard-stamina-info">
+                  <span class="bcard-stamina-lbl">STAMINA</span>
+                  <span class="bcard-stamina-text" id="enemy-stamina-text">--/--</span>
+                </div>
+              </div>
+
+              <!-- Row 4: Enemy In-Combat Stat Stages + Remaining Pokéballs -->
+              <div class="enemy-stat-stages-row" id="enemy-stats-row">
+                <div class="enemy-stage-item" title="Ataque Físico">
+                  <span class="esi-lbl">ATK</span>
+                  <span class="esi-badge stage-zero" id="estat-stage-atk">0</span>
+                </div>
+                <div class="enemy-stage-item" title="Defesa Física">
+                  <span class="esi-lbl">DEF</span>
+                  <span class="esi-badge stage-zero" id="estat-stage-def">0</span>
+                </div>
+                <div class="enemy-stage-item" title="Ataque Especial">
+                  <span class="esi-lbl">SP.A</span>
+                  <span class="esi-badge stage-zero" id="estat-stage-spatk">0</span>
+                </div>
+                <div class="enemy-stage-item" title="Defesa Especial">
+                  <span class="esi-lbl">SP.D</span>
+                  <span class="esi-badge stage-zero" id="estat-stage-spdef">0</span>
+                </div>
+                <div class="enemy-stage-item" title="Velocidade">
+                  <span class="esi-lbl">SPD</span>
+                  <span class="esi-badge stage-zero" id="estat-stage-speed">0</span>
+                </div>
+                <div class="bcard-party-balls enemy-balls" id="enemy-party-dots"></div>
               </div>
             </div>
 
-            <!-- Row 2: Types (PC Box style .type-chip) -->
-            <div class="bcard-types-row" id="enemy-types-container"></div>
-
-            <!-- Row 3: Thick HP Bar with inside text -->
-            <div class="bcard-hp-track">
-              <div class="bcard-hp-fill healthy" id="enemy-hp-fill" style="width: 100%;"></div>
-              <span class="bcard-hp-text" id="enemy-hp-text">--</span>
-            </div>
-
-            <!-- Row 3.5: Enemy Movement Stamina Bar -->
-            <div class="bcard-stamina-track" id="enemy-stamina-track" title="Stamina de Esquiva do Oponente">
-              <div class="bcard-stamina-fill" id="enemy-stamina-fill" style="width: 100%;"></div>
-              <div class="bcard-stamina-info">
-                <span class="bcard-stamina-lbl">STAMINA</span>
-                <span class="bcard-stamina-text" id="enemy-stamina-text">--/--</span>
+            <!-- Right: Portrait Frame with Circular Level Badge docked at bottom-right corner -->
+            <div class="enemy-portrait-col">
+              <div class="enemy-portrait-frame">
+                <img id="enemy-avatar-img" class="battle-pmd-portrait is-placeholder" src="/assets/battle/ui/ball_round.png" alt="" />
+                <div class="bcard-corner-level-badge" id="enemy-level" title="Nível do Inimigo">
+                  <span class="bcl-prefix">Lv.</span><span id="enemy-level-num">--</span>
+                </div>
               </div>
             </div>
-
-            <!-- Row 4: Pokéballs (Remaining Pokémon) -->
-            <div class="bcard-party-balls enemy-balls" id="enemy-party-dots"></div>
           </div>
 
           <!-- SUB-HUD ACTION TICKER (Attack, Dodge, Guard Callouts Below Opponent Card) -->
           <div class="bcard-action-ticker enemy-ticker" id="enemy-action-ticker"></div>
         </div>
 
-        <!-- TOP LEFT: Player Databox matching Reference Image -->
-        <div class="swsh-databox swsh-player-hud modern-battle-card databox-slide-in" id="battle-player-databox">
-          <!-- Left: PMD Portrait Card -->
-          <div class="battle-portrait-card player-portrait-card">
-            <div class="portrait-frame">
-              <img id="player-avatar-img" class="battle-pmd-portrait is-placeholder" src="/assets/battle/ui/ball_round.png" alt="" />
-            </div>
-          </div>
-
-          <!-- Right: Info column -->
-          <div class="battle-card-info player-info">
-            <!-- Row 1: Name + Level + Gender + Status -->
-            <div class="bcard-name-row">
-              <span class="bcard-name" id="player-name">Pokémon</span>
-              <div class="bcard-meta">
-                <span class="bcard-level" id="player-level">Lv.<span id="player-level-num">--</span></span>
-                <span class="gender-symbol male" id="player-gender">♂</span>
-                <span class="databox-status-badge hidden" id="player-status-badge"></span>
-              </div>
-            </div>
-
-            <!-- Row 2: Types (PC Box style .type-chip) -->
-            <div class="bcard-types-row" id="player-types-container"></div>
-
-            <!-- Row 3: Thick HP Bar with inside text -->
-            <div class="bcard-hp-track">
-              <div class="bcard-hp-fill healthy" id="player-hp-fill" style="width: 100%;"></div>
-              <span class="bcard-hp-text" id="player-hp-text">--</span>
-            </div>
-
-            <!-- Row 3.5: Player Movement Stamina Bar (Dash de 2 cliques) -->
-            <div class="bcard-stamina-track" id="player-stamina-track" title="Stamina de Esquiva / Dash [Duplo Clique]">
-              <div class="bcard-stamina-fill" id="player-stamina-fill" style="width: 100%;"></div>
-              <div class="bcard-stamina-info">
-                <span class="bcard-stamina-lbl">STAMINA</span>
-                <span class="bcard-stamina-text" id="player-stamina-text">--/--</span>
-              </div>
-            </div>
-
-            <!-- Row 4: Pokéballs (Remaining Pokémon) -->
-            <div class="bcard-party-balls player-balls" id="player-party-dots"></div>
-          </div>
-
-          <!-- SUB-HUD ACTION TICKER (Attack, Dodge, Guard Callouts Below Player Card) -->
-          <div class="bcard-action-ticker player-ticker" id="player-action-ticker"></div>
-        </div>
-
-        <!-- RIGHT-CENTER: 5 VERTICAL QUICK ACCESS ITEM SLOTS (OVERWORLD HOTBAR STYLE) -->
-        <div class="battle-quick-items-hud" id="battle-quick-items-hud" title="Itens de Acesso Rápido">
-          <div class="bquick-slot-item empty" id="bquick-slot-0" data-slot="0">
-            <span class="bquick-hotkey">1</span>
-            <img class="bquick-icon" src="" alt="" style="display: none;" />
-            <span class="bquick-qty"></span>
-          </div>
-          <div class="bquick-slot-item empty" id="bquick-slot-1" data-slot="1">
-            <span class="bquick-hotkey">2</span>
-            <img class="bquick-icon" src="" alt="" style="display: none;" />
-            <span class="bquick-qty"></span>
-          </div>
-          <div class="bquick-slot-item empty" id="bquick-slot-2" data-slot="2">
-            <span class="bquick-hotkey">3</span>
-            <img class="bquick-icon" src="" alt="" style="display: none;" />
-            <span class="bquick-qty"></span>
-          </div>
-          <div class="bquick-slot-item empty" id="bquick-slot-3" data-slot="3">
-            <span class="bquick-hotkey">4</span>
-            <img class="bquick-icon" src="" alt="" style="display: none;" />
-            <span class="bquick-qty"></span>
-          </div>
-          <div class="bquick-slot-item empty" id="bquick-slot-4" data-slot="4">
-            <span class="bquick-hotkey">5</span>
-            <img class="bquick-icon" src="" alt="" style="display: none;" />
-            <span class="bquick-qty"></span>
-          </div>
-        </div>
-
-        <!-- TOP COMBAT ACTION TICKER (Ocultado a pedido do usuário: manter eventos apenas nas HUDs dos respectivos pokémons) -->
-        <div class="combat-ticker-wrap" id="combat-ticker-wrap" style="display: none !important;">
-          <div class="combat-ticker-banner" id="combat-ticker-banner">
-            <span class="combat-ticker-icon" id="combat-ticker-icon">⚔️</span>
-            <span class="combat-ticker-text" id="combat-ticker-text">Prepare-se para a batalha!</span>
-          </div>
-        </div>
-
-        <!-- UNIFIED BOTTOM COMMAND BAR (Initial modal with FIGHT, BAG, POKEMON, RUN) -->
+        <!-- UNIFIED BOTTOM COMMAND BAR (Initial menu with FIGHT, BAG, POKEMON, RUN) -->
         <div class="swsh-command-bar" id="battle-command-bar">
           <div class="swsh-action-container" id="battle-action-panel">
             <div class="swsh-main-menu" id="battle-main-menu">
@@ -314,7 +297,7 @@ export class BattleHud {
                 <span class="swsh-btn-arrow">▶</span>
                 <span class="swsh-btn-lbl">FIGHT</span>
               </button>
-              <button class="swsh-action-btn btn-bag" id="bbtn-bag" title="Mochila [2 / B]">
+              <button class="swsh-action-btn btn-bag" id="bbtn-bag" title="Mochila de Itens [2 / B]">
                 <span class="swsh-btn-badge">2</span>
                 <span class="swsh-btn-arrow">▶</span>
                 <span class="swsh-btn-lbl">BAG</span>
@@ -333,172 +316,249 @@ export class BattleHud {
           </div>
         </div>
 
-        <!-- BOTTOM COMBAT ACTION CLUSTER (New Unified Console Tray: DEF [D] | 4 Moves | ATK [Espaço]) -->
-        <div class="battle-action-cluster" id="battle-action-cluster">
-          <!-- Small sub-nav buttons positioned above moves 1 and 2 -->
-          <div class="cluster-sub-nav">
-            <button class="cluster-pill-btn btn-pill-back" id="bbtn-moves-back" title="Voltar ao Menu Inicial [ESC]">
-              <span class="pill-arrow">◀</span> VOLTAR <span class="pill-key">[ESC]</span>
-            </button>
-            <button class="cluster-pill-btn btn-pill-run" id="bbtn-moves-run" title="Fugir da Batalha [F]">
-              <span class="pill-pokeball-icon">
-                <svg viewBox="0 0 16 16" width="12" height="12">
-                  <circle cx="8" cy="8" r="7" fill="#ffffff" stroke="#000" stroke-width="1.2"/>
-                  <path d="M1 8a7 7 0 0 1 14 0H1z" fill="#ef4444"/>
-                  <line x1="1" y1="8" x2="15" y2="8" stroke="#000" stroke-width="1.4"/>
-                  <circle cx="8" cy="8" r="2.5" fill="#ffffff" stroke="#000" stroke-width="1.2"/>
-                  <circle cx="8" cy="8" r="1" fill="#000"/>
-                </svg>
-              </span>
-              FUGIR <span class="pill-key">[F]</span>
-            </button>
+        <!-- TOP COMBAT ACTION TICKER (Ocultado a pedido do usuário) -->
+        <div class="combat-ticker-wrap" id="combat-ticker-wrap" style="display: none !important;">
+          <div class="combat-ticker-banner" id="combat-ticker-banner">
+            <span class="combat-ticker-icon" id="combat-ticker-icon">⚔️</span>
+            <span class="combat-ticker-text" id="combat-ticker-text">Prepare-se para a batalha!</span>
+          </div>
+        </div>
+
+        <!-- UNIFIED BOTTOM DASHBOARD (4 BLOCKS HORIZONTAL ROW - INICIAR OCULTO ANTES DA ESCOLHA) -->
+        <div class="battle-bottom-dashboard hidden" id="battle-bottom-dashboard" style="display: none;">
+
+          <!-- BLOCK 1: PLAYER COMBAT STATS CARD -->
+          <div class="bbd-card bbd-stats-card" id="bbd-player-stats-card">
+            <div class="bbd-card-header">
+              <span class="bbd-card-title">ATRIBUTOS</span>
+              <div class="bcard-types-row" id="player-types-container"></div>
+            </div>
+            <div class="bbd-stats-grid">
+              <div class="bbd-stat-row" title="Ataque Físico">
+                <span class="bbd-stat-lbl">ATK</span>
+                <span class="bbd-stat-val" id="pstat-val-atk">--</span>
+                <span class="bbd-stage-pill stage-zero" id="pstat-stage-atk">0</span>
+              </div>
+              <div class="bbd-stat-row" title="Defesa Física">
+                <span class="bbd-stat-lbl">DEF</span>
+                <span class="bbd-stat-val" id="pstat-val-def">--</span>
+                <span class="bbd-stage-pill stage-zero" id="pstat-stage-def">0</span>
+              </div>
+              <div class="bbd-stat-row" title="Ataque Especial">
+                <span class="bbd-stat-lbl">SP.A</span>
+                <span class="bbd-stat-val" id="pstat-val-spatk">--</span>
+                <span class="bbd-stage-pill stage-zero" id="pstat-stage-spatk">0</span>
+              </div>
+              <div class="bbd-stat-row" title="Defesa Especial">
+                <span class="bbd-stat-lbl">SP.D</span>
+                <span class="bbd-stat-val" id="pstat-val-spdef">--</span>
+                <span class="bbd-stage-pill stage-zero" id="pstat-stage-spdef">0</span>
+              </div>
+              <div class="bbd-stat-row" title="Velocidade de Movimento e Ataque">
+                <span class="bbd-stat-lbl">SPD</span>
+                <span class="bbd-stat-val" id="pstat-val-speed">--</span>
+                <span class="bbd-stage-pill stage-zero" id="pstat-stage-speed">0</span>
+              </div>
+            </div>
           </div>
 
-          <div class="cluster-main-row">
-            <!-- 1. Round Defense Button [Q] -->
-            <button class="battle-round-action-btn btn-action-def" id="bbtn-def-stance" title="Defesa [Q] (-70% Dano por 1.5s)">
-              <div class="round-btn-inner">
-                <span class="round-btn-hotkey round-btn-hotkey-def">[Q]</span>
-                <div class="round-def-shield-icon">
-                  <svg viewBox="0 0 24 28" width="20" height="24">
-                    <path d="M12 2L3 5v8c0 8 9 13 9 13s9-5 9-13V5l-9-3z" fill="#0c172a" stroke="#00d4ff" stroke-width="2"/>
-                    <path d="M12 4L5 6.5v6.5c0 6 7 10.5 7 10.5V4z" fill="#ffffff"/>
-                    <path d="M12 4v17.5c0 0 7-4.5 7-10.5V6.5L12 4z" fill="#ef4444"/>
-                  </svg>
-                </div>
-                <span class="round-btn-lbl round-btn-lbl-def">DEF</span>
-              </div>
-              <div class="round-cd-overlay" id="def-cd-overlay">
-                <span class="cd-timer-txt" id="def-cd-timer"></span>
-              </div>
-            </button>
+          <!-- BLOCK 2: PLAYER PORTRAIT & IDENTITY CARD (Referência 3) -->
+          <div class="bbd-card bbd-portrait-card swsh-databox swsh-player-hud" id="battle-player-databox">
+            <!-- 1. Top: Pokémon Name & Gender -->
+            <div class="bbd-portrait-top-name">
+              <span class="bcard-name" id="player-name">Pokémon</span>
+              <span class="gender-symbol male" id="player-gender">♂</span>
+              <span class="databox-status-badge hidden" id="player-status-badge"></span>
+            </div>
 
-            <!-- 2. 4 Move Buttons [1], [2], [3], [4] (Horizontal Row) -->
-            <div class="battle-moves-row" id="battle-moves-row">
-              <div class="battle-skill-card slot-0 active-card" id="bbtn-skill-0" data-slot="0" title="Golpe 1 [1]">
-                <div class="bsc-caret">▲</div>
-                <div class="bsc-row-top">
-                  <div class="bsc-top-left">
-                    <span class="bsc-hotkey">[1]</span>
-                    <div class="bsc-type-pill type-pill-normal" id="bsc-type-0">
-                      <span class="bsc-type-label">NORMAL</span>
-                    </div>
-                    <span class="bsc-name" id="bcs-name-0">—</span>
-                  </div>
-                  <span class="bsc-pp" id="bcs-pp-0">PP --/--</span>
-                </div>
-                <div class="bsc-row-bottom">
-                  <div class="bsc-stats-group">
-                    <span class="bsc-stat-item"><span class="bsc-stat-k">PWR</span> <span class="bsc-stat-v" id="bsc-pwr-0">—</span></span>
-                    <span class="bsc-stat-item"><span class="bsc-stat-k">ACC</span> <span class="bsc-stat-v" id="bsc-acc-0">—</span></span>
-                  </div>
-                </div>
-                <div class="cluster-cd-overlay" id="skill-cd-overlay-0">
-                  <span class="cd-timer-txt" id="skill-cd-timer-0"></span>
-                </div>
+            <!-- 2. Center: Large Portrait Frame with Level badge in bottom-right corner -->
+            <div class="bbd-portrait-frame">
+              <div class="bbd-portrait-inner">
+                <img id="player-avatar-img" class="battle-pmd-portrait is-placeholder" src="/assets/battle/ui/ball_round.png" alt="" />
               </div>
-
-              <div class="battle-skill-card slot-1" id="bbtn-skill-1" data-slot="1" title="Golpe 2 [2]">
-                <div class="bsc-caret">▲</div>
-                <div class="bsc-row-top">
-                  <div class="bsc-top-left">
-                    <span class="bsc-hotkey">[2]</span>
-                    <div class="bsc-type-pill type-pill-normal" id="bsc-type-1">
-                      <span class="bsc-type-label">NORMAL</span>
-                    </div>
-                    <span class="bsc-name" id="bcs-name-1">—</span>
-                  </div>
-                  <span class="bsc-pp" id="bcs-pp-1">PP --/--</span>
-                </div>
-                <div class="bsc-row-bottom">
-                  <div class="bsc-stats-group">
-                    <span class="bsc-stat-item"><span class="bsc-stat-k">PWR</span> <span class="bsc-stat-v" id="bsc-pwr-1">—</span></span>
-                    <span class="bsc-stat-item"><span class="bsc-stat-k">ACC</span> <span class="bsc-stat-v" id="bsc-acc-1">—</span></span>
-                  </div>
-                </div>
-                <div class="cluster-cd-overlay" id="skill-cd-overlay-1">
-                  <span class="cd-timer-txt" id="skill-cd-timer-1"></span>
-                </div>
-              </div>
-
-              <div class="battle-skill-card slot-2" id="bbtn-skill-2" data-slot="2" title="Golpe 3 [3]">
-                <div class="bsc-caret">▲</div>
-                <div class="bsc-row-top">
-                  <div class="bsc-top-left">
-                    <span class="bsc-hotkey">[3]</span>
-                    <div class="bsc-type-pill type-pill-normal" id="bsc-type-2">
-                      <span class="bsc-type-label">NORMAL</span>
-                    </div>
-                    <span class="bsc-name" id="bcs-name-2">—</span>
-                  </div>
-                  <span class="bsc-pp" id="bcs-pp-2">PP --/--</span>
-                </div>
-                <div class="bsc-row-bottom">
-                  <div class="bsc-stats-group">
-                    <span class="bsc-stat-item"><span class="bsc-stat-k">PWR</span> <span class="bsc-stat-v" id="bsc-pwr-2">—</span></span>
-                    <span class="bsc-stat-item"><span class="bsc-stat-k">ACC</span> <span class="bsc-stat-v" id="bsc-acc-2">—</span></span>
-                  </div>
-                </div>
-                <div class="cluster-cd-overlay" id="skill-cd-overlay-2">
-                  <span class="cd-timer-txt" id="skill-cd-timer-2"></span>
-                </div>
-              </div>
-
-              <div class="battle-skill-card slot-3" id="bbtn-skill-3" data-slot="3" title="Golpe 4 [4]">
-                <div class="bsc-caret">▲</div>
-                <div class="bsc-row-top">
-                  <div class="bsc-top-left">
-                    <span class="bsc-hotkey">[4]</span>
-                    <div class="bsc-type-pill type-pill-normal" id="bsc-type-3">
-                      <span class="bsc-type-label">NORMAL</span>
-                    </div>
-                    <span class="bsc-name" id="bcs-name-3">—</span>
-                  </div>
-                  <span class="bsc-pp" id="bcs-pp-3">PP --/--</span>
-                </div>
-                <div class="bsc-row-bottom">
-                  <div class="bsc-stats-group">
-                    <span class="bsc-stat-item"><span class="bsc-stat-k">PWR</span> <span class="bsc-stat-v" id="bsc-pwr-3">—</span></span>
-                    <span class="bsc-stat-item"><span class="bsc-stat-k">ACC</span> <span class="bsc-stat-v" id="bsc-acc-3">—</span></span>
-                  </div>
-                </div>
-                <div class="cluster-cd-overlay" id="skill-cd-overlay-3">
-                  <span class="cd-timer-txt" id="skill-cd-timer-3"></span>
-                </div>
+              <div class="bcard-corner-level-badge" id="player-level" title="Nível do Jogador">
+                <span class="bcl-prefix">Lv.</span><span id="player-level-num">--</span>
               </div>
             </div>
 
-            <!-- 3. Round Basic Attack Button [Espaço] -->
-            <button class="battle-round-action-btn btn-action-atk" id="bbtn-basic-atk" title="Ataque Básico [Espaço] (Combo 3-Hits)">
-              <div class="round-btn-inner">
-                <span class="round-btn-hotkey round-btn-hotkey-atk">ESPAÇO</span>
-                <div class="round-atk-swords-row">
-                  <span class="atk-arrow-left">◀</span>
-                  <div class="round-atk-swords-icon">
-                    <svg viewBox="0 0 24 24" width="22" height="22">
-                      <path d="M5 2l4 4-2 2-4-4V2h2z" fill="#f59e0b"/>
-                      <path d="M7 4l12 12-2 2L5 6 7 4z" fill="#f8fafc"/>
-                      <path d="M3 19l2 2-2 2-1-1 1-3zm16-17l4 4-2 2-4-4 2-2z" fill="#f59e0b"/>
-                      <path d="M17 4L5 16l2 2L19 6l-2-2z" fill="#cbd5e1"/>
+            <!-- 3. Bottom: 6 Party Pokéballs Row -->
+            <div class="bcard-party-balls player-balls" id="player-party-dots"></div>
+
+            <!-- Sub-Hud Action Ticker (Floating near player) -->
+            <div class="bcard-action-ticker player-ticker" id="player-action-ticker"></div>
+          </div>
+
+          <!-- BLOCK 3: COMBAT CLUSTER (SQUARE SKILLS QWER + DEF/ATK + HP/STAMINA) -->
+          <div class="bbd-card bbd-combat-cluster battle-action-cluster" id="battle-action-cluster">
+            <!-- Small sub-nav buttons positioned above moves -->
+            <div class="cluster-sub-nav">
+              <button class="cluster-pill-btn btn-pill-back" id="bbtn-moves-back" title="Voltar ao Menu Inicial [ESC]">
+                <span class="pill-arrow">◀</span> VOLTAR <span class="pill-key">[ESC]</span>
+              </button>
+              <button class="cluster-pill-btn btn-pill-run" id="bbtn-moves-run" title="Fugir da Batalha [F]">
+                <span class="pill-pokeball-icon">
+                  <svg viewBox="0 0 16 16" width="12" height="12">
+                    <circle cx="8" cy="8" r="7" fill="#ffffff" stroke="#000" stroke-width="1.2"/>
+                    <path d="M1 8a7 7 0 0 1 14 0H1z" fill="#ef4444"/>
+                    <line x1="1" y1="8" x2="15" y2="8" stroke="#000" stroke-width="1.4"/>
+                    <circle cx="8" cy="8" r="2.5" fill="#ffffff" stroke="#000" stroke-width="1.2"/>
+                    <circle cx="8" cy="8" r="1" fill="#000"/>
+                  </svg>
+                </span>
+                FUGIR <span class="pill-key">[F]</span>
+              </button>
+            </div>
+
+            <!-- Floating Move Tooltip (Revealed on Hover) -->
+            <div class="bbd-skill-tooltip" id="bbd-skill-tooltip" style="display: none;"></div>
+
+            <!-- Top Row: 4 Square Skills + Stacked Utility (Def / Basic Atk) -->
+            <div class="bbd-actions-row">
+              <!-- 4 Move Buttons [Q], [W], [E], [R] (Clean Square Cards with Move Icons) -->
+              <div class="battle-moves-row" id="battle-moves-row">
+                <div class="battle-skill-card slot-0 active-card" id="bbtn-skill-0" data-slot="0" title="Golpe 1 [Q]">
+                  <img class="bsc-icon" id="skill-icon-0" src="" alt="" style="display: none;" />
+                  <span class="bsc-hotkey">[Q]</span>
+                  <div class="cluster-cd-overlay" id="skill-cd-overlay-0">
+                    <span class="cd-timer-txt" id="skill-cd-timer-0"></span>
+                  </div>
+                </div>
+
+                <div class="battle-skill-card slot-1" id="bbtn-skill-1" data-slot="1" title="Golpe 2 [W]">
+                  <img class="bsc-icon" id="skill-icon-1" src="" alt="" style="display: none;" />
+                  <span class="bsc-hotkey">[W]</span>
+                  <div class="cluster-cd-overlay" id="skill-cd-overlay-1">
+                    <span class="cd-timer-txt" id="skill-cd-timer-1"></span>
+                  </div>
+                </div>
+
+                <div class="battle-skill-card slot-2" id="bbtn-skill-2" data-slot="2" title="Golpe 3 [E]">
+                  <img class="bsc-icon" id="skill-icon-2" src="" alt="" style="display: none;" />
+                  <span class="bsc-hotkey">[E]</span>
+                  <div class="cluster-cd-overlay" id="skill-cd-overlay-2">
+                    <span class="cd-timer-txt" id="skill-cd-timer-2"></span>
+                  </div>
+                </div>
+
+                <div class="battle-skill-card slot-3" id="bbtn-skill-3" data-slot="3" title="Golpe 4 [R]">
+                  <img class="bsc-icon" id="skill-icon-3" src="" alt="" style="display: none;" />
+                  <span class="bsc-hotkey">[R]</span>
+                  <div class="cluster-cd-overlay" id="skill-cd-overlay-3">
+                    <span class="cd-timer-txt" id="skill-cd-timer-3"></span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right Stacked Utility Column: 2 Clean Square Action Buttons (Defesa on top, Ataque Básico on bottom) -->
+              <div class="bbd-utility-col">
+                <!-- Defesa [D] (Square) -->
+                <button class="battle-round-action-btn btn-action-def bbd-util-btn bbd-util-square" id="bbtn-def-stance" title="Defesa [D] (-70% Dano por 1.5s)">
+                  <div class="round-def-shield-icon">
+                    <svg viewBox="0 0 24 28" width="13" height="15">
+                      <path d="M12 2L3 5v8c0 8 9 13 9 13s9-5 9-13V5l-9-3z" fill="#0c172a" stroke="#00e5ff" stroke-width="2"/>
+                      <path d="M12 4L5 6.5v6.5c0 6 7 10.5 7 10.5V4z" fill="#00e5ff"/>
+                      <path d="M12 4v17.5c0 0 7-4.5 7-10.5V6.5L12 4z" fill="#38bdf8"/>
                     </svg>
                   </div>
-                  <span class="atk-arrow-right">▶</span>
+                  <span class="round-btn-hotkey round-btn-hotkey-def">D</span>
+                  <span class="round-btn-lbl round-btn-lbl-def" id="def-ball-lbl" style="display:none;">DEF</span>
+                  <div class="round-def-meter-bar"><div class="round-def-meter-fill" id="def-meter-bar-fill" style="width: 100%;"></div></div>
+                  <div class="round-cd-overlay" id="def-cd-overlay">
+                    <span class="cd-timer-txt" id="def-cd-timer"></span>
+                  </div>
+                </button>
+
+                <!-- Ataque Básico [Espaço] (Square) -->
+                <button class="battle-round-action-btn btn-action-atk bbd-util-btn bbd-util-square" id="bbtn-basic-atk" title="Ataque Básico [Espaço] (Combo 3-Hits)">
+                  <div class="round-atk-swords-icon">
+                    <svg viewBox="0 0 24 24" width="13" height="13">
+                      <path d="M5 2l4 4-2 2-4-4V2h2z" fill="#f59e0b"/>
+                      <path d="M7 4l12 12-2 2L5 6 7 4z" fill="#ffffff"/>
+                      <path d="M3 19l2 2-2 2-1-1 1-3zm16-17l4 4-2 2-4-4 2-2z" fill="#f59e0b"/>
+                      <path d="M17 4L5 16l2 2L19 6l-2-2z" fill="#f59e0b"/>
+                    </svg>
+                  </div>
+                  <span class="round-btn-hotkey round-btn-hotkey-atk">ESP</span>
+                  <span class="round-btn-lbl round-btn-lbl-atk" id="atk-btn-lbl" style="display:none;">ATK</span>
+                  <div class="atk-combo-pips" id="atk-combo-pips" style="display:none;">
+                    <span class="combo-pip" id="combo-pip-1"></span>
+                    <span class="combo-pip" id="combo-pip-2"></span>
+                    <span class="combo-pip" id="combo-pip-3"></span>
+                  </div>
+                  <div class="atk-combo-gauge-wrapper" id="atk-combo-gauge-wrap">
+                    <div class="atk-combo-gauge" id="atk-combo-gauge"></div>
+                  </div>
+                  <div class="round-cd-overlay" id="atk-cd-overlay">
+                    <span class="cd-timer-txt" id="atk-cd-timer"></span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Bottom Row: Bars Container (HP Bar + Stamina Bar with clean meta row and fill track) -->
+            <div class="bbd-bars-container">
+              <!-- HP Bar Row -->
+              <div class="bbd-bar-row">
+                <div class="bbd-bar-meta">
+                  <span class="bbd-bar-lbl lbl-hp">HP</span>
+                  <span class="bbd-bar-val val-hp" id="player-hp-text">--/--</span>
                 </div>
-                <span class="round-btn-lbl round-btn-lbl-atk" id="atk-btn-lbl">ATK</span>
-                <div class="atk-combo-pips" id="atk-combo-pips">
-                  <span class="combo-pip" id="combo-pip-1"></span>
-                  <span class="combo-pip" id="combo-pip-2"></span>
-                  <span class="combo-pip" id="combo-pip-3"></span>
+                <div class="bcard-hp-track" id="player-hp-track">
+                  <div class="bcard-hp-fill healthy" id="player-hp-fill" style="width: 100%;"></div>
                 </div>
               </div>
-              <div class="atk-combo-gauge-wrapper" id="atk-combo-gauge-wrap">
-                <div class="atk-combo-gauge" id="atk-combo-gauge"></div>
+              <!-- Stamina Bar Row -->
+              <div class="bbd-bar-row">
+                <div class="bbd-bar-meta">
+                  <span class="bbd-bar-lbl lbl-sta">STAMINA</span>
+                  <span class="bbd-bar-val val-sta" id="player-stamina-text">--/--</span>
+                </div>
+                <div class="bcard-stamina-track" id="player-stamina-track" title="Stamina de Esquiva / Dash [Shift ou Duplo Toque]">
+                  <div class="bcard-stamina-fill" id="player-stamina-fill" style="width: 100%;"></div>
+                </div>
               </div>
-              <div class="round-cd-overlay" id="atk-cd-overlay">
-                <span class="cd-timer-txt" id="atk-cd-timer"></span>
-              </div>
-            </button>
+            </div>
           </div>
+
+          <!-- BLOCK 4: QUICK ITEMS / CONSUMABLES (2 ROWS X 3 COLS = 6 SLOTS - MOCHILA REMOVIDA) -->
+          <div class="bbd-card bbd-quick-items-card battle-quick-items-hud" id="battle-quick-items-hud" title="Itens Rápidos / Consumíveis">
+            <div class="bbd-card-header">
+              <span class="bbd-card-title">ITENS RÁPIDOS</span>
+            </div>
+            <div class="bbd-quick-grid" id="bquick-item-tray">
+              <div class="quick-slot bquick-slot-item empty" id="bquick-slot-0" data-slot="0">
+                <span class="quick-slot-key bquick-hotkey">1</span>
+                <img class="quick-slot-icon bquick-icon" src="" alt="" style="display: none;" />
+                <span class="quick-slot-qty bquick-qty"></span>
+              </div>
+              <div class="quick-slot bquick-slot-item empty" id="bquick-slot-1" data-slot="1">
+                <span class="quick-slot-key bquick-hotkey">2</span>
+                <img class="quick-slot-icon bquick-icon" src="" alt="" style="display: none;" />
+                <span class="quick-slot-qty bquick-qty"></span>
+              </div>
+              <div class="quick-slot bquick-slot-item empty" id="bquick-slot-2" data-slot="2">
+                <span class="quick-slot-key bquick-hotkey">3</span>
+                <img class="quick-slot-icon bquick-icon" src="" alt="" style="display: none;" />
+                <span class="quick-slot-qty bquick-qty"></span>
+              </div>
+              <div class="quick-slot bquick-slot-item empty" id="bquick-slot-3" data-slot="3">
+                <span class="quick-slot-key bquick-hotkey">4</span>
+                <img class="quick-slot-icon bquick-icon" src="" alt="" style="display: none;" />
+                <span class="quick-slot-qty bquick-qty"></span>
+              </div>
+              <div class="quick-slot bquick-slot-item empty" id="bquick-slot-4" data-slot="4">
+                <span class="quick-slot-key bquick-hotkey">5</span>
+                <img class="quick-slot-icon bquick-icon" src="" alt="" style="display: none;" />
+                <span class="quick-slot-qty bquick-qty"></span>
+              </div>
+              <div class="quick-slot bquick-slot-item empty" id="bquick-slot-5" data-slot="5">
+                <span class="quick-slot-key bquick-hotkey">6</span>
+                <img class="quick-slot-icon bquick-icon" src="" alt="" style="display: none;" />
+                <span class="quick-slot-qty bquick-qty"></span>
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <!-- BOTTOM BATTLE REWARDS / SUMMARY TRAY (Substitui os controles de ataque no fim do combate) -->
@@ -600,7 +660,6 @@ export class BattleHud {
           <div class="battle-modal-shelf"></div>
           <div class="battle-modal-header">
             <div class="battle-modal-title">
-              <span class="btm-title-icon">⚡</span>
               <span id="battle-team-modal-title">EQUIPE POKÉMON</span>
               <div class="btm-badge-count" id="battle-team-count-badge">1/6</div>
             </div>
@@ -721,11 +780,17 @@ export class BattleHud {
         btn.addEventListener('click', () => {
           this.triggerMoveSlot(i);
         });
+        btn.addEventListener('mouseenter', () => {
+          this.showSkillTooltip(i);
+        });
+        btn.addEventListener('mouseleave', () => {
+          this.hideSkillTooltip();
+        });
       }
     }
 
-    // Bind 5 Right-Center Quick Items
-    for (let i = 0; i < 5; i++) {
+    // Bind 6 Bottom-Right Quick Items
+    for (let i = 0; i < 6; i++) {
       const slotEl = document.getElementById(`bquick-slot-${i}`);
       if (slotEl) {
         slotEl.addEventListener('click', () => {
@@ -879,35 +944,43 @@ export class BattleHud {
         }
       }
 
-      // Real-time battle hotkeys in fight mode
+      // Auto-enter fight mode on combat action hotkeys
+      if (['KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyD', 'KeyF', 'Space'].includes(e.code) && this.currentSubMenu === 'main') {
+        this.switchSubMenu('fight');
+      }
+
+      // Real-time MOBA combat hotkeys (Q, W, E, R = Moves | D = Defend | F/Shift = Dodge | Space = Basic Attack | 1-5 = Quick Items)
       if (e.code === 'KeyQ') {
+        this.triggerMoveSlot(0);
+      } else if (e.code === 'KeyW') {
+        this.triggerMoveSlot(1);
+      } else if (e.code === 'KeyE') {
+        this.triggerMoveSlot(2);
+      } else if (e.code === 'KeyR') {
+        this.triggerMoveSlot(3);
+      } else if (e.code === 'KeyD') {
         this.engine?.executePlayerDefensive?.();
+      } else if (e.code === 'KeyF' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+        this.engine?.executePlayerDodge?.(0, 0);
       } else if (e.code === 'Space') {
         this.engine?.executePlayerBasicAttack?.();
-      } else if (!e.shiftKey && (e.code === 'Digit1' || e.code === 'Numpad1')) {
-        this.triggerMoveSlot(0);
-      } else if (!e.shiftKey && (e.code === 'Digit2' || e.code === 'Numpad2')) {
-        this.triggerMoveSlot(1);
-      } else if (!e.shiftKey && (e.code === 'Digit3' || e.code === 'Numpad3')) {
-        this.triggerMoveSlot(2);
-      } else if (!e.shiftKey && (e.code === 'Digit4' || e.code === 'Numpad4')) {
-        this.triggerMoveSlot(3);
-      } else if (e.code === 'Digit5' || e.code === 'Numpad5' || (e.shiftKey && (e.code === 'Digit1' || e.code === 'Numpad1'))) {
+      } else if (e.code === 'Digit1' || e.code === 'Numpad1') {
         this.triggerQuickSlot(0);
-      } else if (e.code === 'Digit6' || e.code === 'Numpad6' || (e.shiftKey && (e.code === 'Digit2' || e.code === 'Numpad2'))) {
+      } else if (e.code === 'Digit2' || e.code === 'Numpad2') {
         this.triggerQuickSlot(1);
-      } else if (e.code === 'Digit7' || e.code === 'Numpad7' || (e.shiftKey && (e.code === 'Digit3' || e.code === 'Numpad3'))) {
+      } else if (e.code === 'Digit3' || e.code === 'Numpad3') {
         this.triggerQuickSlot(2);
-      } else if (e.code === 'Digit8' || e.code === 'Numpad8' || (e.shiftKey && (e.code === 'Digit4' || e.code === 'Numpad4'))) {
+      } else if (e.code === 'Digit4' || e.code === 'Numpad4') {
         this.triggerQuickSlot(3);
-      } else if (e.code === 'Digit9' || e.code === 'Numpad9' || (e.shiftKey && (e.code === 'Digit5' || e.code === 'Numpad5'))) {
+      } else if (e.code === 'Digit5' || e.code === 'Numpad5') {
         this.triggerQuickSlot(4);
+      } else if (e.code === 'Digit6' || e.code === 'Numpad6') {
+        this.triggerQuickSlot(5);
       } else if (e.code === 'KeyB') {
-        this.switchSubMenu('bag');
+        this.addLog('⚠️ <strong>A mochila está bloqueada durante o combate!</strong> Use apenas seus itens rápidos.', 'system');
+        soundManager.playBuzzer?.();
       } else if (e.code === 'KeyP') {
         this.switchSubMenu('team');
-      } else if (e.code === 'KeyF') {
-        if (this.onRun) this.onRun();
       } else if (e.code === 'KeyM') {
         const enabled = soundManager.toggleMute();
         const btn = document.getElementById('btn-sound-toggle');
@@ -918,6 +991,8 @@ export class BattleHud {
   }
 
   switchSubMenu(menuKey) {
+    if (this._matchEnded) return;
+
     if (this.engine.isAwaitingSwitch) {
       menuKey = 'team';
     }
@@ -927,6 +1002,7 @@ export class BattleHud {
     const commandBar = document.getElementById('battle-command-bar');
     const mainMenu = document.getElementById('battle-main-menu');
     const actionCluster = document.getElementById('battle-action-cluster');
+    const dashboard = document.getElementById('battle-bottom-dashboard');
     const bagModal = document.getElementById('battle-bag-action-panel');
     const teamModal = document.getElementById('battle-team-action-panel');
     const backdrop = document.getElementById('battle-modal-backdrop');
@@ -943,9 +1019,12 @@ export class BattleHud {
     btnRun?.classList.toggle('active', false);
 
     if (menuKey === 'main') {
+      this.engine?.setCombatActive(false);
       commandBar?.classList.remove('hidden');
       mainMenu?.classList.remove('hidden');
       actionCluster?.classList.add('hidden');
+      dashboard?.classList.add('hidden');
+      if (dashboard) dashboard.style.display = 'none';
       bagModal?.classList.add('hidden');
       teamModal?.classList.add('hidden');
       backdrop?.classList.add('hidden');
@@ -953,6 +1032,13 @@ export class BattleHud {
       this.engine?.setCombatActive(true);
       commandBar?.classList.add('hidden');
       actionCluster?.classList.remove('hidden');
+      if (this.engine?.playerEntity && !this.engine.isIntroStandby && !this.engine.isAwaitingSwitch) {
+        dashboard?.classList.remove('hidden');
+        if (dashboard) dashboard.style.display = 'flex';
+      } else {
+        dashboard?.classList.add('hidden');
+        if (dashboard) dashboard.style.display = 'none';
+      }
       bagModal?.classList.add('hidden');
       teamModal?.classList.add('hidden');
       backdrop?.classList.add('hidden');
@@ -960,22 +1046,27 @@ export class BattleHud {
       if (activeMon) {
         this.renderMovesCluster(activeMon);
       }
-    } else if (menuKey === 'bag') {
-      commandBar?.classList.remove('hidden');
-      mainMenu?.classList.remove('hidden');
-      actionCluster?.classList.add('hidden');
-      bagModal?.classList.remove('hidden');
-      teamModal?.classList.add('hidden');
-      backdrop?.classList.remove('hidden');
-      this.renderBagBoard();
     } else if (menuKey === 'team') {
       commandBar?.classList.remove('hidden');
       mainMenu?.classList.remove('hidden');
       actionCluster?.classList.add('hidden');
+      dashboard?.classList.add('hidden');
+      if (dashboard) dashboard.style.display = 'none';
       bagModal?.classList.add('hidden');
       teamModal?.classList.remove('hidden');
       backdrop?.classList.remove('hidden');
       this.renderTeamBoard();
+    } else if (menuKey === 'bag') {
+      this.engine?.setCombatActive(false);
+      commandBar?.classList.remove('hidden');
+      mainMenu?.classList.remove('hidden');
+      actionCluster?.classList.add('hidden');
+      dashboard?.classList.add('hidden');
+      if (dashboard) dashboard.style.display = 'none';
+      bagModal?.classList.remove('hidden');
+      teamModal?.classList.add('hidden');
+      backdrop?.classList.remove('hidden');
+      this.renderBagBoard();
     }
   }
 
@@ -994,7 +1085,7 @@ export class BattleHud {
 
     const party = this.engine.playerParty || [];
     const activeIdx = this.engine.activePlayerIndex ?? 0;
-    const isForced = this.engine.isAwaitingSwitch || !this.engine.playerEntity;
+    const isForced = Boolean(this.engine.isAwaitingSwitch);
 
     if (countBadge) {
       countBadge.textContent = `${party.length}/6`;
@@ -1002,14 +1093,14 @@ export class BattleHud {
 
     if (title) {
       title.textContent = isForced
-        ? (this.engine.isAwaitingSwitch ? '💀 POKÉMON DESMAIOU! ESCOLHA O PRÓXIMO:' : 'ESCOLHA O POKÉMON PARA LUTAR:')
+        ? '💀 POKÉMON DESMAIOU! ESCOLHA O PRÓXIMO:'
         : 'EQUIPE POKÉMON';
     }
 
     if (subtitle) {
       subtitle.textContent = isForced
-        ? 'Selecione um Pokémon consciente para entrar em combate.'
-        : 'Trocar Pokémon em batalha';
+        ? 'Selecione um Pokémon consciente para continuar combatendo.'
+        : 'Selecione um Pokémon para entrar em combate';
       subtitle.style.color = isForced ? '#ef4444' : '';
     }
 
@@ -1018,17 +1109,18 @@ export class BattleHud {
     }
 
     if (backBtn) {
-      if (this.engine.isAwaitingSwitch) {
-        backBtn.textContent = '🎒 ABRIR MOCHILA (REVIVE)';
+      if (isForced) {
+        backBtn.style.display = 'none';
       } else {
+        backBtn.style.display = 'block';
         backBtn.textContent = '◀ VOLTAR';
       }
     }
 
     grid.innerHTML = '';
 
-    // Render cells in 6 columns (Image 2 style: 12 cells = 2 rows x 6 columns)
-    const totalCells = Math.max(12, Math.ceil(party.length / 6) * 6);
+    // Render cells in 6 columns (Exactly 6 slots in the party = 1 row)
+    const totalCells = 6;
     for (let idx = 0; idx < totalCells; idx++) {
       const pkmn = party[idx];
       const cell = document.createElement('div');
@@ -1073,10 +1165,12 @@ export class BattleHud {
         `;
 
         if (!isFainted && !isCurrent) {
+          cell.style.cursor = 'pointer';
           cell.addEventListener('mouseenter', () => {
             soundManager.playCursor?.();
           });
-          cell.addEventListener('click', () => {
+          cell.addEventListener('click', (e) => {
+            e.stopPropagation();
             soundManager.playDecision?.();
             if (this.engine) {
               this.engine.isAwaitingSwitch = false;
@@ -1366,7 +1460,7 @@ export class BattleHud {
     const hotbar = bagUI?.hotbarSlots || [];
     const inventory = bagUI?.inventory || [];
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 6; i++) {
       const slotEl = document.getElementById(`bquick-slot-${i}`);
       if (!slotEl) continue;
 
@@ -1375,7 +1469,7 @@ export class BattleHud {
       const hotbarSlot = hotbar[i];
 
       if (!hotbarSlot || (!hotbarSlot.itemId && !hotbarSlot.itemName)) {
-        slotEl.className = 'bquick-slot-item empty';
+        slotEl.className = 'quick-slot bquick-slot-item empty';
         slotEl.title = `Slot ${i + 1} Vazio`;
         if (imgEl) imgEl.style.display = 'none';
         if (qtyEl) qtyEl.textContent = '';
@@ -1394,7 +1488,7 @@ export class BattleHud {
       const isMedicine = cat === 'medicine' || item.name?.toLowerCase().includes('potion') || item.name?.toLowerCase().includes('revive') || item.name?.toLowerCase().includes('heal');
       const isValid = isBall || isMedicine;
 
-      slotEl.className = `bquick-slot-item ${qty <= 0 ? 'out-of-stock' : ''} ${!isValid ? 'invalid-battle-item' : ''}`;
+      slotEl.className = `quick-slot bquick-slot-item has-item ${qty <= 0 ? 'out-of-stock' : ''} ${!isValid ? 'invalid-battle-item' : ''}`;
       slotEl.title = `[${i + 1}] ${item.name || 'Item'} (${qty})` + (!isValid ? ' - Inválido em Batalha' : '');
 
       if (imgEl) {
@@ -1567,20 +1661,43 @@ export class BattleHud {
 
   showMatchResult(outcome, winnerData, rewards = null) {
     this._matchEnded = true;
+    this.hideSkillTooltip();
 
-    // Clear action bubbles under Pokémon HUDs so EXP/Gold never appear below Pokemon
+    if (this.container) {
+      this.container.classList.add('battle-match-finished');
+    }
+    const hudLayout = document.getElementById('swsh-battle-hud-layout');
+    if (hudLayout) {
+      hudLayout.classList.add('battle-match-finished');
+    }
+
+    // Clear and hide action bubbles under Pokémon HUDs
     const playerTicker = document.getElementById('player-action-ticker');
-    if (playerTicker) playerTicker.innerHTML = '';
+    if (playerTicker) { playerTicker.innerHTML = ''; playerTicker.style.display = 'none'; }
     const enemyTicker = document.getElementById('enemy-action-ticker');
-    if (enemyTicker) enemyTicker.innerHTML = '';
+    if (enemyTicker) { enemyTicker.innerHTML = ''; enemyTicker.style.display = 'none'; }
 
-    // Hide bottom combat controls and choices menu
-    const actionCluster = document.getElementById('battle-action-cluster');
+    // Completely hide ALL battle HUD components (Dashboard, Command Bar, Action Panels, Databoxes, Modals, Hints)
+    const dashboard = document.getElementById('battle-bottom-dashboard');
+    if (dashboard) { dashboard.classList.add('hidden'); dashboard.style.display = 'none'; }
     const commandBar = document.getElementById('battle-command-bar');
+    if (commandBar) { commandBar.classList.add('hidden'); commandBar.style.display = 'none'; }
+    const actionCluster = document.getElementById('battle-action-cluster');
+    if (actionCluster) { actionCluster.classList.add('hidden'); actionCluster.style.display = 'none'; }
     const quickTray = document.getElementById('bquick-item-tray');
-    if (actionCluster) actionCluster.classList.add('hidden');
-    if (commandBar) commandBar.classList.add('hidden');
-    if (quickTray) quickTray.classList.add('hidden');
+    if (quickTray) { quickTray.classList.add('hidden'); quickTray.style.display = 'none'; }
+    const enemyBox = document.getElementById('battle-enemy-databox');
+    if (enemyBox) { enemyBox.classList.add('hidden'); enemyBox.style.display = 'none'; }
+    const playerBox = document.getElementById('battle-player-databox');
+    if (playerBox) { playerBox.classList.add('hidden'); playerBox.style.display = 'none'; }
+    const teamModal = document.getElementById('battle-team-action-panel');
+    if (teamModal) { teamModal.classList.add('hidden'); teamModal.style.display = 'none'; }
+    const bagModal = document.getElementById('battle-bag-action-panel');
+    if (bagModal) { bagModal.classList.add('hidden'); bagModal.style.display = 'none'; }
+    const backdrop = document.getElementById('battle-modal-backdrop');
+    if (backdrop) { backdrop.classList.add('hidden'); backdrop.style.display = 'none'; }
+    const hints = document.querySelector('.swsh-action-hints');
+    if (hints) { hints.style.display = 'none'; }
 
     const overlay = document.getElementById('match-result-overlay');
     const modalBox = document.getElementById('result-modal-box');
@@ -1834,7 +1951,7 @@ export class BattleHud {
           <div class="smb-indicator type-bg-${typeLower}"></div>
           <div class="smb-body">
             <div class="dmc-top">
-              <span class="dmc-hotkey">[${i + 1}]</span>
+              <span class="dmc-hotkey">[${['Q', 'W', 'E', 'R'][i] || (i + 1)}]</span>
               <span class="dmc-name">${move.name}</span>
               <span class="dmc-pp ${move.pp <= 0 ? 'empty' : move.pp <= 5 ? 'low' : ''}">PP ${move.pp}/${move.maxPp}</span>
             </div>
@@ -1883,48 +2000,41 @@ export class BattleHud {
     this.renderMovesCluster(player);
   }
 
-  // Render authentic moves into the bottom-right action cluster (Horizontal 4-card row)
+  // Render authentic moves into the bottom-right action cluster (Clean Square Cards with Move Icons)
   renderMovesCluster(player) {
     if (!player || !player.moves) return;
 
     for (let i = 0; i < 4; i++) {
       const move = player.moves[i];
       const cardEl = document.getElementById(`bbtn-skill-${i}`);
-      const nameEl = document.getElementById(`bcs-name-${i}`);
-      const ppEl = document.getElementById(`bcs-pp-${i}`);
-      const typePill = document.getElementById(`bsc-type-${i}`);
-      const pwrEl = document.getElementById(`bsc-pwr-${i}`);
-      const accEl = document.getElementById(`bsc-acc-${i}`);
+      const iconImg = document.getElementById(`skill-icon-${i}`);
       if (!cardEl) continue;
 
       if (move) {
         const typeLower = String(move.type || 'normal').toLowerCase();
+        const typeName = String(move.type || 'NORMAL').toUpperCase();
         const cleanName = String(move.name || '')
           .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
           .trim();
 
         cardEl.className = `battle-skill-card slot-${i} type-card-${typeLower} ${i === 0 ? 'active-card' : ''}`;
         cardEl.classList.remove('empty-slot');
-        cardEl.title = `[${i + 1}] ${cleanName} (${String(move.type || 'Normal').toUpperCase()}) - Poder: ${move.power || '—'} | Precisão: ${move.accuracy || 100}% | CD: ${move.cooldown}s`;
+        const hotkeys = ['Q', 'W', 'E', 'R'];
+        const pwr = move.power && move.power > 0 ? move.power : '—';
+        const acc = move.accuracy || 100;
+        const cd = move.cooldown || 2.5;
+        const desc = move.description ? `\n• ${move.description}` : '';
+        cardEl.title = `[${hotkeys[i]}] ${cleanName} (${typeName})\nPoder: ${pwr} | Precisão: ${acc}% | PP: ${move.pp}/${move.maxPp} | Recarga: ${cd}s${desc}`;
 
-        if (nameEl) nameEl.textContent = cleanName;
-        if (ppEl) {
-          ppEl.textContent = `PP ${move.pp}/${move.maxPp}`;
-          ppEl.className = `bsc-pp ${move.pp <= 0 ? 'empty' : move.pp <= 5 ? 'low' : ''}`;
-        }
-
-        if (typePill) {
-          const typeName = String(move.type || 'NORMAL').toUpperCase();
-          typePill.innerHTML = `<span class="bsc-type-label">${typeName}</span>`;
-          typePill.className = `bsc-type-pill type-pill-${typeLower}`;
-        }
-
-        if (pwrEl) {
-          pwrEl.textContent = move.power && move.power > 0 ? move.power : '—';
-        }
-
-        if (accEl) {
-          accEl.textContent = move.accuracy ? `${move.accuracy}` : '100';
+        if (iconImg) {
+          const iconSrc = resolveMoveIconPath(move);
+          if (iconSrc) {
+            iconImg.src = iconSrc;
+            iconImg.alt = cleanName;
+            iconImg.style.display = 'block';
+          } else {
+            iconImg.style.display = 'none';
+          }
         }
 
         if (move.pp <= 0) {
@@ -1935,15 +2045,71 @@ export class BattleHud {
       } else {
         cardEl.className = `battle-skill-card slot-${i} empty-slot`;
         cardEl.title = `Slot ${i + 1} Vazio`;
-        if (nameEl) nameEl.textContent = '—';
-        if (ppEl) ppEl.textContent = 'PP --/--';
-        if (typePill) {
-          typePill.innerHTML = '<span class="bsc-type-label">—</span>';
-          typePill.className = 'bsc-type-pill';
+        if (iconImg) {
+          iconImg.src = '';
+          iconImg.style.display = 'none';
         }
-        if (pwrEl) pwrEl.textContent = '—';
-        if (accEl) accEl.textContent = '—';
       }
+    }
+  }
+
+  showSkillTooltip(index) {
+    const tooltipEl = document.getElementById('bbd-skill-tooltip');
+    if (!tooltipEl) return;
+    const player = this.engine?.playerEntity;
+    const move = player?.moves?.[index];
+    if (!player || !move || !move.name) {
+      tooltipEl.classList.remove('visible');
+      tooltipEl.style.display = 'none';
+      return;
+    }
+
+    const typeLower = String(move.type || 'normal').toLowerCase();
+    const typeName = String(move.type || 'Normal');
+    const typeColor = TYPE_COLORS[typeName] || '#00e5ff';
+    const cleanName = String(move.name || '').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
+    const hotkeys = ['Q', 'W', 'E', 'R'];
+    const pwr = move.power && move.power > 0 ? move.power : '—';
+    const acc = move.accuracy ? `${move.accuracy}%` : '100%';
+    const cd = (typeof move.cooldown === 'number') ? `${move.cooldown}s` : '2.5s';
+    const cat = move.category || 'Físico';
+    const desc = move.description || 'Ataque ou habilidade de combate Pokémon.';
+
+    tooltipEl.innerHTML = `
+      <div class="bst-header">
+        <span class="bst-hotkey">[${hotkeys[index]}]</span>
+        <span class="bst-name">${cleanName}</span>
+        <span class="bst-type" style="background:${typeColor}">${typeName.toUpperCase()}</span>
+      </div>
+      <div class="bst-stats-row">
+        <span><b>Cat:</b> ${cat}</span>
+        <span><b>Poder:</b> ${pwr}</span>
+        <span><b>Prec:</b> ${acc}</span>
+        <span><b>PP:</b> ${move.pp}/${move.maxPp || move.pp}</span>
+        <span><b>Recarga:</b> ${cd}</span>
+      </div>
+      <div class="bst-desc">${desc}</div>
+    `;
+
+    const cardEl = document.getElementById(`bbtn-skill-${index}`);
+    if (cardEl) {
+      const cardRect = cardEl.getBoundingClientRect();
+      const clusterEl = cardEl.closest('.bbd-moves-cluster');
+      if (clusterEl) {
+        const clusterRect = clusterEl.getBoundingClientRect();
+        const leftOffset = (cardRect.left - clusterRect.left) + (cardRect.width / 2);
+        tooltipEl.style.left = `${Math.round(leftOffset)}px`;
+      }
+    }
+    tooltipEl.classList.add('visible');
+    tooltipEl.style.display = 'flex';
+  }
+
+  hideSkillTooltip() {
+    const tooltipEl = document.getElementById('bbd-skill-tooltip');
+    if (tooltipEl) {
+      tooltipEl.classList.remove('visible');
+      tooltipEl.style.display = 'none';
     }
   }
 
@@ -2065,8 +2231,35 @@ export class BattleHud {
     // Throttle DOM tree updates to every 2 frames (~30 FPS), cutting browser layout reflow by 50%
     if (this._hudFrame % 2 !== 0) return;
 
+    if (this._matchEnded) {
+      const dashboard = document.getElementById('battle-bottom-dashboard');
+      if (dashboard) { dashboard.classList.add('hidden'); dashboard.style.display = 'none'; }
+      const commandBar = document.getElementById('battle-command-bar');
+      if (commandBar) { commandBar.classList.add('hidden'); commandBar.style.display = 'none'; }
+      const enemyBox = document.getElementById('battle-enemy-databox');
+      if (enemyBox) { enemyBox.classList.add('hidden'); enemyBox.style.display = 'none'; }
+      const pDatabox = document.getElementById('battle-player-databox');
+      if (pDatabox) { pDatabox.classList.add('hidden'); pDatabox.style.display = 'none'; }
+      const hints = document.querySelector('.swsh-action-hints');
+      if (hints) hints.style.display = 'none';
+      return;
+    }
+
     const p = this.engine.playerEntity;
     const e = this.engine.enemyEntity;
+
+    const hasPlayerMon = Boolean(p && !this.engine.isIntroStandby && !this.engine.isAwaitingSwitch);
+    const dashboard = document.getElementById('battle-bottom-dashboard');
+    if (dashboard) {
+      if (!hasPlayerMon || this.currentSubMenu !== 'fight' || this._matchEnded) {
+        dashboard.classList.add('hidden');
+        dashboard.style.display = 'none';
+        this.hideSkillTooltip();
+      } else {
+        dashboard.classList.remove('hidden');
+        dashboard.style.display = 'flex';
+      }
+    }
 
     const pDatabox = document.getElementById('battle-player-databox');
     const hints = document.querySelector('.swsh-action-hints');
@@ -2107,6 +2300,20 @@ export class BattleHud {
         if (this._lastPlayerTypesSig !== pTypesSig) {
           this._lastPlayerTypesSig = pTypesSig;
           pTypesContainer.innerHTML = pTypes.map(t => `<span class="type-chip type-${t.toLowerCase()}">${t.toUpperCase()}</span>`).join('');
+
+          // Se o Pokémon tiver mais de um tipo, comprime o título "ATRIBUTOS" para "ATRIB."
+          const attrTitle = document.querySelector('#bbd-player-stats-card .bbd-card-title');
+          if (attrTitle) {
+            if (pTypes.length > 1) {
+              attrTitle.textContent = 'ATRIB.';
+              attrTitle.classList.add('compressed');
+              pTypesContainer.classList.add('dual-types');
+            } else {
+              attrTitle.textContent = 'ATRIBUTOS';
+              attrTitle.classList.remove('compressed');
+              pTypesContainer.classList.remove('dual-types');
+            }
+          }
         }
       }
 
@@ -2115,7 +2322,7 @@ export class BattleHud {
       const maxHp = p.maxHp;
       const pHpText = document.getElementById('player-hp-text');
       if (pHpText) {
-        pHpText.textContent = `${curHp}`;
+        pHpText.textContent = `${curHp}/${maxHp}`;
         pHpText.title = `HP: ${curHp} / ${maxHp}`;
       }
 
@@ -2262,6 +2469,7 @@ export class BattleHud {
       this.renderMovesCluster(p);
       this.updateMovesCooldowns(p);
       this.updateDefenseMeter(p);
+
       if (this.currentSubMenu === 'fight') {
         this.renderMovesBoard(p);
       }
@@ -2379,8 +2587,66 @@ export class BattleHud {
     // 4. Render Party line indicators
     this.renderPartyDots();
 
-    // 5. Update right-center 5 quick slots
+    // 5. Update bottom-right 6 quick slots
     this.updateQuickItemsView();
+
+    // 6. Update in-combat stats & stat stages for Player and Enemy
+    this.updateCombatStats(p, e);
+  }
+
+  updateCombatStats(p, e) {
+    const getStageMult = (s) => (s >= 0 ? (2 + s) / 2 : 2 / (2 - s));
+    const formatStage = (s) => (s > 0 ? `+${s}` : `${s}`);
+    const stageClass = (s) => (s > 0 ? 'stage-plus' : s < 0 ? 'stage-minus' : 'stage-zero');
+
+    // 1. Player In-Combat Stats & Stages
+    if (p && p.data && p.data.stats) {
+      const stats = p.data.stats;
+      const stages = p.statStages || { atk: 0, def: 0, spAtk: 0, spDef: 0, speed: 0 };
+      const statMap = [
+        { key: 'atk', idVal: 'pstat-val-atk', idStage: 'pstat-stage-atk' },
+        { key: 'def', idVal: 'pstat-val-def', idStage: 'pstat-stage-def' },
+        { key: 'spAtk', idVal: 'pstat-val-spatk', idStage: 'pstat-stage-spatk' },
+        { key: 'spDef', idVal: 'pstat-val-spdef', idStage: 'pstat-stage-spdef' },
+        { key: 'speed', idVal: 'pstat-val-speed', idStage: 'pstat-stage-speed' },
+      ];
+
+      for (const item of statMap) {
+        const stage = stages[item.key] || 0;
+        const base = stats[item.key] || 0;
+        const effective = Math.max(1, Math.round(base * getStageMult(stage)));
+
+        const valEl = document.getElementById(item.idVal);
+        const stageEl = document.getElementById(item.idStage);
+
+        if (valEl) valEl.textContent = effective;
+        if (stageEl) {
+          stageEl.textContent = formatStage(stage);
+          stageEl.className = `bbd-stage-pill ${stageClass(stage)}`;
+        }
+      }
+    }
+
+    // 2. Enemy Stat Stages
+    if (e) {
+      const eStages = e.statStages || { atk: 0, def: 0, spAtk: 0, spDef: 0, speed: 0 };
+      const eMap = [
+        { key: 'atk', id: 'estat-stage-atk' },
+        { key: 'def', id: 'estat-stage-def' },
+        { key: 'spAtk', id: 'estat-stage-spatk' },
+        { key: 'spDef', id: 'estat-stage-spdef' },
+        { key: 'speed', id: 'estat-stage-speed' },
+      ];
+
+      for (const item of eMap) {
+        const stage = eStages[item.key] || 0;
+        const el = document.getElementById(item.id);
+        if (el) {
+          el.textContent = formatStage(stage);
+          el.className = `esi-badge ${stageClass(stage)}`;
+        }
+      }
+    }
   }
 
   startPreBattleCountdown(seconds = 5, onComplete = () => {}) {

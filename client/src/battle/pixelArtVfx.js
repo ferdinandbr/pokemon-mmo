@@ -5113,3 +5113,197 @@ export function renderDazzleFlare(ctx, x, y, p) {
   ctx.restore();
 }
 
+// Re-export Procedural VFX Systems (Bug, Dark, Dragon, Electric, Fighting)
+export * from './proceduralVfxBug.js';
+export * from './proceduralVfxDark.js';
+export * from './proceduralVfxDragon.js';
+export * from './proceduralVfxElectric.js';
+export * from './proceduralVfxFighting.js';
+
+import { renderBugMoveProcedural } from './proceduralVfxBug.js';
+import { renderDarkMoveProcedural } from './proceduralVfxDark.js';
+import { renderDragonMoveProcedural } from './proceduralVfxDragon.js';
+import { renderElectricMoveProcedural } from './proceduralVfxElectric.js';
+import { renderFightingMoveProcedural } from './proceduralVfxFighting.js';
+
+export function renderProceduralMove(ctx, move, progress, startX, startY, targetX, targetY, scale = 1) {
+  if (!move) return false;
+  const t = move.type;
+  if (t === 'Bug') return renderBugMoveProcedural(ctx, move, progress, startX, startY, targetX, targetY, scale);
+  if (t === 'Dark') return renderDarkMoveProcedural(ctx, move, progress, startX, startY, targetX, targetY, scale);
+  if (t === 'Dragon') return renderDragonMoveProcedural(ctx, move, progress, startX, startY, targetX, targetY, scale);
+  if (t === 'Electric') return renderElectricMoveProcedural(ctx, move, progress, startX, startY, targetX, targetY, scale);
+  if (t === 'Fighting') return renderFightingMoveProcedural(ctx, move, progress, startX, startY, targetX, targetY, scale);
+  return false;
+}
+
+
+
+/**
+ * Blast Burn Progressive Ground Fire Pillars
+ */
+export function renderBlastBurnCombat(ctx, startX, startY, targetX, targetY, progress, spritesheetImg, spriteVisual) {
+  ctx.save();
+  const p = Math.max(0, Math.min(1, progress));
+
+  if (p <= 0.35) {
+    const castProg = p / 0.35;
+    const castAlpha = Math.sin(castProg * Math.PI);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const cGrad = ctx.createRadialGradient(startX, startY - 4, 0, startX, startY - 4, 32);
+    cGrad.addColorStop(0, '#FFFFFF');
+    cGrad.addColorStop(0.35, '#FEF08A');
+    cGrad.addColorStop(0.70, '#FF5722');
+    cGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+    ctx.fillStyle = cGrad;
+    ctx.globalAlpha = castAlpha * 0.85;
+    ctx.beginPath();
+    ctx.arc(startX, startY - 4, 32, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  const flameImg = spritesheetImg;
+  const cols = 12;
+  const rows = 10;
+  const fw = (flameImg && flameImg.complete && flameImg.naturalWidth > 0) ? (flameImg.naturalWidth / cols) : 0;
+  const fh = (flameImg && flameImg.complete && flameImg.naturalHeight > 0) ? (flameImg.naturalHeight / rows) : 0;
+
+  const columns = [
+    { u: 0.28, startP: 0.10, endP: 0.48, scale: 0.50 },
+    { u: 0.62, startP: 0.30, endP: 0.72, scale: 0.90 },
+    { u: 0.96, startP: 0.54, endP: 1.00, scale: 1.50 }
+  ];
+
+  if (p >= 0.10) {
+    const waveProg = Math.min(1.0, (p - 0.10) / 0.75);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let a = 0; a < 3; a++) {
+      const aProg = Math.max(0, Math.min(1, waveProg - a * 0.18));
+      if (aProg > 0 && aProg < 1.0) {
+        const ringAlpha = Math.sin(aProg * Math.PI) * 0.85;
+        const ringX = startX + (targetX - startX) * aProg;
+        const ringY = startY + (targetY - startY) * aProg;
+        const rx = 16 + aProg * 30;
+        const ry = 7 + aProg * 12;
+
+        ctx.strokeStyle = a % 2 === 0 ? '#FEF08A' : '#FF5722';
+        ctx.lineWidth = Math.max(1, (1 - aProg) * 2.5);
+        ctx.globalAlpha = ringAlpha;
+        ctx.beginPath();
+        ctx.ellipse(ringX, ringY + 4, rx, ry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  columns.forEach((col, idx) => {
+    if (p < col.startP || p > col.endP) return;
+    const localProg = (p - col.startP) / (col.endP - col.startP);
+    const colAlpha = Math.sin(localProg * Math.PI);
+    if (colAlpha <= 0.01) return;
+
+    const px = startX + (targetX - startX) * col.u;
+    const py = startY + (targetY - startY) * col.u;
+
+    ctx.save();
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = '#FF5722';
+    ctx.lineWidth = 1.8;
+    ctx.globalAlpha = colAlpha * 0.75;
+    ctx.beginPath();
+    ctx.ellipse(px, py + 4, 16 * col.scale, 7 * col.scale, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    if (fw > 0 && fh > 0) {
+      const frame = (Math.floor(localProg * 60) + idx * 25) % 120;
+      const sx = (frame % cols) * fw;
+      const sy = Math.floor(frame / cols) * fh;
+      const dw = fw * col.scale;
+      const dh = fh * col.scale * 1.30;
+
+      ctx.save();
+      ctx.imageSmoothingEnabled = false;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = colAlpha * 0.95;
+      ctx.filter = 'saturate(1.4) brightness(1.2)';
+      ctx.drawImage(flameImg, sx, sy, fw, fh, Math.round(px - dw / 2), Math.round(py + 4 - dh), dw, dh);
+      ctx.restore();
+    }
+    ctx.restore();
+  });
+
+  ctx.restore();
+}
+
+/**
+ * V-Create Fiery V-Crest Dash Aura
+ */
+export function renderVCreateDashAura(ctx, entity, layer = 'front') {
+  if (!entity) return;
+  const totalT = entity.totalDashTimer || 0.42;
+  const elapsed = Math.max(0, totalT - (entity.stateTimer || 0));
+
+  ctx.save();
+  const cx = entity.x;
+  const cy = entity.y - 18;
+
+  let dashAngle;
+  if (entity.target && !entity.target.isFainted) {
+    dashAngle = Math.atan2(entity.target.y - entity.y, entity.target.x - entity.x);
+  } else {
+    dashAngle = Math.atan2(entity.vy || 0, entity.vx || 1);
+  }
+
+  ctx.translate(cx, cy);
+  ctx.rotate(dashAngle);
+
+  if (layer === 'back') {
+    ctx.globalCompositeOperation = 'lighter';
+    const grad = ctx.createRadialGradient(0, 0, 4, 0, 0, 40);
+    grad.addColorStop(0, '#FFFFFF');
+    grad.addColorStop(0.3, '#FEF08A');
+    grad.addColorStop(0.65, '#FF5722');
+    grad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+    ctx.fillStyle = grad;
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    ctx.arc(0, 0, 40, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = '#FF5722';
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(18, 0);
+    ctx.lineTo(-24, -28);
+    ctx.moveTo(18, 0);
+    ctx.lineTo(-24, 28);
+    ctx.stroke();
+  } else {
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = '#FEF08A';
+    ctx.lineWidth = 3.5;
+    ctx.lineCap = 'round';
+    ctx.globalAlpha = 0.95;
+    ctx.beginPath();
+    ctx.moveTo(22, 0);
+    ctx.lineTo(-18, -22);
+    ctx.moveTo(22, 0);
+    ctx.lineTo(-18, 22);
+    ctx.stroke();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    ctx.arc(22, 0, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}

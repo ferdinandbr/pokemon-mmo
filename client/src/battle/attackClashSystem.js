@@ -270,7 +270,7 @@ export class AttackClashSystem {
         const winColor = winMove.color || '#00E5FF';
         partSys.spawnShockwave(clashX, clashY, 60, winColor, 0.35);
         partSys.spawnPixelBurst(clashX, clashY, winColor, 26, 200, 0.5, 4);
-        partSys.addFloatingText(clashX, clashY - 14, `${winner.data.name.toUpperCase()} VENCEU! (-30% Dano)`, 'heal', true);
+        partSys.addFloatingText(clashX, clashY - 14, `⚔️ CLASH VENCIDO! (-30% Dano)`, 'heal', true);
 
         this.engine.onLogMessage(
           `⚔️ <strong>CONFRONTO FÍSICO!</strong> <strong>${winner.data.name}</strong> (${winMove.name}) sobrepujou <strong>${loser.data.name}</strong> (${loseMove.name})! Dano reduzido para 70%.`,
@@ -343,7 +343,7 @@ export class AttackClashSystem {
             const winColor = winnerP.color || '#00E5FF';
             partSys.spawnShockwave(clashX, clashY, 45, winColor, 0.3);
             partSys.spawnPixelBurst(clashX, clashY, winColor, 20, 180, 0.45, 4);
-            partSys.addFloatingText(clashX, clashY - 10, `${winnerP.skillData?.name || 'Projétil'} VENCEU! (-30% Dano)`, 'heal', false);
+            partSys.addFloatingText(clashX, clashY - 10, `⚔️ PROJÉTIL VENCEU! (-30% Dano)`, 'heal', false);
 
             this.engine.onLogMessage(
               `⚔️ <strong>CONFRONTO DE PROJÉTEIS!</strong> <strong>${winnerP.skillData?.name || 'Projétil'}</strong> destruiu o projétil adversário e manteve sua rota com dano reduzido para 70%!`,
